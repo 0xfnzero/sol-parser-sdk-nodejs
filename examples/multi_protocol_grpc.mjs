@@ -1,0 +1,109 @@
+/**
+ * Multi-Protocol gRPC Example
+ *
+ * Demonstrates subscribing to multiple DEX protocols simultaneously:
+ * PumpFun, PumpSwap, Raydium, Orca, Meteora, Bonk
+ *
+ * Run: node examples/multi_protocol_grpc.mjs
+ */
+
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
+
+const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+
+// All supported protocol program IDs
+const PROGRAM_IDS = [
+  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // PumpFun
+  "pAMMBay6oceH9fJKBRdGP4LmT4saRGfEE7xmrCaGWpZ", // PumpSwap
+  "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8", // Raydium AMM V4
+  "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK", // Raydium CLMM
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C", // Raydium CPMM
+  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",  // Orca Whirlpool
+  "Eo7WjKq67rjJQDd1d4dSYkT7LeHVAaFL1K7dajEgrpwz", // Meteora DAMM V2
+  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",  // Meteora DLMM
+  "BUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",   // Meteora AMM
+  "ZBDi6bFMqBLBeQFMkGSTPQHWgSuSBqMzTXSK2b6TBBW",  // Bonk
+];
+
+const stats = {};
+
+async function main() {
+  console.log("🚀 Multi-Protocol gRPC Example");
+  console.log("================================\n");
+  console.log(`📡 Endpoint: ${ENDPOINT}`);
+  console.log(`📊 Protocols: PumpFun, PumpSwap, Raydium, Orca, Meteora, Bonk\n`);
+
+  const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
+
+  const filter = {
+    account_include: PROGRAM_IDS,
+    account_exclude: [],
+    account_required: [],
+    vote: false,
+    failed: false,
+  };
+
+  const sub = await client.subscribeTransactions(filter, {
+    onUpdate: (update) => {
+      if (!update.transaction?.transaction) return;
+      const txInfo = update.transaction.transaction;
+      const slot = update.transaction.slot;
+      const logs = txInfo.metaRaw?.logMessages;
+      if (!Array.isArray(logs) || logs.length === 0) return;
+
+      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
+      const events = parseLogsOnly(logs, sig, Number(slot), undefined);
+
+      for (const ev of events) {
+        const key = Object.keys(ev)[0];
+        stats[key] = (stats[key] || 0) + 1;
+
+        const data = ev[key];
+        console.log(`[${new Date().toISOString()}] ${key}`);
+        console.log(`  sig  : ${sig} | slot: ${slot}`);
+        if (data?.mint) console.log(`  mint : ${data.mint}`);
+        if (data?.pool) console.log(`  pool : ${data.pool}`);
+        if (data?.user) console.log(`  user : ${data.user}`);
+        if (data?.sol_amount !== undefined) console.log(`  sol  : ${data.sol_amount} lamports`);
+        if (data?.token_amount !== undefined) console.log(`  token: ${data.token_amount}`);
+        console.log();
+      }
+    },
+    onError: (err) => console.error("Stream error:", err.message),
+    onEnd: () => console.log("Stream ended"),
+  });
+
+  console.log(`✅ Subscribed (id=${sub.id})`);
+  console.log("🛑 Press Ctrl+C to stop...\n");
+
+  // Print stats every 30 seconds
+  setInterval(() => {
+    if (Object.keys(stats).length === 0) return;
+    console.log("\n📊 Event Statistics:");
+    for (const [k, v] of Object.entries(stats).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${k.padEnd(35)}: ${v}`);
+    }
+    console.log();
+  }, 30000);
+
+  process.on("SIGINT", () => {
+    client.unsubscribe(sub.id);
+    console.log("\n📊 Final Event Statistics:");
+    for (const [k, v] of Object.entries(stats).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${k.padEnd(35)}: ${v}`);
+    }
+    process.exit(0);
+  });
+}
+
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});
