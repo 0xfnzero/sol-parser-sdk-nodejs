@@ -31,12 +31,18 @@
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
-<p align="center">
-    <a href="https://github.com/0xfnzero/sol-parser-sdk">Rust</a> |
-    <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs"><strong>Node.js</strong></a> |
-    <a href="https://github.com/0xfnzero/sol-parser-sdk-python">Python</a> |
-    <a href="https://github.com/0xfnzero/sol-parser-sdk-golang">Go</a>
-</p>
+---
+
+## 📦 SDK Versions
+
+This SDK is available in multiple languages:
+
+| Language | Repository | Description |
+|----------|------------|-------------|
+| **Rust** | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Ultra-low latency with SIMD optimization |
+| **Node.js** | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | TypeScript/JavaScript for Node.js |
+| **Python** | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | Async/await native support |
+| **Go** | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | Concurrent-safe with goroutine support |
 
 ---
 
