@@ -31,6 +31,13 @@
     <a href="https://discord.gg/vuazbGkqQE">Discord</a>
 </p>
 
+<p align="center">
+    <a href="https://github.com/0xfnzero/sol-parser-sdk">Rust</a> |
+    <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs"><strong>Node.js</strong></a> |
+    <a href="https://github.com/0xfnzero/sol-parser-sdk-python">Python</a> |
+    <a href="https://github.com/0xfnzero/sol-parser-sdk-golang">Go</a>
+</p>
+
 ---
 
 ## 📊 性能亮点
