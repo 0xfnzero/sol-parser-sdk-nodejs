@@ -291,6 +291,107 @@ export function eventTypeFilterIncludesMeteoraDammV2(filter: EventTypeFilter): b
   return true;
 }
 
+/** 过滤器是否包含 Raydium CLMM 相关类型 */
+export function eventTypeFilterIncludesRaydiumClmm(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) =>
+      [
+        "RaydiumClmmSwap",
+        "RaydiumClmmIncreaseLiquidity",
+        "RaydiumClmmDecreaseLiquidity",
+        "RaydiumClmmCreatePool",
+      ].includes(t)
+    );
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) =>
+      [
+        "RaydiumClmmSwap",
+        "RaydiumClmmIncreaseLiquidity",
+        "RaydiumClmmDecreaseLiquidity",
+        "RaydiumClmmCreatePool",
+      ].includes(t)
+    );
+  }
+  return true;
+}
+
+/** 过滤器是否包含 Raydium CPMM 相关类型 */
+export function eventTypeFilterIncludesRaydiumCpmm(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) =>
+      [
+        "RaydiumCpmmSwap",
+        "RaydiumCpmmDeposit",
+        "RaydiumCpmmWithdraw",
+      ].includes(t)
+    );
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) =>
+      [
+        "RaydiumCpmmSwap",
+        "RaydiumCpmmDeposit",
+        "RaydiumCpmmWithdraw",
+      ].includes(t)
+    );
+  }
+  return true;
+}
+
+/** 过滤器是否包含 Raydium AMM V4 相关类型 */
+export function eventTypeFilterIncludesRaydiumAmmV4(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) =>
+      ["RaydiumAmmV4Swap"].includes(t)
+    );
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) =>
+      ["RaydiumAmmV4Swap"].includes(t)
+    );
+  }
+  return true;
+}
+
+/** 过滤器是否包含 Orca Whirlpool 相关类型 */
+export function eventTypeFilterIncludesOrcaWhirlpool(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) =>
+      [
+        "OrcaWhirlpoolSwap",
+        "OrcaWhirlpoolLiquidityIncreased",
+        "OrcaWhirlpoolLiquidityDecreased",
+      ].includes(t)
+    );
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) =>
+      [
+        "OrcaWhirlpoolSwap",
+        "OrcaWhirlpoolLiquidityIncreased",
+        "OrcaWhirlpoolLiquidityDecreased",
+      ].includes(t)
+    );
+  }
+  return true;
+}
+
+/** 过滤器是否包含 Bonk Launchpad 相关类型 */
+export function eventTypeFilterIncludesBonk(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) =>
+      ["BonkTrade", "BonkPoolCreate"].includes(t)
+    );
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) =>
+      ["BonkTrade", "BonkPoolCreate"].includes(t)
+    );
+  }
+  return true;
+}
+
 /**
  * `parseInstructionUnified` 前置白名单：仅当 `include_only` 与下列指令相关类型有交集时才解析指令。
  * 若白名单中不含下列任一类型，则整条指令解析入口返回 null。

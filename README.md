@@ -99,21 +99,21 @@ GEYSER_API_TOKEN=your_token node examples/pumpswap_low_latency.mjs
 
 ### Examples
 
-| Example | Description | Command |
-|---------|-------------|---------|
+| Description | Command | Source Code |
+|-------------|---------|-------------|
 | **PumpFun** | | |
-| `pumpfun_with_metrics` | PumpFun event parsing with detailed performance metrics | `node examples/pumpfun_with_metrics.mjs` |
-| `pumpfun_trade_filter` | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn/Create) | `node examples/pumpfun_trade_filter.mjs` |
-| `pumpfun_quick_test` | Quick PumpFun connection test (first 10 events) | `node examples/pumpfun_quick_test.mjs` |
+| PumpFun event parsing with detailed performance metrics | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
+| PumpFun trade type filtering (Buy/Sell/BuyExactSolIn/Create) | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |
+| Quick PumpFun connection test (first 10 events) | `node examples/pumpfun_quick_test.mjs` | [examples/pumpfun_quick_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.mjs) |
 | **PumpSwap** | | |
-| `pumpswap_with_metrics` | PumpSwap events with per-event and 10s performance stats | `node examples/pumpswap_with_metrics.mjs` |
-| `pumpswap_low_latency` | PumpSwap ultra-low latency (full event data) | `node examples/pumpswap_low_latency.mjs` |
+| PumpSwap events with per-event and 10s performance stats | `node examples/pumpswap_with_metrics.mjs` | [examples/pumpswap_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.mjs) |
+| PumpSwap ultra-low latency (full event data) | `node examples/pumpswap_low_latency.mjs` | [examples/pumpswap_low_latency.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.mjs) |
 | **Meteora DAMM** | | |
-| `meteora_damm_grpc` | Meteora DAMM V2 gRPC (Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition) | `node examples/meteora_damm_grpc.mjs` |
+| Meteora DAMM V2 gRPC (Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition) | `node examples/meteora_damm_grpc.mjs` | [examples/meteora_damm_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.mjs) |
 | **Multi-Protocol** | | |
-| `multi_protocol_grpc` | Subscribe to all DEX protocols simultaneously | `node examples/multi_protocol_grpc.mjs` |
+| Subscribe to all DEX protocols simultaneously | `node examples/multi_protocol_grpc.mjs` | [examples/multi_protocol_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.mjs) |
 | **Utility** | | |
-| `parse_tx_by_signature` | Parse a specific transaction from RPC by signature | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` |
+| Parse a specific transaction from RPC by signature | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` | [examples/parse_tx_by_signature.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.mjs) |
 
 ### Basic Usage
 
@@ -350,18 +350,6 @@ sol-parser-sdk-nodejs/
 - Direct event delivery via callbacks
 - No intermediate queue overhead
 - Immediate processing on receipt
-
----
-
-## 📊 Benchmarks
-
-### Parsing Latency (Node.js v18+)
-| Protocol | Avg Latency | Min | Max |
-|----------|-------------|-----|-----|
-| PumpFun Trade | 0.5-1ms | 0.3ms | 2ms |
-| PumpSwap Buy/Sell | 0.5-1ms | 0.3ms | 2ms |
-| Raydium AMM V4 Swap | 0.5-1ms | 0.3ms | 2ms |
-| Orca Whirlpool Swap | 0.5-1ms | 0.3ms | 2ms |
 
 ---
 
