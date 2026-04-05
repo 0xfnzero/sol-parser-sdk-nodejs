@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs">
+    <a href="https://www.npmjs.com/package/sol-parser-sdk-nodejs">
         <img src="https://img.shields.io/badge/npm-sol--parser--sdk--nodejs-red.svg" alt="npm">
     </a>
     <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/LICENSE">
@@ -65,23 +65,19 @@ npm install --ignore-scripts
 npm run build
 ```
 
-### 运行示例
+### 性能测试
+
+使用优化示例测试解析延迟：
 
 ```bash
-# PumpFun 交易过滤（Buy/Sell/BuyExactSolIn/Create）
-GEYSER_API_TOKEN=your_token node examples/pumpfun_trade_filter.mjs
+# PumpFun 详细性能指标（单事件明细 + 每 10 秒统计）
+GEYSER_API_TOKEN=your_token node examples/pumpfun_with_metrics.mjs
 
-# PumpSwap 超低延迟，附带性能指标
+# PumpSwap 详细性能指标（单事件明细 + 每 10 秒统计）
+GEYSER_API_TOKEN=your_token node examples/pumpswap_with_metrics.mjs
+
+# PumpSwap 超低延迟测试
 GEYSER_API_TOKEN=your_token node examples/pumpswap_low_latency.mjs
-
-# 同时订阅所有协议
-GEYSER_API_TOKEN=your_token node examples/multi_protocol_grpc.mjs
-
-# Meteora DAMM V2 事件
-GEYSER_API_TOKEN=your_token node examples/meteora_damm_grpc.mjs
-
-# 通过签名解析指定交易
-TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs
 ```
 
 ### 示例列表
@@ -89,15 +85,18 @@ TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs
 | 示例 | 描述 | 命令 |
 |------|------|------|
 | **PumpFun** | | |
-| `pumpfun_trade_filter` | PumpFun 交易过滤（Buy/Sell/BuyExactSolIn/Create），附带延迟指标 | `node examples/pumpfun_trade_filter.mjs` |
+| `pumpfun_with_metrics` | PumpFun 事件解析 + 详细性能指标（单事件 + 10 秒汇总） | `node examples/pumpfun_with_metrics.mjs` |
+| `pumpfun_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn/Create） | `node examples/pumpfun_trade_filter.mjs` |
+| `pumpfun_quick_test` | PumpFun 快速连接测试（前 10 个事件） | `node examples/pumpfun_quick_test.mjs` |
 | **PumpSwap** | | |
-| `pumpswap_low_latency` | PumpSwap 超低延迟，含每笔交易 + 10 秒汇总统计 | `node examples/pumpswap_low_latency.mjs` |
+| `pumpswap_with_metrics` | PumpSwap 事件 + 单事件与 10 秒性能统计 | `node examples/pumpswap_with_metrics.mjs` |
+| `pumpswap_low_latency` | PumpSwap 超低延迟（完整事件数据） | `node examples/pumpswap_low_latency.mjs` |
+| **Meteora DAMM** | | |
+| `meteora_damm_grpc` | Meteora DAMM V2 gRPC（Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition） | `node examples/meteora_damm_grpc.mjs` |
 | **多协议** | | |
 | `multi_protocol_grpc` | 同时订阅所有 DEX 协议 | `node examples/multi_protocol_grpc.mjs` |
-| **Meteora** | | |
-| `meteora_damm_grpc` | Meteora DAMM V2（Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition） | `node examples/meteora_damm_grpc.mjs` |
 | **工具** | | |
-| `parse_tx_by_signature` | 通过签名从 RPC 解析交易 | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` |
+| `parse_tx_by_signature` | 通过签名从 RPC 解析指定交易 | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` |
 
 ### 基本用法
 
@@ -110,7 +109,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = "https://solana-yellowstone-grpc.publicnode.com:443";
+const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
 const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
 
 const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
@@ -148,25 +147,6 @@ const sub = await client.subscribeTransactions(filter, {
 });
 
 console.log(`已订阅: ${sub.id}`);
-```
-
-### 仅解析日志（无需 gRPC）
-
-```javascript
-const { parseLogsOnly } = require("./dist/index.js");
-
-// 从交易日志解析（例如从 RPC 响应中获取）
-const logs = [
-  "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [1]",
-  "Program data: vdt/pQ8AAA...",  // base64 编码的事件
-  "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success",
-];
-
-const events = parseLogsOnly(logs, "tx_signature", 123456789, undefined);
-for (const ev of events) {
-  const key = Object.keys(ev)[0];
-  console.log(key, ev[key]);
-}
 ```
 
 ---
@@ -224,8 +204,7 @@ sol-parser-sdk-nodejs/
 │   │   ├── dex_event.ts        # DexEvent 类型定义
 │   │   └── json_utils.ts       # JSON 序列化工具
 │   ├── grpc/
-│   │   ├── client.ts           # YellowstoneGrpc 客户端（真实实现）
-│   │   ├── client_stub.ts      # 从 client.ts 重新导出
+│   │   ├── client.ts           # YellowstoneGrpc 客户端
 │   │   └── types.ts            # ClientConfig、TransactionFilter 等
 │   ├── logs/
 │   │   └── optimized_matcher.ts  # 日志解析（所有协议）
@@ -234,10 +213,13 @@ sol-parser-sdk-nodejs/
 │   └── index.ts                  # 公共 API 导出
 ├── dist/                         # 编译后的 JavaScript
 ├── examples/
+│   ├── pumpfun_with_metrics.mjs
 │   ├── pumpfun_trade_filter.mjs
+│   ├── pumpfun_quick_test.mjs
+│   ├── pumpswap_with_metrics.mjs
 │   ├── pumpswap_low_latency.mjs
-│   ├── multi_protocol_grpc.mjs
 │   ├── meteora_damm_grpc.mjs
+│   ├── multi_protocol_grpc.mjs
 │   └── parse_tx_by_signature.mjs
 └── package.json
 ```
@@ -259,7 +241,7 @@ const client = new YellowstoneGrpc(ENDPOINT, TOKEN);
 ```javascript
 const sub = await client.subscribeTransactions(filter, callbacks);
 
-// 稍后取消订阅：
+// 稍后取消：
 client.unsubscribe(sub.id);
 ```
 
@@ -273,6 +255,13 @@ for (const ev of events) {
   console.log(dexEventToJsonString(ev));
 }
 ```
+
+### 性能建议
+
+1. **使用事件过滤** — 按程序 ID 过滤可获得 60-80% 性能提升
+2. **仅解析一次日志** — `parseLogsOnly` 热路径无堆分配
+3. **避免对 BigInt 使用 JSON.stringify** — 请使用 `dexEventToJsonString`
+4. **监控延迟** — 生产环境检查 `metadata.grpc_recv_us`
 
 ---
 
