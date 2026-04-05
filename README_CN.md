@@ -102,8 +102,8 @@ GEYSER_API_TOKEN=your_token node examples/pumpswap_low_latency.mjs
 
 ### 示例列表
 
-| 描述 | 命令 | 源码 |
-|------|------|------|
+| 描述 | 运行命令 | 源码 |
+|------|----------|------|
 | **PumpFun** | | |
 | PumpFun 事件解析 + 详细性能指标（单事件 + 10 秒汇总） | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
 | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn/Create） | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |

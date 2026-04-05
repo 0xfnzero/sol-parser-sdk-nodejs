@@ -112,8 +112,8 @@ GEYSER_API_TOKEN=your_token node examples/pumpswap_low_latency.mjs
 
 ### Examples
 
-| Description | Command | Source Code |
-|-------------|---------|-------------|
+| Description | Run Command | Source Code |
+|--------------|-------------|-------------|
 | **PumpFun** | | |
 | PumpFun event parsing with detailed performance metrics | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
 | PumpFun trade type filtering (Buy/Sell/BuyExactSolIn/Create) | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |
