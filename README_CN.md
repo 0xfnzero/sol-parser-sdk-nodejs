@@ -82,21 +82,21 @@ GEYSER_API_TOKEN=your_token node examples/pumpswap_low_latency.mjs
 
 ### 示例列表
 
-| 示例 | 描述 | 命令 |
+| 描述 | 命令 | 源码 |
 |------|------|------|
 | **PumpFun** | | |
-| `pumpfun_with_metrics` | PumpFun 事件解析 + 详细性能指标（单事件 + 10 秒汇总） | `node examples/pumpfun_with_metrics.mjs` |
-| `pumpfun_trade_filter` | PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn/Create） | `node examples/pumpfun_trade_filter.mjs` |
-| `pumpfun_quick_test` | PumpFun 快速连接测试（前 10 个事件） | `node examples/pumpfun_quick_test.mjs` |
+| PumpFun 事件解析 + 详细性能指标（单事件 + 10 秒汇总） | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
+| PumpFun 交易类型过滤（Buy/Sell/BuyExactSolIn/Create） | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |
+| PumpFun 快速连接测试（前 10 个事件） | `node examples/pumpfun_quick_test.mjs` | [examples/pumpfun_quick_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.mjs) |
 | **PumpSwap** | | |
-| `pumpswap_with_metrics` | PumpSwap 事件 + 单事件与 10 秒性能统计 | `node examples/pumpswap_with_metrics.mjs` |
-| `pumpswap_low_latency` | PumpSwap 超低延迟（完整事件数据） | `node examples/pumpswap_low_latency.mjs` |
+| PumpSwap 事件 + 单事件与 10 秒性能统计 | `node examples/pumpswap_with_metrics.mjs` | [examples/pumpswap_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.mjs) |
+| PumpSwap 超低延迟（完整事件数据） | `node examples/pumpswap_low_latency.mjs` | [examples/pumpswap_low_latency.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.mjs) |
 | **Meteora DAMM** | | |
-| `meteora_damm_grpc` | Meteora DAMM V2 gRPC（Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition） | `node examples/meteora_damm_grpc.mjs` |
+| Meteora DAMM V2 gRPC（Swap/AddLiquidity/RemoveLiquidity/CreatePosition/ClosePosition） | `node examples/meteora_damm_grpc.mjs` | [examples/meteora_damm_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.mjs) |
 | **多协议** | | |
-| `multi_protocol_grpc` | 同时订阅所有 DEX 协议 | `node examples/multi_protocol_grpc.mjs` |
+| 同时订阅所有 DEX 协议 | `node examples/multi_protocol_grpc.mjs` | [examples/multi_protocol_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.mjs) |
 | **工具** | | |
-| `parse_tx_by_signature` | 通过签名从 RPC 解析指定交易 | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` |
+| 通过签名从 RPC 解析指定交易 | `TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs` | [examples/parse_tx_by_signature.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.mjs) |
 
 ### 基本用法
 
