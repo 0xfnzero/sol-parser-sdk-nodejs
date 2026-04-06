@@ -140,12 +140,11 @@ export function newTransactionFilter(): TransactionFilter {
   return { account_include: [], account_exclude: [], account_required: [] };
 }
 
-/** 事件类型过滤标签（可按需扩展） */
+/** 事件类型过滤标签 */
 export type EventType =
+  // Block
   | "BlockMeta"
-  | "BonkTrade"
-  | "BonkPoolCreate"
-  | "BonkMigrateAmm"
+  // PumpFun
   | "PumpFunTrade"
   | "PumpFunBuy"
   | "PumpFunSell"
@@ -154,21 +153,151 @@ export type EventType =
   | "PumpFunCreateV2"
   | "PumpFunComplete"
   | "PumpFunMigrate"
+  // PumpSwap
+  | "PumpSwapTrade"
   | "PumpSwapBuy"
   | "PumpSwapSell"
   | "PumpSwapCreatePool"
   | "PumpSwapLiquidityAdded"
   | "PumpSwapLiquidityRemoved"
+  // Raydium CLMM
+  | "RaydiumClmmSwap"
+  | "RaydiumClmmIncreaseLiquidity"
+  | "RaydiumClmmDecreaseLiquidity"
+  | "RaydiumClmmCreatePool"
+  | "RaydiumClmmOpenPosition"
+  | "RaydiumClmmOpenPositionWithTokenExtNft"
+  | "RaydiumClmmClosePosition"
+  | "RaydiumClmmCollectFee"
+  // Raydium CPMM
+  | "RaydiumCpmmSwap"
+  | "RaydiumCpmmDeposit"
+  | "RaydiumCpmmWithdraw"
+  | "RaydiumCpmmInitialize"
+  // Raydium AMM V4
+  | "RaydiumAmmV4Swap"
+  | "RaydiumAmmV4Deposit"
+  | "RaydiumAmmV4Withdraw"
+  | "RaydiumAmmV4WithdrawPnl"
+  | "RaydiumAmmV4Initialize2"
+  // Orca Whirlpool
+  | "OrcaWhirlpoolSwap"
+  | "OrcaWhirlpoolLiquidityIncreased"
+  | "OrcaWhirlpoolLiquidityDecreased"
+  | "OrcaWhirlpoolPoolInitialized"
+  // Meteora Pools
+  | "MeteoraPoolsSwap"
+  | "MeteoraPoolsAddLiquidity"
+  | "MeteoraPoolsRemoveLiquidity"
+  | "MeteoraPoolsBootstrapLiquidity"
+  | "MeteoraPoolsPoolCreated"
+  | "MeteoraPoolsSetPoolFees"
+  // Meteora DAMM V2
   | "MeteoraDammV2Swap"
   | "MeteoraDammV2AddLiquidity"
   | "MeteoraDammV2RemoveLiquidity"
   | "MeteoraDammV2CreatePosition"
   | "MeteoraDammV2ClosePosition"
   | "MeteoraDammV2InitializePool"
+  // Meteora DLMM
+  | "MeteoraDlmmSwap"
+  | "MeteoraDlmmAddLiquidity"
+  | "MeteoraDlmmRemoveLiquidity"
+  | "MeteoraDlmmInitializePool"
+  | "MeteoraDlmmInitializeBinArray"
+  | "MeteoraDlmmCreatePosition"
+  | "MeteoraDlmmClosePosition"
+  | "MeteoraDlmmClaimFee"
+  // Bonk
+  | "BonkTrade"
+  | "BonkPoolCreate"
+  | "BonkMigrateAmm"
+  // Account types
   | "TokenAccount"
+  | "TokenInfo"
   | "NonceAccount"
   | "AccountPumpSwapGlobalConfig"
   | "AccountPumpSwapPool";
+
+/** 所有事件类型列表 */
+export const ALL_EVENT_TYPES: EventType[] = [
+  // Block
+  "BlockMeta",
+  // PumpFun
+  "PumpFunTrade",
+  "PumpFunBuy",
+  "PumpFunSell",
+  "PumpFunBuyExactSolIn",
+  "PumpFunCreate",
+  "PumpFunCreateV2",
+  "PumpFunComplete",
+  "PumpFunMigrate",
+  // PumpSwap
+  "PumpSwapTrade",
+  "PumpSwapBuy",
+  "PumpSwapSell",
+  "PumpSwapCreatePool",
+  "PumpSwapLiquidityAdded",
+  "PumpSwapLiquidityRemoved",
+  // Raydium CLMM
+  "RaydiumClmmSwap",
+  "RaydiumClmmIncreaseLiquidity",
+  "RaydiumClmmDecreaseLiquidity",
+  "RaydiumClmmCreatePool",
+  "RaydiumClmmOpenPosition",
+  "RaydiumClmmOpenPositionWithTokenExtNft",
+  "RaydiumClmmClosePosition",
+  "RaydiumClmmCollectFee",
+  // Raydium CPMM
+  "RaydiumCpmmSwap",
+  "RaydiumCpmmDeposit",
+  "RaydiumCpmmWithdraw",
+  "RaydiumCpmmInitialize",
+  // Raydium AMM V4
+  "RaydiumAmmV4Swap",
+  "RaydiumAmmV4Deposit",
+  "RaydiumAmmV4Withdraw",
+  "RaydiumAmmV4WithdrawPnl",
+  "RaydiumAmmV4Initialize2",
+  // Orca Whirlpool
+  "OrcaWhirlpoolSwap",
+  "OrcaWhirlpoolLiquidityIncreased",
+  "OrcaWhirlpoolLiquidityDecreased",
+  "OrcaWhirlpoolPoolInitialized",
+  // Meteora Pools
+  "MeteoraPoolsSwap",
+  "MeteoraPoolsAddLiquidity",
+  "MeteoraPoolsRemoveLiquidity",
+  "MeteoraPoolsBootstrapLiquidity",
+  "MeteoraPoolsPoolCreated",
+  "MeteoraPoolsSetPoolFees",
+  // Meteora DAMM V2
+  "MeteoraDammV2Swap",
+  "MeteoraDammV2AddLiquidity",
+  "MeteoraDammV2RemoveLiquidity",
+  "MeteoraDammV2CreatePosition",
+  "MeteoraDammV2ClosePosition",
+  "MeteoraDammV2InitializePool",
+  // Meteora DLMM
+  "MeteoraDlmmSwap",
+  "MeteoraDlmmAddLiquidity",
+  "MeteoraDlmmRemoveLiquidity",
+  "MeteoraDlmmInitializePool",
+  "MeteoraDlmmInitializeBinArray",
+  "MeteoraDlmmCreatePosition",
+  "MeteoraDlmmClosePosition",
+  "MeteoraDlmmClaimFee",
+  // Bonk
+  "BonkTrade",
+  "BonkPoolCreate",
+  "BonkMigrateAmm",
+  // Account types
+  "TokenAccount",
+  "TokenInfo",
+  "NonceAccount",
+  "AccountPumpSwapGlobalConfig",
+  "AccountPumpSwapPool",
+];
 
 export interface EventTypeFilter {
   include_only?: EventType[];
