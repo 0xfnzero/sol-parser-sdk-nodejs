@@ -4,25 +4,19 @@
  * 使用 `parseDexEventsFromGrpcTransactionInfo`（日志解析 + Rust gRPC 同款账户填充），
  * 再 `dexEventToJsonString(ev, 2)` 输出
  *
- * 运行（在 sol-parser-sdk-ts 目录，需先 npm run build）:
- *   node examples/pumpfun_grpc_json.mjs
+ * 运行（在包根目录，无需先 build）:
+ *   npx tsx examples/pumpfun_grpc_json.ts
  *
  * 环境变量:
- *   GRPC_URL / GRPC_TOKEN（优先），兼容 GEYSER_*；未设 token 时使用与 scripts/test-grpc-ts.mjs 相同的 public 默认
+ *   GRPC_URL / GRPC_TOKEN（优先），兼容 GEYSER_*；未设 token 时使用与 scripts/test-grpc-ts.ts 相同的 public 默认
  *   MAX_EVENTS  打印这么多条后退出；默认 0 = 一直打印，Ctrl+C 结束；设为正整数则凑满条数后退出
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const {
+import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} = require(path.join(__dirname, "../dist/index.js"));
+} from "../src/index.js";
 
 const DEFAULT_PUBLIC_TOKEN =
   "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";

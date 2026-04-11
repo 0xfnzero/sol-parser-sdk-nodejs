@@ -1,23 +1,16 @@
 /**
  * 验证：onUpdate 内同步抛错不会打断 gRPC 流（应由 SDK 捕获并走 onError，后续仍能收消息）
  *
- * 用法（在 sol-parser-sdk-ts 目录下）:
- *   npm run build
- *   node examples/grpc_onupdate_error_test.mjs
+ * 用法（在包根目录，无需先 build）:
+ *   npx tsx examples/grpc_onupdate_error_test.ts
  *
- * 环境变量（优先顺序，与 sol-parser-sdk-ts/scripts/test-grpc-ts.mjs 一致）:
+ * 环境变量（优先顺序，与 scripts/test-grpc-ts.ts 一致）:
  *   GRPC_URL / GRPC_TOKEN
  *   兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN
  *   未设置 token 时默认 public token（同 test-grpc-ts）
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const { YellowstoneGrpc } = require(path.join(__dirname, "../dist/index.js"));
+import { YellowstoneGrpc } from "../src/index.js";
 
 const DEFAULT_PUBLIC_TOKEN =
   "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";

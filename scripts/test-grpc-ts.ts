@@ -2,9 +2,8 @@
  * TypeScript/Node.js 集成测试
  * 连接 publicnode Yellowstone gRPC，订阅 PumpFun/PumpSwap 交易并用 sol-parser-sdk 解析
  *
- * 在 sol-parser-sdk-ts 目录下运行:
- *   npm run build
- *   node scripts/test-grpc-ts.mjs
+ * 在包根目录运行（无需先 build，直接跑源码）:
+ *   npx tsx scripts/test-grpc-ts.ts
  * 或: npm run test:grpc
  *
  * 环境变量:
@@ -16,19 +15,11 @@
  *   JSON_MAX_CHARS  限制每条事件 JSON 字符数（调试用）；不设或 0 = 不截断，输出完整 dexEventToJsonString
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-
-const sdkPath = path.join(__dirname, "../dist/index.js");
-const {
+import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} = require(sdkPath);
+} from "../src/index.js";
 
 const DEFAULT_PUBLIC_TOKEN =
   "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";

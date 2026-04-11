@@ -6,22 +6,12 @@
  * - Measure end-to-end latency
  * - Display per-event and periodic statistics
  *
- * Run: GRPC_URL=... GRPC_TOKEN=... node examples/pumpswap_low_latency.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... npx tsx examples/pumpswap_low_latency.ts
  * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const bs58 = require("bs58");
-const {
-  YellowstoneGrpc,
-  parseLogsOnly,
-  nowUs,
-} = require(path.join(__dirname, "../dist/index.js"));
+import bs58 from "bs58";
+import { YellowstoneGrpc, parseLogsOnly, nowUs } from "../src/index.js";
 
 const ENDPOINT =
   process.env.GRPC_URL ||

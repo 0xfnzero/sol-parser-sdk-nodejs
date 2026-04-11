@@ -4,18 +4,12 @@
  * Demonstrates subscribing to multiple DEX protocols simultaneously:
  * PumpFun, PumpSwap, Raydium, Orca, Meteora, Bonk
  *
- * Run: GRPC_URL=... GRPC_TOKEN=... node examples/multi_protocol_grpc.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... npx tsx examples/multi_protocol_grpc.ts
  * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const bs58 = require("bs58");
-const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
+import bs58 from "bs58";
+import { YellowstoneGrpc, parseLogsOnly } from "../src/index.js";
 
 const ENDPOINT =
   process.env.GRPC_URL ||
@@ -94,7 +88,9 @@ async function main() {
   setInterval(() => {
     if (Object.keys(stats).length === 0) return;
     console.log("\n📊 Event Statistics:");
-    for (const [k, v] of Object.entries(stats).sort((a, b) => b[1] - a[1])) {
+    for (const [k, v] of Object.entries(stats).sort(
+      (a, b) => Number(b[1]) - Number(a[1])
+    )) {
       console.log(`  ${k.padEnd(35)}: ${v}`);
     }
     console.log();
@@ -103,7 +99,9 @@ async function main() {
   process.on("SIGINT", () => {
     client.unsubscribe(sub.id);
     console.log("\n📊 Final Event Statistics:");
-    for (const [k, v] of Object.entries(stats).sort((a, b) => b[1] - a[1])) {
+    for (const [k, v] of Object.entries(stats).sort(
+      (a, b) => Number(b[1]) - Number(a[1])
+    )) {
       console.log(`  ${k.padEnd(35)}: ${v}`);
     }
     process.exit(0);

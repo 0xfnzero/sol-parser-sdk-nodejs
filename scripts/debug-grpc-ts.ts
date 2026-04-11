@@ -1,19 +1,11 @@
 /**
  * 调试：打印收到的 update 结构，确认 logMessages 位置
  *
- * 在 sol-parser-sdk-ts 目录下: node scripts/debug-grpc-ts.mjs
+ * 在包根目录: npx tsx scripts/debug-grpc-ts.ts
  * 或: npm run debug:grpc
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-
-const sdkPath = path.join(__dirname, "../dist/index.js");
-const { YellowstoneGrpc } = require(sdkPath);
+import { YellowstoneGrpc } from "../src/index.js";
 
 const DEFAULT_PUBLIC_TOKEN =
   "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";

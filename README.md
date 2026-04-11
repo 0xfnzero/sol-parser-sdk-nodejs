@@ -94,20 +94,20 @@ npm install sol-parser-sdk-nodejs
 
 ### Performance Testing
 
-From the **package root** (`sol-parser-sdk-ts/`), after `npm run build`:
+From the **package root** (`sol-parser-sdk-ts/`). Examples use **`npx tsx`** and import **`src/`** directly — **no `npm run build` required** to run them (install deps once: `npm install`).
 
 ```bash
 # Integration test: PumpFun + PumpSwap, parsed events with account fills (same path as Rust gRPC)
 GRPC_URL=https://solana-yellowstone-grpc.publicnode.com:443 GRPC_TOKEN=your_token npm run test:grpc
 
 # PumpFun with detailed metrics (per-event + 10s stats)
-GRPC_TOKEN=your_token node examples/pumpfun_with_metrics.mjs
+GRPC_TOKEN=your_token npx tsx examples/pumpfun_with_metrics.ts
 
 # PumpSwap with detailed metrics (per-event + 10s stats)
-GRPC_TOKEN=your_token node examples/pumpswap_with_metrics.mjs
+GRPC_TOKEN=your_token npx tsx examples/pumpswap_with_metrics.ts
 
 # PumpSwap ultra-low latency test
-GRPC_TOKEN=your_token node examples/pumpswap_low_latency.mjs
+GRPC_TOKEN=your_token npx tsx examples/pumpswap_low_latency.ts
 ```
 
 ### Environment variables (gRPC examples)
@@ -118,43 +118,43 @@ GRPC_TOKEN=your_token node examples/pumpswap_low_latency.mjs
 | **`GRPC_TOKEN`** | `x-token` for the endpoint (preferred) |
 | **`GEYSER_ENDPOINT`** | Alias for `GRPC_URL` (backward compatible) |
 | **`GEYSER_API_TOKEN`** | Alias for `GRPC_TOKEN` (backward compatible) |
-| **`MAX_EVENTS`** | In `*_grpc_json.mjs` and `npm run test:grpc`: stop after N parsed events; `0` = run until Ctrl+C |
+| **`MAX_EVENTS`** | In `*_grpc_json.ts` and `npm run test:grpc`: stop after N parsed events; `0` = run until Ctrl+C |
 | **`TIMEOUT_MS`** | `npm run test:grpc` only: auto-exit after N ms; `0` = no timeout (can combine with `MAX_EVENTS`, whichever first) |
 | **`JSON_PRETTY`** | `npm run test:grpc`: set to `1` or `true` for indented JSON (default is compact one-line) |
 | **`JSON_MAX_CHARS`** | `npm run test:grpc`: max characters per event line; unset or `0` = no truncation |
-| **`RPC_URL`** | `parse_tx_by_signature.mjs` only: Solana HTTP RPC (default `https://api.mainnet-beta.solana.com`) |
+| **`RPC_URL`** | `parse_tx_by_signature.ts` only: Solana HTTP RPC (default `https://api.mainnet-beta.solana.com`) |
 
 Some scripts ship a default public token for public endpoints; for production, set `GRPC_TOKEN` explicitly.
 
 ### Examples
 
-All commands assume the **package root** and `npm run build` already run.
+All commands assume the **package root** and `npm install` (examples use `tsx` + `src/`; no build required for examples).
 
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
 | **Scripts (package)** | | |
-| gRPC integration test (PumpFun + PumpSwap, account-filled `DexEvent`) | `npm run test:grpc` | [scripts/test-grpc-ts.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.mjs) |
-| Debug: print `metaRaw` / log structure | `npm run debug:grpc` | [scripts/debug-grpc-ts.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.mjs) |
+| gRPC integration test (PumpFun + PumpSwap, account-filled `DexEvent`) | `npm run test:grpc` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
+| Debug: print `metaRaw` / log structure | `npm run debug:grpc` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
-| Pretty-print **full JSON** `DexEvent` over gRPC (Rust-compatible fields) | `node examples/pumpfun_grpc_json.mjs` | [examples/pumpfun_grpc_json.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.mjs) |
-| PumpFun event parsing with metrics | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
-| PumpFun trade type filtering | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |
-| Quick PumpFun connection test | `node examples/pumpfun_quick_test.mjs` | [examples/pumpfun_quick_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.mjs) |
+| Pretty-print **full JSON** `DexEvent` over gRPC (Rust-compatible fields) | `npx tsx examples/pumpfun_grpc_json.ts` | [examples/pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
+| PumpFun event parsing with metrics | `npx tsx examples/pumpfun_with_metrics.ts` | [examples/pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
+| PumpFun trade type filtering | `npx tsx examples/pumpfun_trade_filter.ts` | [examples/pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
+| Quick PumpFun connection test | `npx tsx examples/pumpfun_quick_test.ts` | [examples/pumpfun_quick_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.ts) |
 | **PumpSwap** | | |
-| Pretty-print **full JSON** `DexEvent` over gRPC (Rust-compatible fields) | `node examples/pumpswap_grpc_json.mjs` | [examples/pumpswap_grpc_json.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.mjs) |
-| PumpSwap events with metrics | `node examples/pumpswap_with_metrics.mjs` | [examples/pumpswap_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.mjs) |
-| PumpSwap ultra-low latency | `node examples/pumpswap_low_latency.mjs` | [examples/pumpswap_low_latency.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.mjs) |
+| Pretty-print **full JSON** `DexEvent` over gRPC (Rust-compatible fields) | `npx tsx examples/pumpswap_grpc_json.ts` | [examples/pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) |
+| PumpSwap events with metrics | `npx tsx examples/pumpswap_with_metrics.ts` | [examples/pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) |
+| PumpSwap ultra-low latency | `npx tsx examples/pumpswap_low_latency.ts` | [examples/pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
-| Meteora DAMM V2 events | `node examples/meteora_damm_grpc.mjs` | [examples/meteora_damm_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.mjs) |
+| Meteora DAMM V2 events | `npx tsx examples/meteora_damm_grpc.ts` | [examples/meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **Multi-Protocol** | | |
-| Subscribe to all DEX protocols | `node examples/multi_protocol_grpc.mjs` | [examples/multi_protocol_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.mjs) |
+| Subscribe to all DEX protocols | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **Utility / QA** | | |
-| Verify `onUpdate` sync errors do not kill the gRPC stream | `node examples/grpc_onupdate_error_test.mjs` | [examples/grpc_onupdate_error_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.mjs) |
-| Parse tx by signature via **`parseTransactionFromRpc`** (full RPC path; not gRPC) | `TX_SIGNATURE=<sig> [RPC_URL=...] node examples/parse_tx_by_signature.mjs` | [examples/parse_tx_by_signature.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.mjs) |
+| Verify `onUpdate` sync errors do not kill the gRPC stream | `npx tsx examples/grpc_onupdate_error_test.ts` | [examples/grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) |
+| Parse tx by signature via **`parseTransactionFromRpc`** (full RPC path; not gRPC) | `TX_SIGNATURE=<sig> [RPC_URL=...] npx tsx examples/parse_tx_by_signature.ts` | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
 
 **Example notes**
 
-- **`parse_tx_by_signature.mjs`** requires **`TX_SIGNATURE`** (Base58). Optional **`RPC_URL`** for archive or dedicated endpoints.
+- **`parse_tx_by_signature.ts`** requires **`TX_SIGNATURE`** (Base58). Optional **`RPC_URL`** for archive or dedicated endpoints.
 - gRPC examples that call **`parseLogsOnly`** pass the transaction signature as **Base58** (from `txInfo.signature`), matching `EventMetadata.signature`.
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** measure delay using the SDK’s **`nowUs`** clock and `metadata.grpc_recv_us` (same time base).
 - **`meteora_damm_grpc`** and **`multi_protocol_grpc`** use program IDs aligned with `src/instr/program_ids.ts` (Meteora DAMM V2: `cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a`).
@@ -163,18 +163,13 @@ All commands assume the **package root** and `npm run build` already run.
 
 **Recommended (aligned with Rust gRPC `parse_logs`):** parse log lines **and** fill mint / pool token accounts from the compiled transaction using `transactionRaw` + `metaRaw` from the subscription:
 
-```javascript
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const {
+```typescript
+import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} = require(path.join(__dirname, "../dist/index.js"));
+} from "sol-parser-sdk-nodejs";
+// In this repository, examples use: from "../src/index.js" (run with `npx tsx`, no build step).
 
 const ENDPOINT =
   process.env.GRPC_URL ||
@@ -263,11 +258,10 @@ const eventFilter = {
 ```
 
 ### JSON Serialization
-```javascript
-const { dexEventToJsonString } = require("./dist/index.js");
+```typescript
+import { dexEventToJsonString } from "sol-parser-sdk-nodejs";
 
 for (const ev of events) {
-  // Handles BigInt serialization correctly
   console.log(dexEventToJsonString(ev));
 }
 ```
@@ -375,20 +369,20 @@ sol-parser-sdk-ts/   (npm: sol-parser-sdk-nodejs)
 │   └── index.ts                  # Public API exports
 ├── dist/                         # Compiled JavaScript
 ├── scripts/
-│   ├── test-grpc-ts.mjs          # npm run test:grpc
-│   └── debug-grpc-ts.mjs         # npm run debug:grpc
+│   ├── test-grpc-ts.ts           # npm run test:grpc (tsx + src)
+│   └── debug-grpc-ts.ts          # npm run debug:grpc
 ├── examples/
-│   ├── pumpfun_grpc_json.mjs
-│   ├── pumpswap_grpc_json.mjs
-│   ├── grpc_onupdate_error_test.mjs
-│   ├── pumpfun_with_metrics.mjs
-│   ├── pumpfun_trade_filter.mjs
-│   ├── pumpfun_quick_test.mjs
-│   ├── pumpswap_with_metrics.mjs
-│   ├── pumpswap_low_latency.mjs
-│   ├── meteora_damm_grpc.mjs
-│   ├── multi_protocol_grpc.mjs
-│   └── parse_tx_by_signature.mjs
+│   ├── pumpfun_grpc_json.ts
+│   ├── pumpswap_grpc_json.ts
+│   ├── grpc_onupdate_error_test.ts
+│   ├── pumpfun_with_metrics.ts
+│   ├── pumpfun_trade_filter.ts
+│   ├── pumpfun_quick_test.ts
+│   ├── pumpswap_with_metrics.ts
+│   ├── pumpswap_low_latency.ts
+│   ├── meteora_damm_grpc.ts
+│   ├── multi_protocol_grpc.ts
+│   └── parse_tx_by_signature.ts
 └── package.json
 ```
 

@@ -1,7 +1,7 @@
 /**
  * 校验 `dexEventToJsonString` 对嵌套 `bigint` 的序列化（与 Go/Python 十进制字符串管线一致）。
  */
-import { dexEventToJsonString } from "../dist/core/json_utils.js";
+import { dexEventToJsonString } from "../src/core/json_utils.js";
 
 const ev = {
   RaydiumClmmSwap: {

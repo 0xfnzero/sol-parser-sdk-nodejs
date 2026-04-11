@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * 对比编译产物中的 discriminator 与 scripts/program-log-discriminators.json。
- * 须先 `npm run build`。
+ * 对比 `src/logs/program_log_discriminators.ts` 与 scripts/program-log-discriminators.json。
+ * 通过 tsx 直接加载源码，无需先 build。
  */
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,12 +21,7 @@ function toBig(bytes) {
 async function main() {
   const snapPath = path.join(__dirname, "program-log-discriminators.json");
   const snap = JSON.parse(fs.readFileSync(snapPath, "utf8"));
-  const distMod = path.join(__dirname, "../dist/logs/program_log_discriminators.js");
-  if (!fs.existsSync(distMod)) {
-    console.error("[verify-discriminators] 请先执行 npm run build（缺少 dist/logs/program_log_discriminators.js）");
-    process.exit(1);
-  }
-  const { PUMPSWAP_DISC, PROGRAM_LOG_DISC } = await import(pathToFileURL(distMod).href);
+  const { PUMPSWAP_DISC, PROGRAM_LOG_DISC } = await import("../src/logs/program_log_discriminators.js");
 
   let failed = false;
 

@@ -82,20 +82,20 @@ npm run build
 
 ### 性能测试
 
-在**本包根目录**（`sol-parser-sdk-ts/`）执行，需先 `npm run build`：
+在**本包根目录**（`sol-parser-sdk-ts/`）执行。示例使用 **`npx tsx`** 直接加载 **`src/`**，**无需先 `npm run build`**（首次需 `npm install`）。
 
 ```bash
 # 集成测试：PumpFun + PumpSwap，含账户填充的 DexEvent（与 Rust gRPC 路径一致）
 GRPC_URL=https://solana-yellowstone-grpc.publicnode.com:443 GRPC_TOKEN=你的token npm run test:grpc
 
 # PumpFun 详细性能指标（单事件明细 + 每 10 秒统计）
-GRPC_TOKEN=你的token node examples/pumpfun_with_metrics.mjs
+GRPC_TOKEN=你的token npx tsx examples/pumpfun_with_metrics.ts
 
 # PumpSwap 详细性能指标（单事件明细 + 每 10 秒统计）
-GRPC_TOKEN=你的token node examples/pumpswap_with_metrics.mjs
+GRPC_TOKEN=你的token npx tsx examples/pumpswap_with_metrics.ts
 
 # PumpSwap 超低延迟测试
-GRPC_TOKEN=你的token node examples/pumpswap_low_latency.mjs
+GRPC_TOKEN=你的token npx tsx examples/pumpswap_low_latency.ts
 ```
 
 ### 环境变量（gRPC 示例）
@@ -106,43 +106,43 @@ GRPC_TOKEN=你的token node examples/pumpswap_low_latency.mjs
 | **`GRPC_TOKEN`** | 对应端点的 `x-token`（优先使用） |
 | **`GEYSER_ENDPOINT`** | 与 `GRPC_URL` 同义，兼容旧配置 |
 | **`GEYSER_API_TOKEN`** | 与 `GRPC_TOKEN` 同义，兼容旧配置 |
-| **`MAX_EVENTS`** | `*_grpc_json.mjs` 与 `npm run test:grpc`：解析满 N 条事件后退出；`0` 表示持续运行直到 Ctrl+C |
+| **`MAX_EVENTS`** | `*_grpc_json.ts` 与 `npm run test:grpc`：解析满 N 条事件后退出；`0` 表示持续运行直到 Ctrl+C |
 | **`TIMEOUT_MS`** | 仅 `npm run test:grpc`：运行 N 毫秒后自动退出；`0` 表示不超时（可与 `MAX_EVENTS` 同时设，先满足任一条件即退出） |
 | **`JSON_PRETTY`** | `npm run test:grpc`：设为 `1` 或 `true` 时多行缩进打印（默认单行紧凑 JSON） |
 | **`JSON_MAX_CHARS`** | `npm run test:grpc`：每条事件 JSON 最大字符数；不设或 `0` 表示不截断 |
-| **`RPC_URL`** | 仅 `parse_tx_by_signature.mjs`：Solana HTTP RPC（默认 `https://api.mainnet-beta.solana.com`） |
+| **`RPC_URL`** | 仅 `parse_tx_by_signature.ts`：Solana HTTP RPC（默认 `https://api.mainnet-beta.solana.com`） |
 
 部分脚本对公共节点带默认 token；生产环境请显式设置 `GRPC_TOKEN`。
 
 ### 示例列表
 
-以下命令均在**本包根目录**执行，且已 `npm run build`。
+以下命令均在**本包根目录**执行；示例依赖 `npm install`（含 `tsx`），**跑示例不必先 `npm run build`**。
 
 | 描述 | 运行命令 | 源码 |
 |------|----------|------|
 | **本包脚本** | | |
-| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 DexEvent） | `npm run test:grpc` | [scripts/test-grpc-ts.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.mjs) |
-| 调试：打印 meta / 日志结构 | `npm run debug:grpc` | [scripts/debug-grpc-ts.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.mjs) |
+| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 DexEvent） | `npm run test:grpc` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
+| 调试：打印 meta / 日志结构 | `npm run debug:grpc` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
-| gRPC 订阅并输出**完整 JSON** DexEvent（字段与 Rust 对齐） | `node examples/pumpfun_grpc_json.mjs` | [examples/pumpfun_grpc_json.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.mjs) |
-| PumpFun 事件解析 + 性能指标 | `node examples/pumpfun_with_metrics.mjs` | [examples/pumpfun_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.mjs) |
-| PumpFun 交易类型过滤 | `node examples/pumpfun_trade_filter.mjs` | [examples/pumpfun_trade_filter.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.mjs) |
-| PumpFun 快速连接测试 | `node examples/pumpfun_quick_test.mjs` | [examples/pumpfun_quick_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.mjs) |
+| gRPC 订阅并输出**完整 JSON** DexEvent（字段与 Rust 对齐） | `npx tsx examples/pumpfun_grpc_json.ts` | [examples/pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
+| PumpFun 事件解析 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [examples/pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
+| PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [examples/pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
+| PumpFun 快速连接测试 | `npx tsx examples/pumpfun_quick_test.ts` | [examples/pumpfun_quick_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.ts) |
 | **PumpSwap** | | |
-| gRPC 订阅并输出**完整 JSON** DexEvent（字段与 Rust 对齐） | `node examples/pumpswap_grpc_json.mjs` | [examples/pumpswap_grpc_json.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.mjs) |
-| PumpSwap 事件 + 性能统计 | `node examples/pumpswap_with_metrics.mjs` | [examples/pumpswap_with_metrics.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.mjs) |
-| PumpSwap 超低延迟 | `node examples/pumpswap_low_latency.mjs` | [examples/pumpswap_low_latency.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.mjs) |
+| gRPC 订阅并输出**完整 JSON** DexEvent（字段与 Rust 对齐） | `npx tsx examples/pumpswap_grpc_json.ts` | [examples/pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) |
+| PumpSwap 事件 + 性能统计 | `npx tsx examples/pumpswap_with_metrics.ts` | [examples/pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) |
+| PumpSwap 超低延迟 | `npx tsx examples/pumpswap_low_latency.ts` | [examples/pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
-| Meteora DAMM V2 事件 | `node examples/meteora_damm_grpc.mjs` | [examples/meteora_damm_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.mjs) |
+| Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [examples/meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **多协议** | | |
-| 同时订阅所有 DEX 协议 | `node examples/multi_protocol_grpc.mjs` | [examples/multi_protocol_grpc.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.mjs) |
+| 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **工具 / 测试** | | |
-| 验证 onUpdate 同步抛错不会打断 gRPC 流 | `node examples/grpc_onupdate_error_test.mjs` | [examples/grpc_onupdate_error_test.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.mjs) |
-| 通过签名解析交易（**`parseTransactionFromRpc`** 全量 RPC 路径；非 gRPC） | `TX_SIGNATURE=<sig> [RPC_URL=...] node examples/parse_tx_by_signature.mjs` | [examples/parse_tx_by_signature.mjs](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.mjs) |
+| 验证 onUpdate 同步抛错不会打断 gRPC 流 | `npx tsx examples/grpc_onupdate_error_test.ts` | [examples/grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) |
+| 通过签名解析交易（**`parseTransactionFromRpc`** 全量 RPC 路径；非 gRPC） | `TX_SIGNATURE=<sig> [RPC_URL=...] npx tsx examples/parse_tx_by_signature.ts` | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
 
 **示例说明**
 
-- **`parse_tx_by_signature.mjs`** 必须设置 **`TX_SIGNATURE`**（Base58）。可选 **`RPC_URL`**（归档节点或专用 RPC）。
+- **`parse_tx_by_signature.ts`** 必须设置 **`TX_SIGNATURE`**（Base58）。可选 **`RPC_URL`**（归档节点或专用 RPC）。
 - 使用 **`parseLogsOnly`** 的 gRPC 示例将签名编码为 **Base58**（来自 `txInfo.signature`），与 `EventMetadata.signature` 一致。
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** 使用 SDK 导出的 **`nowUs`** 与 `metadata.grpc_recv_us` 同一时钟基准统计延迟。
 - **`meteora_damm_grpc`** 与 **`multi_protocol_grpc`** 中的程序 ID 与 `src/instr/program_ids.ts` 对齐（Meteora DAMM V2：`cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a`）。
@@ -151,18 +151,13 @@ GRPC_TOKEN=你的token node examples/pumpswap_low_latency.mjs
 
 **推荐（与 Rust gRPC `parse_logs` 一致）：** 在解析 `Program data` 日志后，用订阅里的 **`transactionRaw` + `metaRaw`** 做账户填充，得到完整 `DexEvent`（如 PumpSwap 的 `base_mint`、池子 ATA 等）：
 
-```javascript
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const {
+```typescript
+import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} = require(path.join(__dirname, "../dist/index.js"));
+} from "sol-parser-sdk-nodejs";
+// 本仓库内示例使用：from "../src/index.js"（`npx tsx` 运行，无需先 build）
 
 const ENDPOINT =
   process.env.GRPC_URL ||
@@ -272,20 +267,20 @@ sol-parser-sdk-ts/   （npm 包名：sol-parser-sdk-nodejs）
 │   └── index.ts                  # 公共 API 导出
 ├── dist/                         # 编译后的 JavaScript
 ├── scripts/
-│   ├── test-grpc-ts.mjs          # npm run test:grpc
-│   └── debug-grpc-ts.mjs         # npm run debug:grpc
+│   ├── test-grpc-ts.ts           # npm run test:grpc（tsx + src）
+│   └── debug-grpc-ts.ts          # npm run debug:grpc
 ├── examples/
-│   ├── pumpfun_grpc_json.mjs
-│   ├── pumpswap_grpc_json.mjs
-│   ├── grpc_onupdate_error_test.mjs
-│   ├── pumpfun_with_metrics.mjs
-│   ├── pumpfun_trade_filter.mjs
-│   ├── pumpfun_quick_test.mjs
-│   ├── pumpswap_with_metrics.mjs
-│   ├── pumpswap_low_latency.mjs
-│   ├── meteora_damm_grpc.mjs
-│   ├── multi_protocol_grpc.mjs
-│   └── parse_tx_by_signature.mjs
+│   ├── pumpfun_grpc_json.ts
+│   ├── pumpswap_grpc_json.ts
+│   ├── grpc_onupdate_error_test.ts
+│   ├── pumpfun_with_metrics.ts
+│   ├── pumpfun_trade_filter.ts
+│   ├── pumpfun_quick_test.ts
+│   ├── pumpswap_with_metrics.ts
+│   ├── pumpswap_low_latency.ts
+│   ├── meteora_damm_grpc.ts
+│   ├── multi_protocol_grpc.ts
+│   └── parse_tx_by_signature.ts
 └── package.json
 ```
 
@@ -322,11 +317,10 @@ client.unsubscribe(sub.id);
 
 ### JSON 序列化
 
-```javascript
-const { dexEventToJsonString } = require("./dist/index.js");
+```typescript
+import { dexEventToJsonString } from "sol-parser-sdk-nodejs";
 
 for (const ev of events) {
-  // 正确处理 BigInt 序列化
   console.log(dexEventToJsonString(ev));
 }
 ```

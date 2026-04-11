@@ -24,16 +24,24 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "test:grpc": "node scripts/test-grpc-ts.mjs",
-    "debug:grpc": "node scripts/debug-grpc-ts.mjs",
-    "check:dex-events": "node scripts/check-dex-event-parity.mjs",
-    "verify:discriminators": "node scripts/verify-program-log-discriminators.mjs",
-    "check:json-utils": "node scripts/check-json-utils.mjs",
-    "check:migration": "npm run build && npm run check:dex-events && npm run verify:discriminators && npm run check:json-utils"
+    "test:grpc": "tsx scripts/test-grpc-ts.ts",
+    "debug:grpc": "tsx scripts/debug-grpc-ts.ts",
+    "check:dex-events": "tsx scripts/check-dex-event-parity.ts",
+    "verify:discriminators": "tsx scripts/verify-program-log-discriminators.ts",
+    "check:json-utils": "tsx scripts/check-json-utils.ts",
+    "check:migration": "npm run check:dex-events && npm run verify:discriminators && npm run check:json-utils && npm run build"
   },
-  "keywords": ["solana", "dex", "parser", "pumpfun", "raydium"],
+  "keywords": [
+    "solana",
+    "dex",
+    "parser",
+    "pumpfun",
+    "raydium"
+  ],
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^22.19.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3"
   },
   "dependencies": {

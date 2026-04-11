@@ -4,23 +4,18 @@
  * 使用 `parseTransactionFromRpc`：拉取完整 RPC 交易并走 `parseRpcTransaction`
  *（指令 + 日志 + 账户填充），与仅 `parseLogsOnly` 的轻量路径不同。
  *
- * Usage: TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs
+ * Usage: TX_SIGNATURE=<sig> npx tsx examples/parse_tx_by_signature.ts
  *
  * Example:
- *   TX_SIGNATURE=5Yw...abc RPC_URL=https://api.mainnet-beta.solana.com node examples/parse_tx_by_signature.mjs
+ *   TX_SIGNATURE=5Yw...abc RPC_URL=https://api.mainnet-beta.solana.com npx tsx examples/parse_tx_by_signature.ts
  */
 
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
 import { Connection } from "@solana/web3.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
-const {
+import {
   parseTransactionFromRpc,
   dexEventToJsonString,
-} = require(path.join(__dirname, "../dist/index.js"));
+  formatParseError,
+} from "../src/index.js";
 
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
 
@@ -29,8 +24,8 @@ async function main() {
   if (!sig) {
     console.error(
       "请设置 TX_SIGNATURE（Base58 交易签名）。示例:\n" +
-        "  TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs\n" +
-        "  TX_SIGNATURE=<sig> RPC_URL=https://api.mainnet-beta.solana.com node examples/parse_tx_by_signature.mjs"
+        "  TX_SIGNATURE=<sig> npx tsx examples/parse_tx_by_signature.ts\n" +
+        "  TX_SIGNATURE=<sig> RPC_URL=https://api.mainnet-beta.solana.com npx tsx examples/parse_tx_by_signature.ts"
     );
     process.exit(1);
   }
@@ -45,7 +40,7 @@ async function main() {
   const result = await parseTransactionFromRpc(connection, sig);
 
   if (!result.ok) {
-    console.error("Parse failed:", result.error.message);
+    console.error("Parse failed:", formatParseError(result.error));
     process.exit(1);
   }
 
