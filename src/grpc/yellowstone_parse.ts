@@ -41,9 +41,9 @@ export function parseDexEventsFromGrpcTransactionInfo(
   if (!Array.isArray(logs) || logs.length === 0) return [];
 
   const slotNum = typeof slot === "bigint" ? Number(slot) : Number(slot);
-  const sigHint = bs58.encode(Uint8Array.from(info.signature)) + "...";
+  const signatureBase58 = bs58.encode(Uint8Array.from(info.signature));
 
-  const events = parseLogsOnly(logs, sigHint, slotNum, options?.blockTimeUs);
+  const events = parseLogsOnly(logs, signatureBase58, slotNum, options?.blockTimeUs);
   if (events.length === 0) return [];
 
   applyAccountFillsToLogEvents(events, vt.message, meta);
