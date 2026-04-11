@@ -1,6 +1,7 @@
 /** 各 DEX 程序 ID（Base58） */
 export const PUMPFUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-export const PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRdGP4LmT4saRGfEE7xmrCaGWpZ";
+/** Pump AMM（PumpSwap），与 `sol-parser-sdk` / `pump_amm.json` 一致 */
+export const PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA";
 export const METEORA_DAMM_V2_PROGRAM_ID = "cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a";
 export const RAYDIUM_CLMM_PROGRAM_ID = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
 export const RAYDIUM_CPMM_PROGRAM_ID = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";

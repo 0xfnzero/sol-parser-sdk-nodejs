@@ -7,7 +7,8 @@
  * - Display trade details with latency metrics
  *
  * Run: node examples/pumpfun_trade_filter.mjs
- * Or:  GEYSER_ENDPOINT=xxx GEYSER_API_TOKEN=yyy node examples/pumpfun_trade_filter.mjs
+ * Or:  GRPC_URL=xxx GRPC_TOKEN=yyy node examples/pumpfun_trade_filter.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -16,10 +17,19 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
+const bs58 = require("bs58");
+const {
+  YellowstoneGrpc,
+  parseLogsOnly,
+  nowUs,
+} = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
 // PumpFun program ID
 const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"];
@@ -29,10 +39,6 @@ let buyCount = 0;
 let sellCount = 0;
 let buyExactCount = 0;
 let createCount = 0;
-
-function nowUs() {
-  return Number(process.hrtime.bigint() / 1000n);
-}
 
 async function main() {
   console.log("🚀 PumpFun Trade Event Filter Example");
@@ -58,8 +64,10 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
-      const grpcRecvUs = nowUs();
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
+      const t0 = nowUs();
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {
@@ -67,7 +75,8 @@ async function main() {
         if (!key.startsWith("PumpFun")) continue;
 
         const data = ev[key];
-        const latencyUs = grpcRecvUs - (data?.metadata?.grpc_recv_us ?? grpcRecvUs);
+        const parseEndUs = data?.metadata?.grpc_recv_us ?? 0;
+        const latencyUs = parseEndUs > 0 ? parseEndUs - t0 : 0;
         eventCount++;
 
         switch (key) {

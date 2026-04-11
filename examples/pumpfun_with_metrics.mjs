@@ -6,7 +6,8 @@
  * - Measure gRPC recv time, queue recv time, and end-to-end latency
  * - Display per-event stats and periodic 10s summaries
  *
- * Run: GEYSER_API_TOKEN=your_token node examples/pumpfun_with_metrics.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... node examples/pumpfun_with_metrics.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -15,10 +16,19 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
+const bs58 = require("bs58");
+const {
+  YellowstoneGrpc,
+  parseLogsOnly,
+  nowUs,
+} = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
 const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]; // PumpFun
 
@@ -27,10 +37,6 @@ let totalLatencyUs = 0n;
 let minLatencyUs = BigInt(Number.MAX_SAFE_INTEGER);
 let maxLatencyUs = 0n;
 let lastReportCount = 0n;
-
-function nowUs() {
-  return process.hrtime.bigint() / 1000n;
-}
 
 // Periodic 10s stats
 setInterval(() => {
@@ -76,16 +82,19 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
-      const queueRecvUs = nowUs();
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
+      const t0 = nowUs();
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {
         const key = Object.keys(ev)[0];
         if (!key.startsWith("PumpFun")) continue;
         const data = ev[key];
-        const grpcRecvUs = BigInt(data?.metadata?.grpc_recv_us ?? 0);
-        const latencyUs = grpcRecvUs > 0n ? queueRecvUs - grpcRecvUs : 0n;
+        const parseEndUs = BigInt(data?.metadata?.grpc_recv_us ?? 0);
+        // 与 SDK `clock.nowUs()` 同源：从进入 onUpdate 到该条日志解析完成的时间（μs）
+        const latencyUs = parseEndUs > 0n ? parseEndUs - BigInt(t0) : 0n;
 
         eventCount++;
         totalLatencyUs += latencyUs;
@@ -93,9 +102,9 @@ async function main() {
         if (latencyUs > maxLatencyUs) maxLatencyUs = latencyUs;
 
         console.log("\n================================================");
-        console.log(`gRPC recv time : ${grpcRecvUs} μs`);
-        console.log(`Queue recv time: ${queueRecvUs} μs`);
-        console.log(`Latency        : ${latencyUs} μs`);
+        console.log(`parse_end_us (metadata.grpc_recv_us): ${parseEndUs} μs`);
+        console.log(`onUpdate t0                        : ${t0} μs`);
+        console.log(`Latency (parse_end - t0)           : ${latencyUs} μs`);
         console.log("================================================");
         console.log(`Event: ${key}`);
         if (data?.mint) console.log(`  mint  : ${data.mint}`);

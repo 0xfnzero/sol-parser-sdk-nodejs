@@ -1,12 +1,31 @@
 {
-  "name": "sol-parser-sdk-ts",
+  "name": "sol-parser-sdk-nodejs",
   "version": "0.3.0",
-  "description": "Solana DEX 日志与交易事件解析（TypeScript 实现，本仓库自洽）",
+  "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "README_CN.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xfnzero/sol-parser-sdk-nodejs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0xfnzero/sol-parser-sdk-nodejs/issues"
+  },
+  "homepage": "https://github.com/0xfnzero/sol-parser-sdk-nodejs#readme",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc",
-    "prepare": "tsc",
+    "prepublishOnly": "npm run build",
+    "test:grpc": "node scripts/test-grpc-ts.mjs",
+    "debug:grpc": "node scripts/debug-grpc-ts.mjs",
     "check:dex-events": "node scripts/check-dex-event-parity.mjs",
     "verify:discriminators": "node scripts/verify-program-log-discriminators.mjs",
     "check:json-utils": "node scripts/check-json-utils.mjs",

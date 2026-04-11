@@ -14,6 +14,34 @@ import {
 
 export type InvokePair = readonly [outerIndex: number, innerIndex: number];
 
+/**
+ * 将账户表项转为 Base58（与 `PublicKey.toBase58()` 一致）。
+ * 兼容：已是地址字符串、标准 `PublicKey`、以及多份 `@solana/web3.js` 副本导致 `instanceof` 失效的情况。
+ */
+export function accountKeyToBase58(account: unknown): string | undefined {
+  if (account === undefined || account === null) return undefined;
+  if (typeof account === "string") {
+    try {
+      return new PublicKey(account).toBase58();
+    } catch {
+      return undefined;
+    }
+  }
+  const maybeFn = (account as { toBase58?: unknown }).toBase58;
+  if (typeof maybeFn === "function") {
+    try {
+      return (maybeFn as () => string).call(account);
+    } catch {
+      /* fall through */
+    }
+  }
+  try {
+    return new PublicKey(account as ConstructorParameters<typeof PublicKey>[0]).toBase58();
+  } catch {
+    return undefined;
+  }
+}
+
 export function isCompiledVersionedMessage(msg: unknown): msg is Message | MessageV0 {
   if (msg === null || typeof msg !== "object") return false;
   return (
@@ -57,7 +85,8 @@ export function buildProgramInvokesMap(
   };
 
   message.compiledInstructions.forEach((ix: MessageCompiledInstruction, idx: number) => {
-    const pk = resolver.get(ix.programIdIndex)?.toBase58();
+    const pidx = Number(ix.programIdIndex);
+    const pk = accountKeyToBase58(resolver.get(pidx));
     if (pk) push(pk, [idx, -1]);
   });
 
@@ -65,7 +94,8 @@ export function buildProgramInvokesMap(
     const outer = group.index;
     group.instructions.forEach((raw, j) => {
       const ix = raw as CompiledInstruction;
-      const pk = resolver.get(ix.programIdIndex)?.toBase58();
+      const pidx = Number(ix.programIdIndex);
+      const pk = accountKeyToBase58(resolver.get(pidx));
       if (pk) push(pk, [outer, j]);
     });
   }
@@ -130,7 +160,7 @@ export function makeInvokeAccountGetter(
   return (i: number) => {
     const ai = indices[i];
     if (ai === undefined) return DEFAULT_PK;
-    return resolver.get(ai)?.toBase58() ?? DEFAULT_PK;
+    return accountKeyToBase58(resolver.get(ai)) ?? DEFAULT_PK;
   };
 }
 

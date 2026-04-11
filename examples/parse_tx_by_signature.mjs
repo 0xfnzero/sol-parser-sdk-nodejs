@@ -1,16 +1,19 @@
 /**
  * Parse Transaction by RPC Signature
  *
- * Demonstrates parsing a specific transaction from Solana RPC.
+ * 使用 `parseTransactionFromRpc`：拉取完整 RPC 交易并走 `parseRpcTransaction`
+ *（指令 + 日志 + 账户填充），与仅 `parseLogsOnly` 的轻量路径不同。
+ *
  * Usage: TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs
  *
  * Example:
- *   TX_SIGNATURE=5Yw...abc node examples/parse_tx_by_signature.mjs
+ *   TX_SIGNATURE=5Yw...abc RPC_URL=https://api.mainnet-beta.solana.com node examples/parse_tx_by_signature.mjs
  */
 
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
+import { Connection } from "@solana/web3.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -19,49 +22,34 @@ const {
   dexEventToJsonString,
 } = require(path.join(__dirname, "../dist/index.js"));
 
-// Example PumpFun tx signatures for testing
-const DEFAULT_PUMPFUN_TX = process.env.TX_SIGNATURE || "5JGAxBahnJnSwqVfivWCSt7gy7Dtx9Dg9a2ZJeNPHHMEEEtUaTKwjWB2FEr1sMGScTN2bEf9bkpUfcLhwmBbx3Z";
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
 
-async function fetchTransaction(signature) {
-  const response = await fetch(RPC_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "getTransaction",
-      params: [
-        signature,
-        { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
-      ],
-    }),
-  });
-  const json = await response.json();
-  return json.result;
-}
-
 async function main() {
-  const sig = DEFAULT_PUMPFUN_TX;
+  const sig = process.env.TX_SIGNATURE;
+  if (!sig) {
+    console.error(
+      "请设置 TX_SIGNATURE（Base58 交易签名）。示例:\n" +
+        "  TX_SIGNATURE=<sig> node examples/parse_tx_by_signature.mjs\n" +
+        "  TX_SIGNATURE=<sig> RPC_URL=https://api.mainnet-beta.solana.com node examples/parse_tx_by_signature.mjs"
+    );
+    process.exit(1);
+  }
   console.log("🔍 Parse Transaction by RPC Signature");
   console.log("======================================\n");
   console.log(`Signature: ${sig}`);
   console.log(`RPC URL  : ${RPC_URL}\n`);
 
-  console.log("Fetching transaction from RPC...");
-  const tx = await fetchTransaction(sig);
+  const connection = new Connection(RPC_URL, "confirmed");
 
-  if (!tx) {
-    console.error("Transaction not found. Try a different signature.");
+  console.log("Fetching & parsing via parseTransactionFromRpc...");
+  const result = await parseTransactionFromRpc(connection, sig);
+
+  if (!result.ok) {
+    console.error("Parse failed:", result.error.message);
     process.exit(1);
   }
 
-  const logs = tx?.meta?.logMessages ?? [];
-  console.log(`Log messages: ${logs.length}`);
-
-  const { parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
-  const slot = tx.slot ?? 0;
-  const events = parseLogsOnly(logs, sig, Number(slot), undefined);
+  const { events } = result;
 
   if (events.length === 0) {
     console.log("No DEX events found in this transaction.");

@@ -4,7 +4,8 @@
  * Demonstrates subscribing to multiple DEX protocols simultaneously:
  * PumpFun, PumpSwap, Raydium, Orca, Meteora, Bonk
  *
- * Run: node examples/multi_protocol_grpc.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... node examples/multi_protocol_grpc.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -13,23 +14,27 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const bs58 = require("bs58");
 const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
-// All supported protocol program IDs
+// 与 `src/instr/program_ids.ts` 对齐（原 Eo7Wj… / BUZ… 为错误地址）
 const PROGRAM_IDS = [
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // PumpFun
-  "pAMMBay6oceH9fJKBRdGP4LmT4saRGfEE7xmrCaGWpZ", // PumpSwap
+  "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA", // PumpSwap
   "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8", // Raydium AMM V4
   "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK", // Raydium CLMM
   "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C", // Raydium CPMM
-  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",  // Orca Whirlpool
-  "Eo7WjKq67rjJQDd1d4dSYkT7LeHVAaFL1K7dajEgrpwz", // Meteora DAMM V2
-  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",  // Meteora DLMM
-  "BUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",   // Meteora AMM
-  "ZBDi6bFMqBLBeQFMkGSTPQHWgSuSBqMzTXSK2b6TBBW",  // Bonk
+  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc", // Orca Whirlpool
+  "cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a", // Meteora DAMM V2
+  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo", // Meteora DLMM
+  "LanCh3hDdY7M6x8urBSLJhsQBgPNGKHNqJqGwzAEmBm", // Bonk Launchpad（与 program_ids.BONK_LAUNCHPAD_PROGRAM_ID 一致）
 ];
 
 const stats = {};
@@ -58,7 +63,9 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {

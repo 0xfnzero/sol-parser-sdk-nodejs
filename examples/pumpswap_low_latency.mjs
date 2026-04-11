@@ -6,7 +6,8 @@
  * - Measure end-to-end latency
  * - Display per-event and periodic statistics
  *
- * Run: node examples/pumpswap_low_latency.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... node examples/pumpswap_low_latency.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -15,23 +16,28 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
+const bs58 = require("bs58");
+const {
+  YellowstoneGrpc,
+  parseLogsOnly,
+  nowUs,
+} = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
 // PumpSwap program ID
-const PROGRAM_IDS = ["pAMMBay6oceH9fJKBRdGP4LmT4saRGfEE7xmrCaGWpZ"];
+const PROGRAM_IDS = ["pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"];
 
 let eventCount = 0;
 let totalLatencyUs = 0;
 let minLatencyUs = Number.MAX_SAFE_INTEGER;
 let maxLatencyUs = 0;
 let lastReportCount = 0;
-
-function nowUs() {
-  return Number(process.hrtime.bigint() / 1000n);
-}
 
 // Print statistics every 10 seconds
 setInterval(() => {
@@ -74,8 +80,10 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
-      const queueRecvUs = nowUs();
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
+      const t0 = nowUs();
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {
@@ -83,8 +91,8 @@ async function main() {
         if (!key.startsWith("PumpSwap")) continue;
 
         const data = ev[key];
-        const grpcRecvUs = data?.metadata?.grpc_recv_us ?? queueRecvUs;
-        const latencyUs = queueRecvUs - grpcRecvUs;
+        const parseEndUs = data?.metadata?.grpc_recv_us ?? 0;
+        const latencyUs = parseEndUs > 0 ? parseEndUs - t0 : 0;
 
         eventCount++;
         totalLatencyUs += latencyUs;
@@ -92,9 +100,9 @@ async function main() {
         if (latencyUs > maxLatencyUs) maxLatencyUs = latencyUs;
 
         console.log("\n================================================");
-        console.log(`gRPC recv time : ${grpcRecvUs} μs`);
-        console.log(`Queue recv time: ${queueRecvUs} μs`);
-        console.log(`Latency        : ${latencyUs} μs`);
+        console.log(`parse_end_us (metadata.grpc_recv_us): ${parseEndUs} μs`);
+        console.log(`onUpdate t0                        : ${t0} μs`);
+        console.log(`Latency (parse_end - t0)           : ${latencyUs} μs`);
         console.log("================================================");
         console.log(`Event: ${key}`);
         console.log(`  sig  : ${sig}`);

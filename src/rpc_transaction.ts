@@ -16,6 +16,7 @@ import type { EventTypeFilter } from "./grpc/types.js";
 import { fillAccountsFromTransactionDataRpc } from "./core/account_dispatcher_rpc.js";
 import { fillDataRpc } from "./core/common_filler_rpc.js";
 import {
+  accountKeyToBase58,
   buildProgramInvokesMap,
   decodeIxData,
   getAccountKeyResolver,
@@ -28,9 +29,10 @@ const DEFAULT_PK = PublicKey.default.toBase58();
 
 function resolveAccounts(
   resolver: { get(i: number): PublicKey | undefined; length: number },
-  indices: readonly number[]
+  indices: readonly number[] | Uint8Array
 ): string[] {
-  return indices.map((i) => resolver.get(i)?.toBase58() ?? DEFAULT_PK);
+  const idxs = indices instanceof Uint8Array ? Array.from(indices) : indices;
+  return idxs.map((i) => accountKeyToBase58(resolver.get(i)) ?? DEFAULT_PK);
 }
 
 function parseOuterAndInnerInstructions(
@@ -47,7 +49,7 @@ function parseOuterAndInnerInstructions(
   const resolver = getAccountKeyResolver(message, meta);
 
   for (const ix of message.compiledInstructions as MessageCompiledInstruction[]) {
-    const programId = resolver.get(ix.programIdIndex)?.toBase58();
+    const programId = accountKeyToBase58(resolver.get(ix.programIdIndex));
     if (!programId) continue;
     const data = decodeIxData(ix.data);
     const accounts = resolveAccounts(resolver, ix.accountKeyIndexes);
@@ -70,7 +72,7 @@ function parseOuterAndInnerInstructions(
 
   for (const group of innerGroups) {
     for (const ix of group.instructions as CompiledInstruction[]) {
-      const programId = resolver.get(ix.programIdIndex)?.toBase58();
+      const programId = accountKeyToBase58(resolver.get(ix.programIdIndex));
       if (!programId) continue;
       const data = decodeIxData(ix.data);
       const accounts = resolveAccounts(resolver, ix.accounts);
@@ -109,6 +111,18 @@ function applyRpcFills(
     fillAccountsFromTransactionDataRpc(ev, msg, meta, programInvokes, resolver);
     fillDataRpc(ev, msg, meta, programInvokes);
   }
+}
+
+/**
+ * 与 Rust gRPC `parse_logs` 中 `fill_accounts_from_transaction_data` + `fill_data` 对齐：
+ * 对已由日志解析出的 `DexEvent` 用交易 message + meta 补全账户等字段。
+ */
+export function applyAccountFillsToLogEvents(
+  events: DexEvent[],
+  msg: Message | MessageV0,
+  meta: ConfirmedTransactionMeta | null
+): void {
+  applyRpcFills(events, msg, meta);
 }
 
 /**

@@ -4,7 +4,8 @@
  * Quick connection test - subscribes to ALL PumpFun events,
  * prints the first 10, then exits.
  *
- * Run: GEYSER_API_TOKEN=your_token node examples/pumpfun_quick_test.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... node examples/pumpfun_quick_test.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -13,16 +14,22 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const bs58 = require("bs58");
 const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
 const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]; // PumpFun
 
 let eventCount = 0;
 let sub = null;
 let client = null;
+let timeoutId = null;
 
 async function main() {
   console.log("🚀 Quick Test - Subscribing to ALL PumpFun events...");
@@ -41,7 +48,28 @@ async function main() {
   console.log("✅ Subscribing... (no event filter - will show ALL events)");
   console.log("🎧 Listening for events... (waiting up to 60 seconds)\n");
 
-  const startMs = Date.now();
+  const finish = (code) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (sub && client) client.unsubscribe(sub.id);
+    process.exit(code);
+  };
+
+  timeoutId = setTimeout(() => {
+    if (eventCount === 0) {
+      console.log("⏰ Timeout: No events received in 60 seconds.");
+      console.log("   This might indicate:");
+      console.log("   - Network connectivity issues");
+      console.log("   - gRPC endpoint is down");
+      console.log("   - Missing or invalid API token");
+    } else {
+      console.log(`\n✅ Received ${eventCount} events in 60 seconds`);
+    }
+    finish(0);
+  }, 60_000);
+
+  process.on("SIGINT", () => {
+    finish(0);
+  });
 
   sub = await client.subscribeTransactions(filter, {
     onUpdate: (update) => {
@@ -51,7 +79,9 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {
@@ -63,24 +93,8 @@ async function main() {
 
         if (eventCount >= 10) {
           console.log(`\n🎉 Received ${eventCount} events! Test successful!`);
-          if (sub) client.unsubscribe(sub.id);
-          process.exit(0);
+          finish(0);
         }
-      }
-
-      // 60-second timeout
-      if (Date.now() - startMs > 60000) {
-        if (eventCount === 0) {
-          console.log("⏰ Timeout: No events received in 60 seconds.");
-          console.log("   This might indicate:");
-          console.log("   - Network connectivity issues");
-          console.log("   - gRPC endpoint is down");
-          console.log("   - Missing or invalid API token");
-        } else {
-          console.log(`\n✅ Received ${eventCount} events in 60 seconds`);
-        }
-        if (sub) client.unsubscribe(sub.id);
-        process.exit(0);
       }
     },
     onError: (err) => {

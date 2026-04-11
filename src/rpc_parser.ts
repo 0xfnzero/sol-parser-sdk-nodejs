@@ -8,6 +8,7 @@ export {
   parseRpcTransaction,
   fillAccountsFromTransactionDataRpc,
   fillDataRpc,
+  applyAccountFillsToLogEvents,
 } from "./rpc_transaction.js";
 
 /**

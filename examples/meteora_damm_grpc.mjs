@@ -4,7 +4,8 @@
  * Demonstrates subscribing to Meteora Dynamic AMM V2 events:
  * Swap, AddLiquidity, RemoveLiquidity, CreatePosition, ClosePosition
  *
- * Run: node examples/meteora_damm_grpc.mjs
+ * Run: GRPC_URL=... GRPC_TOKEN=... node examples/meteora_damm_grpc.mjs
+ * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
  */
 
 import { createRequire } from "module";
@@ -13,12 +14,18 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const bs58 = require("bs58");
 const { YellowstoneGrpc, parseLogsOnly } = require(path.join(__dirname, "../dist/index.js"));
 
-const ENDPOINT = process.env.GEYSER_ENDPOINT || "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN = process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT =
+  process.env.GRPC_URL ||
+  process.env.GEYSER_ENDPOINT ||
+  "https://solana-yellowstone-grpc.publicnode.com:443";
+const X_TOKEN =
+  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
 
-const PROGRAM_IDS = ["Eo7WjKq67rjJQDd1d4dSYkT7LeHVAaFL1K7dajEgrpwz"]; // Meteora DAMM V2
+/** 与 `src/instr/program_ids.ts` 中 `METEORA_DAMM_V2_PROGRAM_ID` 一致 */
+const PROGRAM_IDS = ["cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a"];
 
 let swapCount = 0;
 let addLiqCount = 0;
@@ -29,6 +36,8 @@ let closePosCount = 0;
 async function main() {
   console.log("🚀 Meteora DAMM V2 gRPC Example");
   console.log("=================================\n");
+  console.log(`📡 Endpoint: ${ENDPOINT}`);
+  console.log(`🎯 Program: ${PROGRAM_IDS[0]}\n`);
 
   const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
 
@@ -48,7 +57,9 @@ async function main() {
       const logs = txInfo.metaRaw?.logMessages;
       if (!Array.isArray(logs) || logs.length === 0) return;
 
-      const sig = Buffer.from(txInfo.signature ?? []).toString("hex").slice(0, 16) + "...";
+      const sig = txInfo.signature?.length
+        ? bs58.encode(Buffer.from(txInfo.signature))
+        : "";
       const events = parseLogsOnly(logs, sig, Number(slot), undefined);
 
       for (const ev of events) {

@@ -240,9 +240,16 @@ export class YellowstoneGrpc {
 
         stream.on("data", (update: SubscribeUpdate) => {
           if (isCancelled) return;
-          if (callbacks.onUpdate) {
+          if (!callbacks.onUpdate) return;
+          try {
             const converted = this.convertUpdate(update);
             callbacks.onUpdate(converted);
+          } catch (err) {
+            // 用户 onUpdate 内抛错（如同步 IO/画图）若未捕获，会破坏 gRPC duplex 流并触发 RST_STREAM。
+            const e = err instanceof Error ? err : new Error(String(err));
+            if (callbacks.onError) {
+              callbacks.onError(e);
+            }
           }
         });
 
