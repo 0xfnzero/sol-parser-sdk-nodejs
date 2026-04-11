@@ -4,12 +4,13 @@
  * 使用 `parseTransactionFromRpc`：拉取完整 RPC 交易并走 `parseRpcTransaction`
  *（指令 + 日志 + 账户填充），与仅 `parseLogsOnly` 的轻量路径不同。
  *
- * Usage: TX_SIGNATURE=<sig> npx tsx examples/parse_tx_by_signature.ts
+ * Usage（在包根目录）: npx tsx examples/parse_tx_by_signature.ts
  *
- * Example:
- *   TX_SIGNATURE=5Yw...abc RPC_URL=https://api.mainnet-beta.solana.com npx tsx examples/parse_tx_by_signature.ts
+ * 配置：将 `.env.example` 复制为 `.env`，填写 TX_SIGNATURE（及可选 RPC_URL）；
+ * 或: TX_SIGNATURE=<sig> [RPC_URL=...] npx tsx examples/parse_tx_by_signature.ts
  */
 
+import "dotenv/config";
 import { Connection } from "@solana/web3.js";
 import {
   parseTransactionFromRpc,
@@ -23,7 +24,7 @@ async function main() {
   const sig = process.env.TX_SIGNATURE;
   if (!sig) {
     console.error(
-      "请设置 TX_SIGNATURE（Base58 交易签名）。示例:\n" +
+      "请设置 TX_SIGNATURE（Base58 交易签名）。可将 `.env.example` 复制为 `.env` 并填写 TX_SIGNATURE，或:\n" +
         "  TX_SIGNATURE=<sig> npx tsx examples/parse_tx_by_signature.ts\n" +
         "  TX_SIGNATURE=<sig> RPC_URL=https://api.mainnet-beta.solana.com npx tsx examples/parse_tx_by_signature.ts"
     );

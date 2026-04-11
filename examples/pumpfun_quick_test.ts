@@ -4,19 +4,15 @@
  * Quick connection test - subscribes to ALL PumpFun events,
  * prints the first 10, then exits.
  *
- * Run: GRPC_URL=... GRPC_TOKEN=... npx tsx examples/pumpfun_quick_test.ts
- * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
+ * Run: npx tsx examples/pumpfun_quick_test.ts（先在包根目录配置 `.env`，见 `.env.example`）
+ * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
  */
 
 import bs58 from "bs58";
 import { YellowstoneGrpc, parseLogsOnly } from "../src/index.js";
+import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]; // PumpFun
 

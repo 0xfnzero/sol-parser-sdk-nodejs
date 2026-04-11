@@ -4,24 +4,13 @@
  * 用法（在包根目录，无需先 build）:
  *   npx tsx examples/grpc_onupdate_error_test.ts
  *
- * 环境变量（优先顺序，与 scripts/test-grpc-ts.ts 一致）:
- *   GRPC_URL / GRPC_TOKEN
- *   兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN
- *   未设置 token 时默认 public token（同 test-grpc-ts）
+ * 环境变量（必填）: GRPC_URL / GRPC_TOKEN — 未设置则报错退出（推荐 `.env.example` → `.env`）
  */
 
 import { YellowstoneGrpc } from "../src/index.js";
+import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
-const DEFAULT_PUBLIC_TOKEN =
-  "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN ||
-  process.env.GEYSER_API_TOKEN ||
-  DEFAULT_PUBLIC_TOKEN;
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 const PROGRAM_IDS = [
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // PumpFun

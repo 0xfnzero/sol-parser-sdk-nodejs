@@ -6,19 +6,15 @@
  * - Measure end-to-end latency
  * - Display per-event and periodic statistics
  *
- * Run: GRPC_URL=... GRPC_TOKEN=... npx tsx examples/pumpswap_low_latency.ts
- * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
+ * Run: npx tsx examples/pumpswap_low_latency.ts（先在包根目录配置 `.env`，见 `.env.example`）
+ * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
  */
 
 import bs58 from "bs58";
 import { YellowstoneGrpc, parseLogsOnly, nowUs } from "../src/index.js";
+import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 // PumpSwap program ID
 const PROGRAM_IDS = ["pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"];

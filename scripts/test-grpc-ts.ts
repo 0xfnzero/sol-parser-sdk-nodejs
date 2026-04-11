@@ -1,14 +1,12 @@
 /**
  * TypeScript/Node.js 集成测试
- * 连接 publicnode Yellowstone gRPC，订阅 PumpFun/PumpSwap 交易并用 sol-parser-sdk 解析
+ * 通过 GRPC_URL / GRPC_TOKEN 连接 Yellowstone gRPC，订阅 PumpFun/PumpSwap 交易并用 sol-parser-sdk 解析
  *
  * 在包根目录运行（无需先 build，直接跑源码）:
  *   npx tsx scripts/test-grpc-ts.ts
- * 或: npm run test:grpc
  *
- * 环境变量:
- *   GRPC_URL / GRPC_TOKEN（优先）
- *   兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN
+ * 环境变量（必填）:
+ *   GRPC_URL / GRPC_TOKEN — 未设置则报错退出（推荐：复制 `.env.example` 为 `.env` 并填写）
  *   MAX_EVENTS  解析满这么多条 DEX 事件后退出；默认 0 = 不限制（一直跑，除非 Ctrl+C / 流错误）
  *   TIMEOUT_MS   运行毫秒数后自动退出；默认 0 = 不超时。可与 MAX_EVENTS 同时设，先满足任一条件即退出
  *   JSON_PRETTY=1  多行缩进打印（与 Rust Debug 一样便于阅读；默认单行紧凑 JSON）
@@ -20,17 +18,9 @@ import {
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
 } from "../src/index.js";
+import { requireGrpcEnv } from "./grpc_env.js";
 
-const DEFAULT_PUBLIC_TOKEN =
-  "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN ||
-  process.env.GEYSER_API_TOKEN ||
-  DEFAULT_PUBLIC_TOKEN;
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 const PROGRAM_IDS = [
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // PumpFun

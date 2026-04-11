@@ -7,8 +7,8 @@
  * 运行（在包根目录，无需先 build）:
  *   npx tsx examples/pumpswap_grpc_json.ts
  *
- * 环境变量:
- *   GRPC_URL / GRPC_TOKEN（优先），兼容 GEYSER_*；未设 token 时使用与 scripts/test-grpc-ts.ts 相同的 public 默认
+ * 环境变量（必填）:
+ *   GRPC_URL / GRPC_TOKEN — 未设置则报错退出（推荐 `.env.example` → `.env`）
  *   MAX_EVENTS  打印这么多条后退出；默认 0 = 一直打印，Ctrl+C 结束；设为正整数则凑满条数后退出
  */
 
@@ -17,17 +17,9 @@ import {
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
 } from "../src/index.js";
+import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
-const DEFAULT_PUBLIC_TOKEN =
-  "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN ||
-  process.env.GEYSER_API_TOKEN ||
-  DEFAULT_PUBLIC_TOKEN;
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 const PROGRAM_IDS = ["pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"];
 

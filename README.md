@@ -92,39 +92,55 @@ If your local folder is named `sol-parser-sdk-ts` (for example inside a monorepo
 npm install sol-parser-sdk-nodejs
 ```
 
-### Performance Testing
+### Environment setup (recommended)
 
-From the **package root** (`sol-parser-sdk-ts/`). Examples use **`npx tsx`** and import **`src/`** directly — **no `npm run build` required** to run them (install deps once: `npm install`).
+At the **package root** (next to `package.json`), configure gRPC credentials once instead of prefixing every command:
+
+```bash
+cp .env.example .env
+# Edit .env and set GRPC_URL and GRPC_TOKEN
+```
+
+Notes:
+
+- After `npm install`, the dev dependency **`dotenv`** is available. Any script that imports **`scripts/grpc_env.ts`** (all gRPC examples plus `scripts/test-grpc-ts.ts` / `scripts/debug-grpc-ts.ts`) loads a **`.env`** file in the **current working directory** and merges into `process.env` (**existing exported variables are not overridden**).
+- Run `npx tsx examples/...`, `npx tsx scripts/test-grpc-ts.ts`, and `npx tsx scripts/debug-grpc-ts.ts` from the **package root** so `.env` is found.
+- If you prefer not to use a file, `export GRPC_URL=...` and `export GRPC_TOKEN=...` in your shell (or use your CI secret store) — behavior is the same.
+
+### Performance testing
+
+From the **package root**. Examples use **`npx tsx`** and import **`src/`** directly — **no `npm run build` required** (install deps once: `npm install`). **Configure `.env` as above**, then:
 
 ```bash
 # Integration test: PumpFun + PumpSwap, parsed events with account fills (same path as Rust gRPC)
-GRPC_URL=https://solana-yellowstone-grpc.publicnode.com:443 GRPC_TOKEN=your_token npm run test:grpc
+npx tsx scripts/test-grpc-ts.ts
 
 # PumpFun with detailed metrics (per-event + 10s stats)
-GRPC_TOKEN=your_token npx tsx examples/pumpfun_with_metrics.ts
+npx tsx examples/pumpfun_with_metrics.ts
 
 # PumpSwap with detailed metrics (per-event + 10s stats)
-GRPC_TOKEN=your_token npx tsx examples/pumpswap_with_metrics.ts
+npx tsx examples/pumpswap_with_metrics.ts
 
 # PumpSwap ultra-low latency test
-GRPC_TOKEN=your_token npx tsx examples/pumpswap_low_latency.ts
+npx tsx examples/pumpswap_low_latency.ts
 ```
 
 ### Environment variables (gRPC examples)
 
+**Required:** **`GRPC_URL`** and **`GRPC_TOKEN`**. If either is unset or blank, gRPC examples and `npx tsx scripts/test-grpc-ts.ts` / `npx tsx scripts/debug-grpc-ts.ts` print an error and exit (see **`scripts/grpc_env.ts`**, which loads **`.env`** via `dotenv`).
+
+**Recommended:** copy **`.env.example`** to **`.env`** and fill in values; see the table below.
+
 | Variable | Description |
 |----------|-------------|
-| **`GRPC_URL`** | Yellowstone gRPC endpoint (preferred). Example: `https://solana-yellowstone-grpc.publicnode.com:443` |
-| **`GRPC_TOKEN`** | `x-token` for the endpoint (preferred) |
-| **`GEYSER_ENDPOINT`** | Alias for `GRPC_URL` (backward compatible) |
-| **`GEYSER_API_TOKEN`** | Alias for `GRPC_TOKEN` (backward compatible) |
-| **`MAX_EVENTS`** | In `*_grpc_json.ts` and `npm run test:grpc`: stop after N parsed events; `0` = run until Ctrl+C |
-| **`TIMEOUT_MS`** | `npm run test:grpc` only: auto-exit after N ms; `0` = no timeout (can combine with `MAX_EVENTS`, whichever first) |
-| **`JSON_PRETTY`** | `npm run test:grpc`: set to `1` or `true` for indented JSON (default is compact one-line) |
-| **`JSON_MAX_CHARS`** | `npm run test:grpc`: max characters per event line; unset or `0` = no truncation |
-| **`RPC_URL`** | `parse_tx_by_signature.ts` only: Solana HTTP RPC (default `https://api.mainnet-beta.solana.com`) |
-
-Some scripts ship a default public token for public endpoints; for production, set `GRPC_TOKEN` explicitly.
+| **`GRPC_URL`** | Yellowstone gRPC endpoint (e.g. `https://your-host:443`) |
+| **`GRPC_TOKEN`** | `x-token` for that endpoint |
+| **`MAX_EVENTS`** | In `*_grpc_json.ts` and `npx tsx scripts/test-grpc-ts.ts`: stop after N parsed events; `0` = run until Ctrl+C |
+| **`TIMEOUT_MS`** | `npx tsx scripts/test-grpc-ts.ts` only: auto-exit after N ms; `0` = no timeout (can combine with `MAX_EVENTS`, whichever first) |
+| **`JSON_PRETTY`** | `npx tsx scripts/test-grpc-ts.ts`: set to `1` or `true` for indented JSON (default is compact one-line) |
+| **`JSON_MAX_CHARS`** | `npx tsx scripts/test-grpc-ts.ts`: max characters per event line; unset or `0` = no truncation |
+| **`TX_SIGNATURE`** | `parse_tx_by_signature.ts` only: Base58 transaction signature (can be set in `.env`) |
+| **`RPC_URL`** | `parse_tx_by_signature.ts` only: Solana HTTP RPC (default `https://api.mainnet-beta.solana.com`; can be set in `.env`) |
 
 ### Examples
 
@@ -133,8 +149,8 @@ All commands assume the **package root** and `npm install` (examples use `tsx` +
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
 | **Scripts (package)** | | |
-| gRPC integration test (PumpFun + PumpSwap, account-filled `DexEvent`) | `npm run test:grpc` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
-| Debug: print `metaRaw` / log structure | `npm run debug:grpc` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
+| gRPC integration test (PumpFun + PumpSwap, account-filled `DexEvent`) | `npx tsx scripts/test-grpc-ts.ts` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
+| Debug: print `metaRaw` / log structure | `npx tsx scripts/debug-grpc-ts.ts` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
 | Pretty-print **full JSON** `DexEvent` over gRPC (Rust-compatible fields) | `npx tsx examples/pumpfun_grpc_json.ts` | [examples/pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
 | PumpFun event parsing with metrics | `npx tsx examples/pumpfun_with_metrics.ts` | [examples/pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
@@ -150,11 +166,12 @@ All commands assume the **package root** and `npm install` (examples use `tsx` +
 | Subscribe to all DEX protocols | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **Utility / QA** | | |
 | Verify `onUpdate` sync errors do not kill the gRPC stream | `npx tsx examples/grpc_onupdate_error_test.ts` | [examples/grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) |
-| Parse tx by signature via **`parseTransactionFromRpc`** (full RPC path; not gRPC) | `TX_SIGNATURE=<sig> [RPC_URL=...] npx tsx examples/parse_tx_by_signature.ts` | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
+| Parse tx by signature via **`parseTransactionFromRpc`** (full RPC path; not gRPC) | `npx tsx examples/parse_tx_by_signature.ts` (set `TX_SIGNATURE` in `.env` or the environment) | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
 
 **Example notes**
 
-- **`parse_tx_by_signature.ts`** requires **`TX_SIGNATURE`** (Base58). Optional **`RPC_URL`** for archive or dedicated endpoints.
+- All **gRPC** examples require **`GRPC_URL`** and **`GRPC_TOKEN`** (recommended: package-root **`.env`**; see `scripts/grpc_env.ts`).
+- **`parse_tx_by_signature.ts`** requires **`TX_SIGNATURE`** (Base58). Optional **`RPC_URL`**. Both can live in **`.env`** (see **`.env.example`**).
 - gRPC examples that call **`parseLogsOnly`** pass the transaction signature as **Base58** (from `txInfo.signature`), matching `EventMetadata.signature`.
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** measure delay using the SDK’s **`nowUs`** clock and `metadata.grpc_recv_us` (same time base).
 - **`meteora_damm_grpc`** and **`multi_protocol_grpc`** use program IDs aligned with `src/instr/program_ids.ts` (Meteora DAMM V2: `cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a`).
@@ -170,13 +187,13 @@ import {
   dexEventToJsonString,
 } from "sol-parser-sdk-nodejs";
 // In this repository, examples use: from "../src/index.js" (run with `npx tsx`, no build step).
+// Set GRPC_URL and GRPC_TOKEN (examples call requireGrpcEnv(); can load from .env via grpc_env.ts).
 
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
+const X_TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";
+if (!ENDPOINT || !X_TOKEN) {
+  throw new Error("GRPC_URL and GRPC_TOKEN are required");
+}
 
 const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
 
@@ -320,13 +337,12 @@ for (const ev of events) {
 
 ### Custom gRPC Endpoint
 
-```javascript
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+```typescript
+const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
+const TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";
+if (!ENDPOINT || !TOKEN) {
+  throw new Error("GRPC_URL and GRPC_TOKEN are required");
+}
 const client = new YellowstoneGrpc(ENDPOINT, TOKEN);
 ```
 
@@ -368,9 +384,11 @@ sol-parser-sdk-ts/   (npm: sol-parser-sdk-nodejs)
 │   │   └── *.ts                  # Instruction parsers
 │   └── index.ts                  # Public API exports
 ├── dist/                         # Compiled JavaScript
+├── .env.example                  # env template (copy to .env; do not commit secrets)
 ├── scripts/
-│   ├── test-grpc-ts.ts           # npm run test:grpc (tsx + src)
-│   └── debug-grpc-ts.ts          # npm run debug:grpc
+│   ├── grpc_env.ts               # dotenv + require GRPC_URL + GRPC_TOKEN (shared by gRPC examples)
+│   ├── test-grpc-ts.ts           # npx tsx scripts/test-grpc-ts.ts
+│   └── debug-grpc-ts.ts          # npx tsx scripts/debug-grpc-ts.ts
 ├── examples/
 │   ├── pumpfun_grpc_json.ts
 │   ├── pumpswap_grpc_json.ts
@@ -443,6 +461,6 @@ MIT License
 
 ```bash
 npm run build          # compile TypeScript → dist/
-npm run test:grpc      # gRPC integration smoke (needs GRPC_URL / GRPC_TOKEN)
+npx tsx scripts/test-grpc-ts.ts   # gRPC integration smoke (needs GRPC_URL / GRPC_TOKEN; see .env.example)
 npm run check:migration # dex-event parity + discriminators + json-utils (requires build)
 ```

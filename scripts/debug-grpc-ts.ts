@@ -2,21 +2,13 @@
  * 调试：打印收到的 update 结构，确认 logMessages 位置
  *
  * 在包根目录: npx tsx scripts/debug-grpc-ts.ts
- * 或: npm run debug:grpc
+ * 需 GRPC_URL / GRPC_TOKEN（推荐复制 `.env.example` 为 `.env` 并填写）
  */
 
 import { YellowstoneGrpc } from "../src/index.js";
+import { requireGrpcEnv } from "./grpc_env.js";
 
-const DEFAULT_PUBLIC_TOKEN =
-  "313bdb5b6a19cc57bcccbfdb90e412f92c8ef7d30914d1dbb5730d42e060bea3";
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN ||
-  process.env.GEYSER_API_TOKEN ||
-  DEFAULT_PUBLIC_TOKEN;
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 const PROGRAM_IDS = [
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",

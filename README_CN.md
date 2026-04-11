@@ -80,39 +80,55 @@ npm run build
 
 若本地目录名为 **`sol-parser-sdk-ts`**（例如在 monorepo 中），请进入该目录再执行上述命令；npm 包名仍为 **`sol-parser-sdk-nodejs`**。
 
+### 配置环境（推荐）
+
+在**本包根目录**（与 `package.json` 同级）配置 gRPC 凭证，避免每次在命令行前写一长串变量：
+
+```bash
+cp .env.example .env
+# 编辑 .env，填写 GRPC_URL 与 GRPC_TOKEN
+```
+
+说明：
+
+- 克隆仓库并 `npm install` 后，开发依赖里包含 **`dotenv`**。凡导入 **`scripts/grpc_env.ts`** 的脚本（含所有 gRPC 示例与 `scripts/test-grpc-ts.ts` / `scripts/debug-grpc-ts.ts`）会在运行时加载**当前工作目录**下的 **`.env`**，并注入 `process.env`（**不会覆盖**已在 shell 里 `export` 的同名变量）。
+- 请在**包根目录**执行 `npx tsx examples/...`、`npx tsx scripts/test-grpc-ts.ts`、`npx tsx scripts/debug-grpc-ts.ts`，这样 `.env` 路径正确。
+- 若不用 `.env` 文件，也可在终端执行 `export GRPC_URL=...` 与 `export GRPC_TOKEN=...`（或 CI 密钥管理），效果相同。
+
 ### 性能测试
 
-在**本包根目录**（`sol-parser-sdk-ts/`）执行。示例使用 **`npx tsx`** 直接加载 **`src/`**，**无需先 `npm run build`**（首次需 `npm install`）。
+在**本包根目录**执行。示例使用 **`npx tsx`** 直接加载 **`src/`**，**无需先 `npm run build`**（首次需 `npm install`）。**先按上一节配置 `.env`**，然后：
 
 ```bash
 # 集成测试：PumpFun + PumpSwap，含账户填充的 DexEvent（与 Rust gRPC 路径一致）
-GRPC_URL=https://solana-yellowstone-grpc.publicnode.com:443 GRPC_TOKEN=你的token npm run test:grpc
+npx tsx scripts/test-grpc-ts.ts
 
 # PumpFun 详细性能指标（单事件明细 + 每 10 秒统计）
-GRPC_TOKEN=你的token npx tsx examples/pumpfun_with_metrics.ts
+npx tsx examples/pumpfun_with_metrics.ts
 
 # PumpSwap 详细性能指标（单事件明细 + 每 10 秒统计）
-GRPC_TOKEN=你的token npx tsx examples/pumpswap_with_metrics.ts
+npx tsx examples/pumpswap_with_metrics.ts
 
 # PumpSwap 超低延迟测试
-GRPC_TOKEN=你的token npx tsx examples/pumpswap_low_latency.ts
+npx tsx examples/pumpswap_low_latency.ts
 ```
 
 ### 环境变量（gRPC 示例）
 
+**必填：** **`GRPC_URL`**、**`GRPC_TOKEN`**。若未设置或为空字符串，gRPC 相关示例及 `npx tsx scripts/test-grpc-ts.ts` / `npx tsx scripts/debug-grpc-ts.ts` 会打印错误并退出（见 **`scripts/grpc_env.ts`**，内含 `dotenv` 加载 **`.env`**）。
+
+**推荐**从 **`.env.example`** 复制为 **`.env`** 并填写；变量说明见下表。
+
 | 变量 | 说明 |
 |------|------|
-| **`GRPC_URL`** | Yellowstone gRPC 端点（优先使用）。例：`https://solana-yellowstone-grpc.publicnode.com:443` |
-| **`GRPC_TOKEN`** | 对应端点的 `x-token`（优先使用） |
-| **`GEYSER_ENDPOINT`** | 与 `GRPC_URL` 同义，兼容旧配置 |
-| **`GEYSER_API_TOKEN`** | 与 `GRPC_TOKEN` 同义，兼容旧配置 |
-| **`MAX_EVENTS`** | `*_grpc_json.ts` 与 `npm run test:grpc`：解析满 N 条事件后退出；`0` 表示持续运行直到 Ctrl+C |
-| **`TIMEOUT_MS`** | 仅 `npm run test:grpc`：运行 N 毫秒后自动退出；`0` 表示不超时（可与 `MAX_EVENTS` 同时设，先满足任一条件即退出） |
-| **`JSON_PRETTY`** | `npm run test:grpc`：设为 `1` 或 `true` 时多行缩进打印（默认单行紧凑 JSON） |
-| **`JSON_MAX_CHARS`** | `npm run test:grpc`：每条事件 JSON 最大字符数；不设或 `0` 表示不截断 |
-| **`RPC_URL`** | 仅 `parse_tx_by_signature.ts`：Solana HTTP RPC（默认 `https://api.mainnet-beta.solana.com`） |
-
-部分脚本对公共节点带默认 token；生产环境请显式设置 `GRPC_TOKEN`。
+| **`GRPC_URL`** | Yellowstone gRPC 端点（如 `https://host:443`） |
+| **`GRPC_TOKEN`** | 对应端点的 `x-token` |
+| **`MAX_EVENTS`** | `*_grpc_json.ts` 与 `npx tsx scripts/test-grpc-ts.ts`：解析满 N 条事件后退出；`0` 表示持续运行直到 Ctrl+C |
+| **`TIMEOUT_MS`** | 仅 `npx tsx scripts/test-grpc-ts.ts`：运行 N 毫秒后自动退出；`0` 表示不超时（可与 `MAX_EVENTS` 同时设，先满足任一条件即退出） |
+| **`JSON_PRETTY`** | `npx tsx scripts/test-grpc-ts.ts`：设为 `1` 或 `true` 时多行缩进打印（默认单行紧凑 JSON） |
+| **`JSON_MAX_CHARS`** | `npx tsx scripts/test-grpc-ts.ts`：每条事件 JSON 最大字符数；不设或 `0` 表示不截断 |
+| **`TX_SIGNATURE`** | 仅 `parse_tx_by_signature.ts`：Base58 交易签名（可写在 `.env`） |
+| **`RPC_URL`** | 仅 `parse_tx_by_signature.ts`：Solana HTTP RPC（默认 `https://api.mainnet-beta.solana.com`；可写在 `.env`） |
 
 ### 示例列表
 
@@ -121,8 +137,8 @@ GRPC_TOKEN=你的token npx tsx examples/pumpswap_low_latency.ts
 | 描述 | 运行命令 | 源码 |
 |------|----------|------|
 | **本包脚本** | | |
-| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 DexEvent） | `npm run test:grpc` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
-| 调试：打印 meta / 日志结构 | `npm run debug:grpc` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
+| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 DexEvent） | `npx tsx scripts/test-grpc-ts.ts` | [scripts/test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
+| 调试：打印 meta / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [scripts/debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
 | gRPC 订阅并输出**完整 JSON** DexEvent（字段与 Rust 对齐） | `npx tsx examples/pumpfun_grpc_json.ts` | [examples/pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
 | PumpFun 事件解析 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [examples/pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
@@ -138,11 +154,12 @@ GRPC_TOKEN=你的token npx tsx examples/pumpswap_low_latency.ts
 | 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **工具 / 测试** | | |
 | 验证 onUpdate 同步抛错不会打断 gRPC 流 | `npx tsx examples/grpc_onupdate_error_test.ts` | [examples/grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) |
-| 通过签名解析交易（**`parseTransactionFromRpc`** 全量 RPC 路径；非 gRPC） | `TX_SIGNATURE=<sig> [RPC_URL=...] npx tsx examples/parse_tx_by_signature.ts` | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
+| 通过签名解析交易（**`parseTransactionFromRpc`** 全量 RPC 路径；非 gRPC） | `npx tsx examples/parse_tx_by_signature.ts`（在 `.env` 或环境中设置 `TX_SIGNATURE`） | [examples/parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
 
 **示例说明**
 
-- **`parse_tx_by_signature.ts`** 必须设置 **`TX_SIGNATURE`**（Base58）。可选 **`RPC_URL`**（归档节点或专用 RPC）。
+- 所有 **gRPC** 示例必须设置 **`GRPC_URL`** 与 **`GRPC_TOKEN`**（推荐写入包根目录 **`.env`**）。
+- **`parse_tx_by_signature.ts`** 必须设置 **`TX_SIGNATURE`**（Base58）。可选 **`RPC_URL`**。二者均可写在 **`.env`**（见 **`.env.example`**）。
 - 使用 **`parseLogsOnly`** 的 gRPC 示例将签名编码为 **Base58**（来自 `txInfo.signature`），与 `EventMetadata.signature` 一致。
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** 使用 SDK 导出的 **`nowUs`** 与 `metadata.grpc_recv_us` 同一时钟基准统计延迟。
 - **`meteora_damm_grpc`** 与 **`multi_protocol_grpc`** 中的程序 ID 与 `src/instr/program_ids.ts` 对齐（Meteora DAMM V2：`cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a`）。
@@ -158,13 +175,13 @@ import {
   dexEventToJsonString,
 } from "sol-parser-sdk-nodejs";
 // 本仓库内示例使用：from "../src/index.js"（`npx tsx` 运行，无需先 build）
+// 需设置 GRPC_URL 与 GRPC_TOKEN（示例通过 requireGrpcEnv() 校验；可从 .env 加载）
 
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
+const X_TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";
+if (!ENDPOINT || !X_TOKEN) {
+  throw new Error("GRPC_URL and GRPC_TOKEN are required");
+}
 
 const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
 
@@ -266,9 +283,11 @@ sol-parser-sdk-ts/   （npm 包名：sol-parser-sdk-nodejs）
 │   │   └── *.ts                  # 指令解析器
 │   └── index.ts                  # 公共 API 导出
 ├── dist/                         # 编译后的 JavaScript
+├── .env.example                  # 环境变量模板（复制为 .env 后填写，勿提交 .env）
 ├── scripts/
-│   ├── test-grpc-ts.ts           # npm run test:grpc（tsx + src）
-│   └── debug-grpc-ts.ts          # npm run debug:grpc
+│   ├── grpc_env.ts               # dotenv + 校验 GRPC_URL / GRPC_TOKEN（gRPC 示例共用）
+│   ├── test-grpc-ts.ts           # npx tsx scripts/test-grpc-ts.ts
+│   └── debug-grpc-ts.ts          # npx tsx scripts/debug-grpc-ts.ts
 ├── examples/
 │   ├── pumpfun_grpc_json.ts
 │   ├── pumpswap_grpc_json.ts
@@ -290,13 +309,12 @@ sol-parser-sdk-ts/   （npm 包名：sol-parser-sdk-nodejs）
 
 ### 自定义 gRPC 端点
 
-```javascript
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+```typescript
+const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
+const TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";
+if (!ENDPOINT || !TOKEN) {
+  throw new Error("GRPC_URL and GRPC_TOKEN are required");
+}
 const client = new YellowstoneGrpc(ENDPOINT, TOKEN);
 ```
 
@@ -339,7 +357,7 @@ for (const ev of events) {
 
 ```bash
 npm run build           # TypeScript 编译到 dist/
-npm run test:grpc       # gRPC 集成冒烟（需 GRPC_URL / GRPC_TOKEN）
+npx tsx scripts/test-grpc-ts.ts   # gRPC 集成冒烟（需 GRPC_URL / GRPC_TOKEN，见 .env.example）
 npm run check:migration # DexEvent 对齐 + discriminator + JSON 工具检查（需先 build）
 ```
 

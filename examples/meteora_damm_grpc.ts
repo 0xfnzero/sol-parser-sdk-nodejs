@@ -4,19 +4,15 @@
  * Demonstrates subscribing to Meteora Dynamic AMM V2 events:
  * Swap, AddLiquidity, RemoveLiquidity, CreatePosition, ClosePosition
  *
- * Run: GRPC_URL=... GRPC_TOKEN=... npx tsx examples/meteora_damm_grpc.ts
- * （兼容 GEYSER_ENDPOINT / GEYSER_API_TOKEN）
+ * Run: npx tsx examples/meteora_damm_grpc.ts（先在包根目录配置 `.env`，见 `.env.example`）
+ * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
  */
 
 import bs58 from "bs58";
 import { YellowstoneGrpc, parseLogsOnly } from "../src/index.js";
+import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
-const ENDPOINT =
-  process.env.GRPC_URL ||
-  process.env.GEYSER_ENDPOINT ||
-  "https://solana-yellowstone-grpc.publicnode.com:443";
-const X_TOKEN =
-  process.env.GRPC_TOKEN || process.env.GEYSER_API_TOKEN || "";
+const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
 /** 与 `src/instr/program_ids.ts` 中 `METEORA_DAMM_V2_PROGRAM_ID` 一致 */
 const PROGRAM_IDS = ["cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a"];
