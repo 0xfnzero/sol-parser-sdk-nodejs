@@ -2,6 +2,7 @@
 export interface EventMetadata {
   signature: string;
   slot: number;
+  /** gRPC：与 Yellowstone `SubscribeUpdateTransactionInfo.index` 一致（Rust `info.index`）。Shred 等其它路径含义见各实现说明。 */
   tx_index: number;
   block_time_us: number;
   grpc_recv_us: number;

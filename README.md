@@ -227,7 +227,7 @@ const sub = await client.subscribeTransactions(filter, {
 console.log(`Subscribed: ${sub.id}`);
 ```
 
-**Logs-only (lighter):** `parseLogsOnly(logs, signature, slot, blockTimeUs)` does not require `transactionRaw`; some account fields (e.g. PumpSwap `base_mint`) may stay as the default zero pubkey until you call `applyAccountFillsToLogEvents` yourself with a deserialized message + meta.
+**Logs-only (lighter):** `parseLogsOnly(logs, signature, slot, blockTimeUs, txIndex?)` does not require `transactionRaw`; pass `grpcTxIndexFromInfo(txInfo)` for the fifth argument when using Yellowstone gRPC (matches Rust `info.index`). Some account fields (e.g. PumpSwap `base_mint`) may stay as the default zero pubkey until you call `applyAccountFillsToLogEvents` yourself with a deserialized message + meta.
 
 ---
 
@@ -324,8 +324,9 @@ const eventFilter = {
 Automatically detects when a token is created and immediately bought in the same transaction:
 
 ```javascript
+// import { parseLogsOnly, grpcTxIndexFromInfo } from "sol-parser-sdk-nodejs";
 // Automatically detects "Program data: GB7IKAUcB3c..." pattern
-const events = parseLogsOnly(logs, signature, slot, undefined);
+const events = parseLogsOnly(logs, signature, slot, undefined, grpcTxIndexFromInfo(txInfo));
 
 // Sets is_created_buy flag on Trade events
 for (const ev of events) {

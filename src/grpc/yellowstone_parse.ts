@@ -13,6 +13,17 @@ import { applyAccountFillsToLogEvents } from "../rpc_transaction.js";
 import type { SubscribeUpdateTransactionInfo } from "./types.js";
 
 /**
+ * Yellowstone `SubscribeUpdateTransactionInfo.index` → `EventMetadata.tx_index`。
+ * 与 Rust `sol-parser-sdk` gRPC 路径中 `let idx = info.index` 传入 `parse_logs(..., idx, ...)` 一致。
+ */
+export function grpcTxIndexFromInfo(info: Pick<SubscribeUpdateTransactionInfo, "index">): number {
+  const index = info.index;
+  if (index === undefined) return 0;
+  const n = typeof index === "bigint" ? Number(index) : Number(index);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+/**
  * 从 gRPC 回调中的 `SubscribeUpdateTransactionInfo`（须含 `transactionRaw` + `metaRaw` 原始 proto）
  * 解析 `DexEvent[]`，并对 PumpSwap/PumpFun 等补齐 mint、池子 ATA 等（与 Rust 订阅路径一致）。
  */
@@ -42,8 +53,9 @@ export function parseDexEventsFromGrpcTransactionInfo(
 
   const slotNum = typeof slot === "bigint" ? Number(slot) : Number(slot);
   const signatureBase58 = bs58.encode(Uint8Array.from(info.signature));
+  const txIndex = grpcTxIndexFromInfo(info);
 
-  const events = parseLogsOnly(logs, signatureBase58, slotNum, options?.blockTimeUs);
+  const events = parseLogsOnly(logs, signatureBase58, slotNum, options?.blockTimeUs, txIndex);
   if (events.length === 0) return [];
 
   applyAccountFillsToLogEvents(events, vt.message, meta);

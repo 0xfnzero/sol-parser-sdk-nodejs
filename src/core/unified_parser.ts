@@ -17,18 +17,19 @@ export function parseTransactionEvents(
   blockTimeUs: number | undefined,
   _programId: string
 ): DexEvent[] {
-  return parseLogsOnly(logs, signature, slot, blockTimeUs);
+  return parseLogsOnly(logs, signature, slot, blockTimeUs, _txIndex);
 }
 
 export function parseLogsOnly(
   logs: string[],
   signature: string,
   slot: number,
-  blockTimeUs: number | undefined
+  blockTimeUs: number | undefined,
+  txIndex: number = 0
 ): DexEvent[] {
   const out: DexEvent[] = [];
   for (const log of logs) {
-    const e = parseLogUnified(log, signature, slot, blockTimeUs);
+    const e = parseLogUnified(log, signature, slot, blockTimeUs, txIndex);
     if (e) out.push(e);
   }
   return out;
@@ -70,7 +71,7 @@ export function parseTransactionEventsStreaming(
   _programId: string,
   callback: (event: DexEvent) => void
 ): void {
-  parseLogsStreaming(logs, signature, slot, blockTimeUs, callback);
+  parseLogsStreaming(logs, signature, slot, blockTimeUs, callback, _txIndex);
 }
 
 export function parseLogsStreaming(
@@ -78,10 +79,11 @@ export function parseLogsStreaming(
   signature: string,
   slot: number,
   blockTimeUs: number | undefined,
-  callback: (event: DexEvent) => void
+  callback: (event: DexEvent) => void,
+  txIndex: number = 0
 ): void {
   for (const log of logs) {
-    const e = parseLogUnified(log, signature, slot, blockTimeUs);
+    const e = parseLogUnified(log, signature, slot, blockTimeUs, txIndex);
     if (e) callback(e);
   }
 }

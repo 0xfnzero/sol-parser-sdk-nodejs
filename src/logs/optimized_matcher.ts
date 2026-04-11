@@ -214,13 +214,14 @@ export function parseLogOptimized(
   }
 }
 
-/** 单行日志统一解析（无 gRPC 元数据时的便捷入口） */
+/** 单行日志统一解析；`txIndex` 与 Rust gRPC `parse_logs(..., tx_idx, ...)` / `info.index` 对齐。 */
 export function parseLogUnified(
   log: string,
   signature: string,
   slot: number,
-  blockTimeUs: number | undefined
+  blockTimeUs: number | undefined,
+  txIndex: number = 0
 ): DexEvent | null {
   const grpcRecvUs = nowUs();
-  return parseLogOptimized(log, signature, slot, 0, blockTimeUs, grpcRecvUs, undefined, false, undefined);
+  return parseLogOptimized(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs, undefined, false, undefined);
 }

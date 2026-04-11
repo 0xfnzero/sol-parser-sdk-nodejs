@@ -25,7 +25,10 @@ export {
   fillDataRpc,
   applyAccountFillsToLogEvents,
 } from "./rpc_parser.js";
-export { parseDexEventsFromGrpcTransactionInfo } from "./grpc/yellowstone_parse.js";
+export {
+  parseDexEventsFromGrpcTransactionInfo,
+  grpcTxIndexFromInfo,
+} from "./grpc/yellowstone_parse.js";
 
 export {
   type OrderMode,

@@ -215,7 +215,7 @@ const sub = await client.subscribeTransactions(filter, {
 console.log(`已订阅: ${sub.id}`);
 ```
 
-**仅日志（更轻）：** `parseLogsOnly(logs, signature, slot, blockTimeUs)` 不需要 `transactionRaw`；部分账户字段可能仍为占位零地址，除非自行对 `VersionedTransaction.message` + `meta` 调用 `applyAccountFillsToLogEvents`。
+**仅日志（更轻）：** `parseLogsOnly(logs, signature, slot, blockTimeUs, txIndex?)` 不需要 `transactionRaw`；gRPC 场景第五参传入 `grpcTxIndexFromInfo(txInfo)`，与 Rust `info.index` 一致。部分账户字段可能仍为占位零地址，除非自行对 `VersionedTransaction.message` + `meta` 调用 `applyAccountFillsToLogEvents`。
 
 ---
 

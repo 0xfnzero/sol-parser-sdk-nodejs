@@ -9,7 +9,7 @@
  */
 
 import bs58 from "bs58";
-import { YellowstoneGrpc, parseLogsOnly } from "../src/index.js";
+import { YellowstoneGrpc, parseLogsOnly, grpcTxIndexFromInfo } from "../src/index.js";
 import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
@@ -50,7 +50,7 @@ async function main() {
       const sig = txInfo.signature?.length
         ? bs58.encode(Buffer.from(txInfo.signature))
         : "";
-      const events = parseLogsOnly(logs, sig, Number(slot), undefined);
+      const events = parseLogsOnly(logs, sig, Number(slot), undefined, grpcTxIndexFromInfo(txInfo));
 
       for (const ev of events) {
         const key = Object.keys(ev)[0];
