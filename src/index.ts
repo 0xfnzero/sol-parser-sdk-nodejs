@@ -257,6 +257,7 @@ export { YellowstoneGrpc, type SubscribeCallbacks } from "./grpc/client.js";
 export {
   connectYellowstoneGeyser,
   defaultGeyserConnectConfig,
+  geyserGrpcChannelOptions,
   type GeyserConnectConfig,
 } from "./grpc/geyser_connect.js";
 
@@ -266,6 +267,7 @@ export * as event_parser from "./grpc/event_parser.js";
 export {
   connectYellowstoneGeyser as connect_yellowstone_geyser,
   defaultGeyserConnectConfig as default_geyser_connect_config,
+  geyserGrpcChannelOptions as geyser_grpc_channel_options,
 } from "./grpc/geyser_connect.js";
 
 export {

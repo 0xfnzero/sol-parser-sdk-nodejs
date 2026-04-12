@@ -15,6 +15,10 @@ export interface GeyserConnectConfig {
   maxDecodingMessageSize: number;
   /** 对应 Rust `x_token` */
   xToken?: string;
+  /** gRPC 通道 HTTP/2 keepalive 间隔（毫秒），与 Rust `ClientConfig.keep_alive_interval_ms` 默认对齐 */
+  keepAliveIntervalMs?: number;
+  /** gRPC keepalive 应答超时（毫秒） */
+  keepAliveTimeoutMs?: number;
 }
 
 /** 与 Rust `GeyserConnectConfig::default` 一致 */
@@ -23,6 +27,25 @@ export function defaultGeyserConnectConfig(): GeyserConnectConfig {
     connectTimeoutMs: 8000,
     maxDecodingMessageSize: 1024 * 1024 * 1024,
     xToken: undefined,
+    keepAliveIntervalMs: 30_000,
+    keepAliveTimeoutMs: 5000,
+  };
+}
+
+/** 与 `ClientConfig` / `grpc.keepalive_*` 对齐，用于长连接抗 NAT/负载均衡 idle 断开 */
+export function geyserGrpcChannelOptions(
+  config: GeyserConnectConfig = defaultGeyserConnectConfig()
+): ChannelOptions {
+  const max = config.maxDecodingMessageSize;
+  const interval = config.keepAliveIntervalMs ?? 30_000;
+  const timeout = config.keepAliveTimeoutMs ?? 5000;
+  return {
+    "grpc.max_receive_message_length": max,
+    "grpc.max_send_message_length": max,
+    "grpc.keepalive_time_ms": interval,
+    "grpc.keepalive_timeout_ms": timeout,
+    /** 无活跃 RPC 时仍发 keepalive，避免长时间仅订阅时被中间设备掐断 */
+    "grpc.keepalive_permit_without_calls": 1,
   };
 }
 
@@ -34,9 +57,5 @@ export async function connectYellowstoneGeyser(
   endpoint: string,
   config: GeyserConnectConfig = defaultGeyserConnectConfig()
 ): Promise<Client> {
-  const channelOptions: ChannelOptions = {
-    "grpc.max_receive_message_length": config.maxDecodingMessageSize,
-    "grpc.max_send_message_length": config.maxDecodingMessageSize,
-  };
-  return new Client(endpoint, config.xToken, channelOptions);
+  return new Client(endpoint, config.xToken, geyserGrpcChannelOptions(config));
 }

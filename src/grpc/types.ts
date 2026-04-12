@@ -106,6 +106,11 @@ export interface SubscribeCallbacks {
   onUpdate?: (update: SubscribeUpdate) => void;
   onError?: (err: Error) => void;
   onEnd?: () => void;
+  /**
+   * 是否在流断开后自动重连（指数退避，与 Rust `subscribe_dex_events` 一致）。
+   * 默认 `true`。为 `false` 时保持单次连接的旧行为。
+   */
+  autoReconnect?: boolean;
 }
 
 export interface ClientConfig {

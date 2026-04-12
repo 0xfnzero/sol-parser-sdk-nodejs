@@ -2,6 +2,7 @@
  * Yellowstone gRPC 客户端实现 - 基于 @triton-one/yellowstone-grpc
  */
 import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
+import { defaultGeyserConnectConfig, geyserGrpcChannelOptions } from "./geyser_connect.js";
 import type {
   SubscribeRequest,
   SubscribeUpdate,
@@ -52,7 +53,16 @@ export class YellowstoneGrpc {
     config: ClientConfig = defaultClientConfig()
   ) {
     this.config = config;
-    this.client = new Client(endpoint, xToken || undefined, undefined);
+    const gc = defaultGeyserConnectConfig();
+    this.client = new Client(
+      endpoint,
+      xToken || undefined,
+      geyserGrpcChannelOptions({
+        ...gc,
+        keepAliveIntervalMs: config.keep_alive_interval_ms,
+        keepAliveTimeoutMs: config.keep_alive_timeout_ms,
+      })
+    );
   }
 
   /** 连接到 gRPC 服务器 */
@@ -190,6 +200,49 @@ export class YellowstoneGrpc {
     return result;
   }
 
+  /**
+   * 应答 Geyser 在 SubscribeUpdate 中下发的 ping（与 `solana-streamer` / Rust 侧一致）。
+   * 若不回复，公共节点或 LB 可能在超时后 RST_STREAM（HTTP/2 CANCEL）。
+   */
+  private subscribePingPongRequest(): SubscribeRequest {
+    return {
+      accounts: {},
+      slots: {},
+      transactions: {},
+      transactionsStatus: {},
+      entry: {},
+      blocks: {},
+      blocksMeta: {},
+      commitment: CommitmentLevel.CONFIRMED,
+      accountsDataSlice: [],
+      ping: { id: 1 },
+    } as unknown as SubscribeRequest;
+  }
+
+  private initialSubscribeRequest(filter: TransactionFilter): SubscribeRequest {
+    return {
+      transactions: {
+        client: {
+          accountInclude: filter.account_include,
+          accountExclude: filter.account_exclude,
+          accountRequired: filter.account_required,
+          vote: (filter as { vote?: boolean }).vote,
+          failed: (filter as { failed?: boolean }).failed,
+          signature: (filter as { signature?: string }).signature,
+        },
+      },
+      accounts: {},
+      slots: {},
+      transactionsStatus: {},
+      entry: {},
+      blocks: {},
+      blocksMeta: {},
+      commitment: CommitmentLevel.CONFIRMED,
+      accountsDataSlice: [],
+      ping: undefined,
+    } as unknown as SubscribeRequest;
+  }
+
   /** 订阅交易 */
   async subscribeTransactions(
     filter: TransactionFilter,
@@ -198,87 +251,104 @@ export class YellowstoneGrpc {
     const id = `sub_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     let isCancelled = false;
+    const streamHolder: {
+      current: Awaited<ReturnType<Client["subscribe"]>> | null;
+    } = { current: null };
     const cancel = () => {
       isCancelled = true;
+      streamHolder.current?.end();
+      streamHolder.current = null;
     };
 
     this.subscribers.set(id, { filter, callbacks, cancel });
 
     (async () => {
+      const autoReconnect = callbacks.autoReconnect !== false;
+      const maxBackoffMs = 60_000;
+      let backoffMs = this.config.retry_delay_ms;
+
       try {
-        const stream = await this.client.subscribe();
-
-        await new Promise<void>((resolve, reject) => {
-          stream.write(
-            {
-              transactions: {
-                client: {
-                  accountInclude: filter.account_include,
-                  accountExclude: filter.account_exclude,
-                  accountRequired: filter.account_required,
-                  vote: (filter as any).vote,
-                  failed: (filter as any).failed,
-                  signature: (filter as any).signature,
-                },
-              },
-              accounts: {},
-              slots: {},
-              transactionsStatus: {},
-              entry: {},
-              blocks: {},
-              blocksMeta: {},
-              commitment: CommitmentLevel.CONFIRMED,
-              accountsDataSlice: [],
-              ping: undefined,
-            } as unknown as SubscribeRequest,
-            (err: Error | null | undefined) => {
-              if (err) reject(err);
-              else resolve();
-            }
-          );
-        });
-
-        stream.on("data", (update: SubscribeUpdate) => {
-          if (isCancelled) return;
-          if (!callbacks.onUpdate) return;
-          try {
-            const converted = this.convertUpdate(update);
-            callbacks.onUpdate(converted);
-          } catch (err) {
-            // 用户 onUpdate 内抛错（如同步 IO/画图）若未捕获，会破坏 gRPC duplex 流并触发 RST_STREAM。
-            const e = err instanceof Error ? err : new Error(String(err));
-            if (callbacks.onError) {
-              callbacks.onError(e);
-            }
-          }
-        });
-
-        stream.on("error", (err: Error) => {
-          if (isCancelled) return;
-          if (callbacks.onError) {
-            callbacks.onError(err);
-          }
-        });
-
-        stream.on("end", () => {
-          if (isCancelled) return;
-          this.subscribers.delete(id);
-          if (callbacks.onEnd) {
-            callbacks.onEnd();
-          }
-        });
-
         while (!isCancelled) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+          try {
+            const stream = await this.client.subscribe();
+            streamHolder.current = stream;
 
-        stream.end();
-      } catch (err) {
-        if (isCancelled) return;
-        this.subscribers.delete(id);
-        if (callbacks.onError) {
-          callbacks.onError(err as Error);
+            await new Promise<void>((resolve, reject) => {
+              stream.write(this.initialSubscribeRequest(filter), (err: Error | null | undefined) => {
+                if (err) reject(err);
+                else resolve();
+              });
+            });
+
+            backoffMs = this.config.retry_delay_ms;
+
+            await new Promise<void>((resolve, reject) => {
+              const cleanup = () => {
+                stream.removeAllListeners();
+                if (streamHolder.current === stream) {
+                  streamHolder.current = null;
+                }
+              };
+
+              stream.on("data", (update: SubscribeUpdate) => {
+                if (isCancelled) return;
+
+                if (update.ping) {
+                  stream.write(this.subscribePingPongRequest(), (werr: Error | null | undefined) => {
+                    if (werr && callbacks.onError && !isCancelled) {
+                      callbacks.onError(
+                        werr instanceof Error ? werr : new Error(String(werr))
+                      );
+                    }
+                  });
+                  return;
+                }
+
+                if (!callbacks.onUpdate) return;
+                try {
+                  const converted = this.convertUpdate(update);
+                  callbacks.onUpdate(converted);
+                } catch (err) {
+                  const e = err instanceof Error ? err : new Error(String(err));
+                  callbacks.onError?.(e);
+                }
+              });
+
+              stream.on("error", (err: Error) => {
+                cleanup();
+                reject(err);
+              });
+
+              stream.on("end", () => {
+                cleanup();
+                resolve();
+              });
+            });
+          } catch (err) {
+            if (isCancelled) break;
+            const e = err instanceof Error ? err : new Error(String(err));
+            callbacks.onError?.(e);
+            if (!autoReconnect) break;
+
+            await new Promise((r) => setTimeout(r, backoffMs));
+            backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+            continue;
+          }
+
+          if (isCancelled) break;
+
+          if (!autoReconnect) {
+            callbacks.onEnd?.();
+            break;
+          }
+
+          await new Promise((r) => setTimeout(r, backoffMs));
+          backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         }
+      } finally {
+        streamHolder.current?.end();
+        streamHolder.current = null;
+        this.subscribers.delete(id);
       }
     })();
 
