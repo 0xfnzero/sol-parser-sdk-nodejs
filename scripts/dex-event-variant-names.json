@@ -10,6 +10,7 @@
     "MeteoraDammV2ClosePosition",
     "MeteoraDammV2CreatePosition",
     "MeteoraDammV2InitializePool",
+    "MeteoraDammV2RemoveAllLiquidity",
     "MeteoraDammV2RemoveLiquidity",
     "MeteoraDammV2Swap",
     "MeteoraDlmmAddLiquidity",

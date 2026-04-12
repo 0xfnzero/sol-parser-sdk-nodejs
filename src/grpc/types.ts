@@ -1,5 +1,17 @@
+import type { SubscribeRequestFilterAccountsFilter } from "@triton-one/yellowstone-grpc";
+
 /** gRPC 订阅顺序模式 */
 export type OrderMode = "Unordered" | "Ordered" | "StreamingOrdered" | "MicroBatch";
+
+/** 与 Rust `grpc::types::Protocol` 一致 */
+export type Protocol =
+  | "PumpFun"
+  | "PumpSwap"
+  | "Bonk"
+  | "RaydiumCpmm"
+  | "RaydiumClmm"
+  | "RaydiumAmmV4"
+  | "MeteoraDammV2";
 
 // ─── gRPC 流式更新类型 ────────────────────────────────────────────────────────
 
@@ -112,6 +124,9 @@ export interface ClientConfig {
   micro_batch_us: number;
 }
 
+/** 与 Rust `grpc::config` 中 `StreamingConfig` 别名（即 `ClientConfig`）一致 */
+export type StreamingConfig = ClientConfig;
+
 export function defaultClientConfig(): ClientConfig {
   return {
     enable_metrics: false,
@@ -130,6 +145,44 @@ export function defaultClientConfig(): ClientConfig {
   };
 }
 
+/** 与 Rust `ClientConfig::low_latency` 一致 */
+export function lowLatencyClientConfig(): ClientConfig {
+  return {
+    enable_metrics: false,
+    connection_timeout_ms: 5000,
+    request_timeout_ms: 10_000,
+    enable_tls: true,
+    max_retries: 1,
+    retry_delay_ms: 100,
+    max_concurrent_streams: 200,
+    keep_alive_interval_ms: 10_000,
+    keep_alive_timeout_ms: 2000,
+    buffer_size: 16384,
+    order_mode: "Unordered",
+    order_timeout_ms: 50,
+    micro_batch_us: 50,
+  };
+}
+
+/** 与 Rust `ClientConfig::high_throughput` 一致 */
+export function highThroughputClientConfig(): ClientConfig {
+  return {
+    enable_metrics: true,
+    connection_timeout_ms: 10_000,
+    request_timeout_ms: 30_000,
+    enable_tls: true,
+    max_retries: 5,
+    retry_delay_ms: 2000,
+    max_concurrent_streams: 500,
+    keep_alive_interval_ms: 60_000,
+    keep_alive_timeout_ms: 10_000,
+    buffer_size: 32768,
+    order_mode: "Unordered",
+    order_timeout_ms: 200,
+    micro_batch_us: 200,
+  };
+}
+
 export interface TransactionFilter {
   account_include: string[];
   account_exclude: string[];
@@ -138,6 +191,76 @@ export interface TransactionFilter {
 
 export function newTransactionFilter(): TransactionFilter {
   return { account_include: [], account_exclude: [], account_required: [] };
+}
+
+/** 与 Rust `TransactionFilter::from_program_ids` 一致 */
+export function transactionFilterFromProgramIds(programIds: string[]): TransactionFilter {
+  return {
+    account_include: [...programIds],
+    account_exclude: [],
+    account_required: [],
+  };
+}
+
+/** 与 Rust `grpc::AccountFilter` 一致（Yellowstone 账户订阅） */
+export interface AccountFilter {
+  account: string[];
+  owner: string[];
+  filters: SubscribeRequestFilterAccountsFilter[];
+}
+
+/** 与 Rust `grpc::types::AccountFilterMemcmp` / `AccountFilterData` 一致（文档与扩展用） */
+export interface AccountFilterMemcmp {
+  offset: number;
+  bytes: Uint8Array;
+}
+
+export interface AccountFilterData {
+  memcmp?: AccountFilterMemcmp;
+  datasize?: number;
+}
+
+export function newAccountFilter(): AccountFilter {
+  return { account: [], owner: [], filters: [] };
+}
+
+/** 与 Rust `grpc::types::SlotFilter` 一致 */
+export interface SlotFilter {
+  min_slot?: number;
+  max_slot?: number;
+}
+
+export function newSlotFilter(): SlotFilter {
+  return {};
+}
+
+export function slotFilterMinSlot(filter: SlotFilter, slot: number): SlotFilter {
+  return { ...filter, min_slot: slot };
+}
+
+export function slotFilterMaxSlot(filter: SlotFilter, slot: number): SlotFilter {
+  return { ...filter, max_slot: slot };
+}
+
+/** 与 Rust `AccountFilter::from_program_owners` 一致 */
+export function accountFilterFromProgramOwners(programIds: string[]): AccountFilter {
+  return { account: [], owner: [...programIds], filters: [] };
+}
+
+/**
+ * 构造 memcmp 账户过滤器（与 Rust `account_filter_memcmp` 一致）。
+ * ATA 常在 offset 0 放 mint；PumpSwap 池子等常在 offset 32。
+ */
+export function accountFilterMemcmp(
+  offset: number,
+  bytes: Uint8Array
+): SubscribeRequestFilterAccountsFilter {
+  return {
+    memcmp: {
+      offset: String(offset),
+      bytes,
+    },
+  };
 }
 
 /** 事件类型过滤标签 */
@@ -196,9 +319,10 @@ export type EventType =
   | "MeteoraDammV2Swap"
   | "MeteoraDammV2AddLiquidity"
   | "MeteoraDammV2RemoveLiquidity"
+  | "MeteoraDammV2RemoveAllLiquidity"
   | "MeteoraDammV2CreatePosition"
-  | "MeteoraDammV2ClosePosition"
   | "MeteoraDammV2InitializePool"
+  | "MeteoraDammV2ClosePosition"
   // Meteora DLMM
   | "MeteoraDlmmSwap"
   | "MeteoraDlmmAddLiquidity"
@@ -218,6 +342,9 @@ export type EventType =
   | "NonceAccount"
   | "AccountPumpSwapGlobalConfig"
   | "AccountPumpSwapPool";
+
+/** 与 Rust `grpc::EventType`（由 `StreamingEventType` 导出）一致 */
+export type StreamingEventType = EventType;
 
 /** 所有事件类型列表 */
 export const ALL_EVENT_TYPES: EventType[] = [
@@ -275,9 +402,10 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2Swap",
   "MeteoraDammV2AddLiquidity",
   "MeteoraDammV2RemoveLiquidity",
+  "MeteoraDammV2RemoveAllLiquidity",
   "MeteoraDammV2CreatePosition",
-  "MeteoraDammV2ClosePosition",
   "MeteoraDammV2InitializePool",
+  "MeteoraDammV2ClosePosition",
   // Meteora DLMM
   "MeteoraDlmmSwap",
   "MeteoraDlmmAddLiquidity",
@@ -399,9 +527,10 @@ export function eventTypeFilterIncludesMeteoraDammV2(filter: EventTypeFilter): b
         "MeteoraDammV2Swap",
         "MeteoraDammV2AddLiquidity",
         "MeteoraDammV2CreatePosition",
-        "MeteoraDammV2ClosePosition",
         "MeteoraDammV2InitializePool",
+        "MeteoraDammV2ClosePosition",
         "MeteoraDammV2RemoveLiquidity",
+        "MeteoraDammV2RemoveAllLiquidity",
       ].includes(t)
     );
   }
@@ -411,9 +540,10 @@ export function eventTypeFilterIncludesMeteoraDammV2(filter: EventTypeFilter): b
         "MeteoraDammV2Swap",
         "MeteoraDammV2AddLiquidity",
         "MeteoraDammV2CreatePosition",
-        "MeteoraDammV2ClosePosition",
         "MeteoraDammV2InitializePool",
+        "MeteoraDammV2ClosePosition",
         "MeteoraDammV2RemoveLiquidity",
+        "MeteoraDammV2RemoveAllLiquidity",
       ].includes(t)
     );
   }
@@ -506,19 +636,21 @@ export function eventTypeFilterIncludesOrcaWhirlpool(filter: EventTypeFilter): b
   return true;
 }
 
-/** 过滤器是否包含 Bonk Launchpad 相关类型 */
+/** 过滤器是否包含 Bonk Launchpad 相关类型（与 Rust `includes_raydium_launchpad` / Bonk 集合一致） */
 export function eventTypeFilterIncludesBonk(filter: EventTypeFilter): boolean {
+  const bonk: EventType[] = ["BonkTrade", "BonkPoolCreate", "BonkMigrateAmm"];
   if (filter.include_only) {
-    return filter.include_only.some((t) =>
-      ["BonkTrade", "BonkPoolCreate"].includes(t)
-    );
+    return filter.include_only.some((t) => bonk.includes(t));
   }
   if (filter.exclude_types) {
-    return !filter.exclude_types.some((t) =>
-      ["BonkTrade", "BonkPoolCreate"].includes(t)
-    );
+    return !filter.exclude_types.some((t) => bonk.includes(t));
   }
   return true;
+}
+
+/** 与 Rust `EventTypeFilter::includes_raydium_launchpad` 同名语义 */
+export function eventTypeFilterIncludesRaydiumLaunchpad(filter: EventTypeFilter): boolean {
+  return eventTypeFilterIncludesBonk(filter);
 }
 
 /**
@@ -531,9 +663,10 @@ export function eventTypeFilterAllowsInstructionParsing(includeOnly: EventType[]
     "MeteoraDammV2Swap",
     "MeteoraDammV2AddLiquidity",
     "MeteoraDammV2CreatePosition",
-    "MeteoraDammV2ClosePosition",
     "MeteoraDammV2InitializePool",
+    "MeteoraDammV2ClosePosition",
     "MeteoraDammV2RemoveLiquidity",
+    "MeteoraDammV2RemoveAllLiquidity",
   ];
   return includeOnly.some((t) => ix.includes(t));
 }

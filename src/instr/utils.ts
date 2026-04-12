@@ -36,4 +36,5 @@ export {
   readU8,
   readBool,
   readI64LE,
+  readI32LE,
 } from "../util/binary.js";

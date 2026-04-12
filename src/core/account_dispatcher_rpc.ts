@@ -5,6 +5,8 @@
 import type { DexEvent } from "./dex_event.js";
 import {
   BONK_PROGRAM_ID,
+  BONK_LAUNCHPAD_PROGRAM_ID,
+  BONK_PROGRAM_ID_LEGACY,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
   METEORA_POOLS_PROGRAM_ID,
@@ -65,6 +67,7 @@ import {
   fillMeteoraDammV2ClosePositionAccounts,
   fillMeteoraDammV2CreatePositionAccounts,
   fillMeteoraDammV2InitializePoolAccounts,
+  fillMeteoraDammV2RemoveAllLiquidityAccounts,
   fillMeteoraDammV2RemoveLiquidityAccounts,
   fillMeteoraDammV2SwapAccounts,
   fillMeteoraDlmmAddLiquidityAccounts,
@@ -88,6 +91,30 @@ function tryFill(
   const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
   if (!get) return;
   fn(get);
+}
+
+const BONK_PROGRAM_FILL_ORDER = [
+  BONK_PROGRAM_ID,
+  BONK_LAUNCHPAD_PROGRAM_ID,
+  BONK_PROGRAM_ID_LEGACY,
+] as const;
+
+/** Bonk 多程序 ID：按 Rust 主网 ID → Launchpad → 旧 TS 兼容顺序尝试 CPI 账户填充 */
+function tryFillBonk(
+  programInvokes: Map<string, InvokePair[]>,
+  message: Message | MessageV0,
+  meta: ConfirmedTransactionMeta | null,
+  resolver: { get(i: number): PublicKey | undefined },
+  fn: (get: (i: number) => string) => void
+): void {
+  for (const programId of BONK_PROGRAM_FILL_ORDER) {
+    const invoke = findMaxAccountsInvoke(programId, programInvokes, message, meta);
+    if (!invoke) continue;
+    const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
+    if (!get) continue;
+    fn(get);
+    return;
+  }
 }
 
 /** 就地修改事件体内字段 */
@@ -226,6 +253,10 @@ export function fillAccountsFromTransactionDataRpc(
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2CreatePositionAccounts(ev.MeteoraDammV2CreatePosition, g)
     );
+  } else if ("MeteoraDammV2InitializePool" in ev) {
+    tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+      fillMeteoraDammV2InitializePoolAccounts(ev.MeteoraDammV2InitializePool, g)
+    );
   } else if ("MeteoraDammV2ClosePosition" in ev) {
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2ClosePositionAccounts(ev.MeteoraDammV2ClosePosition, g)
@@ -234,13 +265,13 @@ export function fillAccountsFromTransactionDataRpc(
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2AddLiquidityAccounts(ev.MeteoraDammV2AddLiquidity, g)
     );
+  } else if ("MeteoraDammV2RemoveAllLiquidity" in ev) {
+    tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+      fillMeteoraDammV2RemoveAllLiquidityAccounts(ev.MeteoraDammV2RemoveAllLiquidity, g)
+    );
   } else if ("MeteoraDammV2RemoveLiquidity" in ev) {
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2RemoveLiquidityAccounts(ev.MeteoraDammV2RemoveLiquidity, g)
-    );
-  } else if ("MeteoraDammV2InitializePool" in ev) {
-    tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillMeteoraDammV2InitializePoolAccounts(ev.MeteoraDammV2InitializePool, g)
     );
   } else if ("MeteoraPoolsSwap" in ev) {
     tryFill(METEORA_POOLS_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
@@ -267,11 +298,11 @@ export function fillAccountsFromTransactionDataRpc(
       fillMeteoraDlmmRemoveLiquidityAccounts(ev.MeteoraDlmmRemoveLiquidity, g)
     );
   } else if ("BonkTrade" in ev) {
-    tryFill(BONK_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+    tryFillBonk(programInvokes, message, meta, resolver, (g) =>
       fillBonkTradeAccounts(ev.BonkTrade, g)
     );
   } else if ("BonkPoolCreate" in ev) {
-    tryFill(BONK_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+    tryFillBonk(programInvokes, message, meta, resolver, (g) =>
       fillBonkPoolCreateAccounts(ev.BonkPoolCreate, g)
     );
   }

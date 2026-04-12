@@ -104,8 +104,27 @@ cp .env.example .env
 Notes:
 
 - After `npm install`, the dev dependency **`dotenv`** is available. Any script that imports **`scripts/grpc_env.ts`** (all gRPC examples plus `scripts/test-grpc-ts.ts` / `scripts/debug-grpc-ts.ts`) loads a **`.env`** file in the **current working directory** and merges into `process.env` (**existing exported variables are not overridden**).
+- **`examples/shredstream_*.ts`** import **`dotenv/config`** directly, so a package-root **`.env`** also applies to ShredStream examples (see **ShredStream endpoint** below).
 - Run `npx tsx examples/...`, `npx tsx scripts/test-grpc-ts.ts`, and `npx tsx scripts/debug-grpc-ts.ts` from the **package root** so `.env` is found.
 - If you prefer not to use a file, `export GRPC_URL=...` and `export GRPC_TOKEN=...` in your shell (or use your CI secret store) — behavior is the same.
+
+#### ShredStream endpoint
+
+ShredStream examples **do not** use Yellowstone **`GRPC_URL`**. They talk to a **local or proxied HTTP** shred stream (see your operator’s docs for the correct host and port).
+
+**Priority (highest first):** CLI **`--url`** / **`-u`** / **`--endpoint=`** → environment **`SHREDSTREAM_URL`** or **`SHRED_URL`** → default **`http://127.0.0.1:10800`**.
+
+| How | Example |
+|-----|---------|
+| **CLI** | `npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800` |
+| **Shell env** | `SHREDSTREAM_URL=http://127.0.0.1:10800 npx tsx examples/shredstream_example.ts` (or `SHRED_URL=...`) |
+| **`.env` at package root** | `SHREDSTREAM_URL=http://127.0.0.1:10800` — then `npx tsx examples/shredstream_example.ts` |
+
+Use **`npx tsx examples/shredstream_example.ts -- --help`** or **`npx tsx examples/shredstream_pumpfun_json.ts -- --help`** for the full flag list.
+
+For **`shredstream_pumpfun_json.ts`**, set a Solana **HTTP RPC** for ALT resolution: **`RPC_URL`** in `.env` / environment, or **`--rpc=`** / **`-r`** on the command line. Prefer a **private** RPC in production; **never commit** real endpoints or API keys—keep them in `.env` (gitignored) or your secret store.
+
+The tables below use **`npx tsx`** from the **package root**; substitute your own ShredStream base URL where you use **`--url`** or **`.env`**.
 
 ### Performance testing
 
@@ -140,11 +159,13 @@ npx tsx examples/pumpswap_low_latency.ts
 | **`JSON_PRETTY`** | `npx tsx scripts/test-grpc-ts.ts`: set to `1` or `true` for indented JSON (default is compact one-line) |
 | **`JSON_MAX_CHARS`** | `npx tsx scripts/test-grpc-ts.ts`: max characters per event line; unset or `0` = no truncation |
 | **`TX_SIGNATURE`** | `parse_tx_by_signature.ts` only: Base58 transaction signature (can be set in `.env`) |
-| **`RPC_URL`** | `parse_tx_by_signature.ts` only: Solana HTTP RPC (default `https://api.mainnet-beta.solana.com`; can be set in `.env`) |
+| **`RPC_URL`** | `parse_tx_by_signature.ts`, **`shredstream_pumpfun_json.ts`**: Solana HTTP RPC (default public mainnet endpoint; can be set in `.env`) |
+| **`SHREDSTREAM_URL`** / **`SHRED_URL`** | ShredStream examples only: HTTP endpoint (default `http://127.0.0.1:10800`); CLI `--url` / `-u` overrides |
+| **`SHREDSTREAM_STATS_SEC`** | `shredstream_pumpfun_json.ts` only: print stats every N seconds; `0` disables |
 
 ### Examples
 
-All commands assume the **package root** and `npm install` (examples use `tsx` + `src/`; no build required for examples).
+All commands assume the **package root** and `npm install` (examples use `tsx` + `src/`; no build required for examples). **Run examples with `npx tsx …`** as shown (optional **`npm run`** aliases such as `example:shredstream:subscribe` exist in `package.json` but are not required).
 
 | Description | Run Command | Source Code |
 |-------------|-------------|-------------|
@@ -162,6 +183,9 @@ All commands assume the **package root** and `npm install` (examples use `tsx` +
 | PumpSwap ultra-low latency | `npx tsx examples/pumpswap_low_latency.ts` | [examples/pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
 | Meteora DAMM V2 events | `npx tsx examples/meteora_damm_grpc.ts` | [examples/meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
+| **ShredStream** (not Yellowstone gRPC; needs a local/proxy shred stream — see [ShredStream endpoint](#shredstream-endpoint) above) | | |
+| Ultra-low-latency subscribe, queue + latency stats | `npx tsx examples/shredstream_example.ts` (set URL via `--url`, `SHREDSTREAM_URL`, or `.env`; optional: `-- --url=http://127.0.0.1:10800`) | [examples/shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
+| ShredStream → PumpFun `DexEvent` JSON (needs **RPC** for ALTs) | `npx tsx examples/shredstream_pumpfun_json.ts` (same URL options; add `--rpc=` or `RPC_URL` for HTTP RPC) | [examples/shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **Multi-Protocol** | | |
 | Subscribe to all DEX protocols | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **Utility / QA** | | |
@@ -171,6 +195,7 @@ All commands assume the **package root** and `npm install` (examples use `tsx` +
 **Example notes**
 
 - All **gRPC** examples require **`GRPC_URL`** and **`GRPC_TOKEN`** (recommended: package-root **`.env`**; see `scripts/grpc_env.ts`).
+- **ShredStream** examples use **`SHREDSTREAM_URL`** / **`SHRED_URL`** or **`--url`**; **`shredstream_pumpfun_json`** also needs **`RPC_URL`** or **`--rpc`** (independent of gRPC credentials). See **`.env.example`**.
 - **`parse_tx_by_signature.ts`** requires **`TX_SIGNATURE`** (Base58). Optional **`RPC_URL`**. Both can live in **`.env`** (see **`.env.example`**).
 - gRPC examples that call **`parseLogsOnly`** pass the transaction signature as **Base58** (from `txInfo.signature`), matching `EventMetadata.signature`.
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** measure delay using the SDK’s **`nowUs`** clock and `metadata.grpc_recv_us` (same time base).

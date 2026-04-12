@@ -18,6 +18,8 @@ export {
   isPoolAccount,
 } from "./pumpswap.js";
 export { hasDiscriminator } from "./utils.js";
+export { userWalletPubkeyForOnchainAccount } from "./wallet_resolve.js";
+export { rpcResolveUserWalletPubkey } from "./rpc_wallet.js";
 
 const ACCOUNT_EVENT_TYPES: EventType[] = [
   "TokenAccount",

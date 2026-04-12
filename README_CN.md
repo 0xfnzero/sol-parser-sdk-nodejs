@@ -92,8 +92,27 @@ cp .env.example .env
 说明：
 
 - 克隆仓库并 `npm install` 后，开发依赖里包含 **`dotenv`**。凡导入 **`scripts/grpc_env.ts`** 的脚本（含所有 gRPC 示例与 `scripts/test-grpc-ts.ts` / `scripts/debug-grpc-ts.ts`）会在运行时加载**当前工作目录**下的 **`.env`**，并注入 `process.env`（**不会覆盖**已在 shell 里 `export` 的同名变量）。
+- **`examples/shredstream_*.ts`** 在文件内 **`import "dotenv/config"`**，包根目录 **`.env`** 同样对 ShredStream 示例生效（见下文 **ShredStream 端点**）。
 - 请在**包根目录**执行 `npx tsx examples/...`、`npx tsx scripts/test-grpc-ts.ts`、`npx tsx scripts/debug-grpc-ts.ts`，这样 `.env` 路径正确。
 - 若不用 `.env` 文件，也可在终端执行 `export GRPC_URL=...` 与 `export GRPC_TOKEN=...`（或 CI 密钥管理），效果相同。
+
+#### ShredStream 端点
+
+ShredStream 示例**不**使用 Yellowstone 的 **`GRPC_URL`**，而是连接**本机或代理提供的 HTTP** Shred 流（具体 host/port 以你的服务方文档为准）。
+
+**优先级（由高到低）：** 命令行 **`--url`** / **`-u`** / **`--endpoint=`** → 环境变量 **`SHREDSTREAM_URL`** 或 **`SHRED_URL`** → 默认 **`http://127.0.0.1:10800`**。
+
+| 方式 | 示例 |
+|------|------|
+| **命令行参数** | `npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800` |
+| **当前 shell 环境变量** | `SHREDSTREAM_URL=http://127.0.0.1:10800 npx tsx examples/shredstream_example.ts`（也可用 `SHRED_URL`） |
+| **包根目录 `.env`** | 写入 `SHREDSTREAM_URL=http://127.0.0.1:10800` 后执行 `npx tsx examples/shredstream_example.ts` |
+
+完整参数见：`npx tsx examples/shredstream_example.ts -- --help`、`npx tsx examples/shredstream_pumpfun_json.ts -- --help`。
+
+**`shredstream_pumpfun_json.ts`** 另需 Solana **HTTP RPC** 以解析 ALT：在 **`.env` / 环境变量** 中设 **`RPC_URL`**，或使用 **`--rpc=`** / **`-r`**。生产环境请使用**自有** RPC；**切勿**将真实 ShredStream 地址、RPC URL 或密钥提交到仓库，仅放在本地 **`.env`**（已 gitignore）或密钥管理。
+
+下表示例命令均以 **`npx tsx`** 在**包根目录**执行；将示例中的 `http://127.0.0.1:10800` 换成你自己的端点即可。
 
 ### 性能测试
 
@@ -128,11 +147,13 @@ npx tsx examples/pumpswap_low_latency.ts
 | **`JSON_PRETTY`** | `npx tsx scripts/test-grpc-ts.ts`：设为 `1` 或 `true` 时多行缩进打印（默认单行紧凑 JSON） |
 | **`JSON_MAX_CHARS`** | `npx tsx scripts/test-grpc-ts.ts`：每条事件 JSON 最大字符数；不设或 `0` 表示不截断 |
 | **`TX_SIGNATURE`** | 仅 `parse_tx_by_signature.ts`：Base58 交易签名（可写在 `.env`） |
-| **`RPC_URL`** | 仅 `parse_tx_by_signature.ts`：Solana HTTP RPC（默认 `https://api.mainnet-beta.solana.com`；可写在 `.env`） |
+| **`RPC_URL`** | `parse_tx_by_signature.ts`、**`shredstream_pumpfun_json.ts`**：Solana HTTP RPC（默认主网公开端点；可写在 `.env`） |
+| **`SHREDSTREAM_URL`** / **`SHRED_URL`** | 仅 **ShredStream** 示例：代理 HTTP 端点（默认 `http://127.0.0.1:10800`）；也可用 CLI `--url` / `-u` 覆盖（见下表） |
+| **`SHREDSTREAM_STATS_SEC`** | 仅 `shredstream_pumpfun_json.ts`：每 N 秒打印统计；`0` 表示关闭 |
 
 ### 示例列表
 
-以下命令均在**本包根目录**执行；示例依赖 `npm install`（含 `tsx`），**跑示例不必先 `npm run build`**。
+以下命令均在**本包根目录**执行；示例依赖 `npm install`（含 `tsx`），**跑示例不必先 `npm run build`**。下表统一以 **`npx tsx …`** 为例（`package.json` 里另有可选的 **`npm run`** 别名，例如 `example:shredstream:subscribe`，非必须）。
 
 | 描述 | 运行命令 | 源码 |
 |------|----------|------|
@@ -150,6 +171,9 @@ npx tsx examples/pumpswap_low_latency.ts
 | PumpSwap 超低延迟 | `npx tsx examples/pumpswap_low_latency.ts` | [examples/pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
 | Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [examples/meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
+| **ShredStream**（**非** Yellowstone gRPC；需本地/代理 Shred 流；端点配置见上文「ShredStream 端点」） | | |
+| 超低延迟订阅、队列与延迟统计 | `npx tsx examples/shredstream_example.ts`（端点见 **`--url` / `SHREDSTREAM_URL` / `.env`**；示例：`-- --url=http://127.0.0.1:10800`） | [examples/shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
+| ShredStream → PumpFun `DexEvent` JSON（需 **RPC** 拉 ALT） | `npx tsx examples/shredstream_pumpfun_json.ts`（同上设 ShredStream；另加 **`RPC_URL`** 或 **`--rpc=`**） | [examples/shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **多协议** | | |
 | 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [examples/multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **工具 / 测试** | | |
@@ -159,6 +183,7 @@ npx tsx examples/pumpswap_low_latency.ts
 **示例说明**
 
 - 所有 **gRPC** 示例必须设置 **`GRPC_URL`** 与 **`GRPC_TOKEN`**（推荐写入包根目录 **`.env`**）。
+- **ShredStream** 示例使用 **`SHREDSTREAM_URL`** / **`SHRED_URL`** 或命令行 **`--url`**；**`shredstream_pumpfun_json`** 另需 **`RPC_URL`** 或 **`--rpc`**（与 gRPC 凭证无关）。详见 **`.env.example`**。
 - **`parse_tx_by_signature.ts`** 必须设置 **`TX_SIGNATURE`**（Base58）。可选 **`RPC_URL`**。二者均可写在 **`.env`**（见 **`.env.example`**）。
 - 使用 **`parseLogsOnly`** 的 gRPC 示例将签名编码为 **Base58**（来自 `txInfo.signature`），与 `EventMetadata.signature` 一致。
 - **`pumpfun_with_metrics` / `pumpswap_with_metrics` / `pumpswap_low_latency` / `pumpfun_trade_filter`** 使用 SDK 导出的 **`nowUs`** 与 `metadata.grpc_recv_us` 同一时钟基准统计延迟。

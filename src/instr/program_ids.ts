@@ -1,16 +1,22 @@
-/** 各 DEX 程序 ID（Base58） */
-export const PUMPFUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-/** Pump AMM（PumpSwap），与 `sol-parser-sdk` / `pump_amm.json` 一致 */
-export const PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA";
-export const METEORA_DAMM_V2_PROGRAM_ID = "cpamdpZCGKUy5JxQXB2MWgCm3hcnGjEJbYTJgfm4E8a";
-export const RAYDIUM_CLMM_PROGRAM_ID = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
-export const RAYDIUM_CPMM_PROGRAM_ID = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
-export const RAYDIUM_AMM_V4_PROGRAM_ID = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
-export const ORCA_WHIRLPOOL_PROGRAM_ID = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc";
+/**
+ * 各 DEX 程序 ID（Base58）。与 Rust 对齐的常量来自 `grpc/program_ids.ts`。
+ */
+export {
+  PUMPFUN_PROGRAM_ID,
+  PUMPSWAP_PROGRAM_ID,
+  PUMPSWAP_FEES_PROGRAM_ID,
+  BONK_PROGRAM_ID,
+  RAYDIUM_CPMM_PROGRAM_ID,
+  RAYDIUM_CLMM_PROGRAM_ID,
+  RAYDIUM_AMM_V4_PROGRAM_ID,
+  ORCA_WHIRLPOOL_PROGRAM_ID,
+  METEORA_POOLS_PROGRAM_ID,
+  METEORA_DAMM_V2_PROGRAM_ID,
+  METEORA_DLMM_PROGRAM_ID,
+} from "../grpc/program_ids.js";
+
+/** Launchpad 等场景使用的程序 ID（非 Rust `Protocol` 映射项） */
 export const BONK_LAUNCHPAD_PROGRAM_ID = "LanCh3hDdY7M6x8urBSLJhsQBgPNGKHNqJqGwzAEmBm";
 
-// Legacy/alternative program IDs (kept for compatibility)
-export const BONK_PROGRAM_ID = "DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1";
-export const PUMPSWAP_FEES_PROGRAM_ID = "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ";
-export const METEORA_POOLS_PROGRAM_ID = "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB";
-export const METEORA_DLMM_PROGRAM_ID = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo";
+/** 旧版 TS 包中的 Bonk ID，仅作兼容保留 */
+export const BONK_PROGRAM_ID_LEGACY = "DjVE6JNiYqPL2QXyCUUh8rNjHrbz9hXHNYt99MQ59qw1";

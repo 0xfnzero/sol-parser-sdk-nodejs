@@ -45,9 +45,10 @@ export type DexEvent =
   | { MeteoraDammV2Swap: MeteoraDammV2SwapEvent }
   | { MeteoraDammV2AddLiquidity: MeteoraDammV2AddLiquidityEvent }
   | { MeteoraDammV2RemoveLiquidity: MeteoraDammV2RemoveLiquidityEvent }
+  | { MeteoraDammV2RemoveAllLiquidity: MeteoraDammV2RemoveAllLiquidityEvent }
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
-  | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
+  | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
   | { MeteoraDlmmSwap: MeteoraDlmmSwapEvent }
   | { MeteoraDlmmAddLiquidity: MeteoraDlmmAddLiquidityEvent }
   | { MeteoraDlmmRemoveLiquidity: MeteoraDlmmRemoveLiquidityEvent }
@@ -738,6 +739,16 @@ export interface MeteoraDammV2RemoveLiquidityEvent {
   token_b_amount_threshold: bigint;
 }
 
+/** 外层 `remove_all_liquidity`；指令仅含两 u64 阈值，无 `liquidity_delta`。 */
+export interface MeteoraDammV2RemoveAllLiquidityEvent {
+  metadata: EventMetadata;
+  pool: string;
+  position: string;
+  owner: string;
+  token_a_amount_threshold: bigint;
+  token_b_amount_threshold: bigint;
+}
+
 /** 与 `MeteoraDammV2CreatePositionEvent` 对齐 */
 export interface MeteoraDammV2CreatePositionEvent {
   metadata: EventMetadata;
@@ -747,6 +758,23 @@ export interface MeteoraDammV2CreatePositionEvent {
   position_nft_mint: string;
 }
 
+/**
+ * 外层 `initialize_pool`（`InitializePoolParameters`）；无日志时仅含指令内字段与账户索引映射。
+ * Go/Python 中 `liquidity` / `sqrt_price` 为十进制字符串；`activation_point` 为 `None` 或十进制字符串。
+ */
+export interface MeteoraDammV2InitializePoolEvent {
+  metadata: EventMetadata;
+  creator: string;
+  position_nft_mint: string;
+  pool: string;
+  position: string;
+  token_a_mint: string;
+  token_b_mint: string;
+  liquidity: bigint;
+  sqrt_price: bigint;
+  activation_point: bigint | null;
+}
+
 /** 与 `MeteoraDammV2ClosePositionEvent` 对齐 */
 export interface MeteoraDammV2ClosePositionEvent {
   metadata: EventMetadata;
@@ -754,55 +782,6 @@ export interface MeteoraDammV2ClosePositionEvent {
   owner: string;
   position: string;
   position_nft_mint: string;
-}
-
-/** Meteora `cp-amm` `DynamicFeeParameters`（Anchor 序列化） */
-export interface MeteoraDammV2DynamicFeeParameters {
-  bin_step: number;
-  bin_step_u128: bigint;
-  filter_period: number;
-  decay_period: number;
-  reduction_factor: number;
-  max_volatility_accumulator: number;
-  variable_fee_control: number;
-}
-
-/** Meteora `cp-amm` `PoolFeeParameters`（Anchor 序列化解析） */
-export interface MeteoraDammV2PoolFeeParameters {
-  /** `BaseFeeParameters.data`，27 字节十六进制 */
-  base_fee_data: string;
-  compounding_fee_bps: number;
-  padding: number;
-  dynamic_fee: MeteoraDammV2DynamicFeeParameters | null;
-}
-
-/**
- * 与 Meteora `cp-amm` `EvtInitializePool` 对齐（Program data 载荷）。
- * Go/Python 中 `sqrt_min_price`、`liquidity`、`pool_fees.dynamic_fee.bin_step_u128` 等 u128 语义字段为十进制字符串。
- */
-export interface MeteoraDammV2InitializePoolEvent {
-  metadata: EventMetadata;
-  pool: string;
-  token_a_mint: string;
-  token_b_mint: string;
-  creator: string;
-  payer: string;
-  alpha_vault: string;
-  pool_fees: MeteoraDammV2PoolFeeParameters;
-  sqrt_min_price: bigint;
-  sqrt_max_price: bigint;
-  activation_type: number;
-  collect_fee_mode: number;
-  liquidity: bigint;
-  sqrt_price: bigint;
-  activation_point: bigint;
-  token_a_flag: number;
-  token_b_flag: number;
-  token_a_amount: bigint;
-  token_b_amount: bigint;
-  total_amount_a: bigint;
-  total_amount_b: bigint;
-  pool_type: number;
 }
 
 /** Meteora DLMM Swap：`fee_bps` 在 Go/Python 为十进制字符串。 */

@@ -72,6 +72,10 @@ async function main() {
             removeLiqCount++;
             console.log(`🔥 REMOVE_LIQUIDITY #${removeLiqCount} | sig=${sig} slot=${slot}`);
             break;
+          case "MeteoraDammV2RemoveAllLiquidity":
+            removeLiqCount++;
+            console.log(`🔥 REMOVE_ALL_LIQUIDITY #${removeLiqCount} | sig=${sig} slot=${slot}`);
+            break;
           case "MeteoraDammV2CreatePosition":
             createPosCount++;
             console.log(`📌 CREATE_POSITION #${createPosCount} | sig=${sig} slot=${slot}`);

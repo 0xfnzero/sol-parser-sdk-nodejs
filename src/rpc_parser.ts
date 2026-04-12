@@ -11,6 +11,13 @@ export {
   applyAccountFillsToLogEvents,
 } from "./rpc_transaction.js";
 
+export {
+  convertRpcToGrpc,
+  convert_rpc_to_grpc,
+  type ConvertRpcToGrpcOk,
+  type ConvertRpcToGrpcErr,
+} from "./grpc/rpc_to_grpc.js";
+
 /**
  * 通过 RPC 拉取交易并解析：
  * 外层 + 内层编译指令 + 日志；不含账户字段填充（需另行调用 RPC 填充 API）。

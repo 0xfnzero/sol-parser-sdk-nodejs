@@ -45,6 +45,7 @@ function buyLike(
       : [0n, 0n];
   const [base_amount_out, max_quote_amount_in] =
     swapOrder === "buy" ? [a0, a1] : [a1, a0];
+  const g = (i: number) => getAccount(accounts, i) ?? ZP;
   const ev: PumpSwapBuyEvent = {
     metadata: meta,
     timestamp: 0n,
@@ -61,13 +62,13 @@ function buyLike(
     protocol_fee: 0n,
     quote_amount_in_with_lp_fee: 0n,
     user_quote_amount_in: 0n,
-    pool: getAccount(accounts, 0) ?? Z,
-    user: getAccount(accounts, 1) ?? Z,
-    user_base_token_account: getAccount(accounts, 5) ?? Z,
-    user_quote_token_account: getAccount(accounts, 6) ?? Z,
-    protocol_fee_recipient: getAccount(accounts, 9) ?? Z,
-    protocol_fee_recipient_token_account: getAccount(accounts, 10) ?? Z,
-    coin_creator: Z,
+    pool: g(0),
+    user: g(1),
+    user_base_token_account: g(5),
+    user_quote_token_account: g(6),
+    protocol_fee_recipient: g(9),
+    protocol_fee_recipient_token_account: g(10),
+    coin_creator: accounts.length > 16 ? g(16) : Z,
     coin_creator_fee_basis_points: 0n,
     coin_creator_fee: 0n,
     track_volume: false,
@@ -80,14 +81,14 @@ function buyLike(
     cashback_fee_basis_points: 0n,
     cashback: 0n,
     is_pump_pool: false,
-    base_mint: ZP,
-    quote_mint: ZP,
-    pool_base_token_account: ZP,
-    pool_quote_token_account: ZP,
-    coin_creator_vault_ata: ZP,
-    coin_creator_vault_authority: ZP,
-    base_token_program: ZP,
-    quote_token_program: ZP,
+    base_mint: g(3),
+    quote_mint: g(4),
+    pool_base_token_account: g(7),
+    pool_quote_token_account: g(8),
+    coin_creator_vault_ata: accounts.length > 17 ? g(17) : ZP,
+    coin_creator_vault_authority: accounts.length > 18 ? g(18) : ZP,
+    base_token_program: g(11),
+    quote_token_program: g(12),
   };
   return ev;
 }
@@ -98,12 +99,13 @@ export function parsePumpswapInstruction(
   signature: string,
   slot: number,
   txIndex: number,
-  blockTimeUs: number | undefined
+  blockTimeUs: number | undefined,
+  grpcRecvUs = 0
 ): DexEvent | null {
   if (instructionData.length < 8) return null;
   const head = instructionData.subarray(0, 8);
   const data = instructionData.subarray(8);
-  const meta = ixMeta(signature, slot, txIndex, blockTimeUs, 0);
+  const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
   if (discEq(head, PS.BUY)) {
     if (accounts.length < 13) return null;
@@ -119,6 +121,7 @@ export function parsePumpswapInstruction(
       data.length >= 16
         ? [readU64LE(data, 0) ?? 0n, readU64LE(data, 8) ?? 0n]
         : [0n, 0n];
+    const g = (i: number) => getAccount(accounts, i) ?? ZP;
     const ev: PumpSwapSellEvent = {
       metadata: meta,
       timestamp: 0n,
@@ -135,38 +138,40 @@ export function parsePumpswapInstruction(
       protocol_fee: 0n,
       quote_amount_out_without_lp_fee: 0n,
       user_quote_amount_out: 0n,
-      pool: getAccount(accounts, 0) ?? Z,
-      user: getAccount(accounts, 1) ?? Z,
-      user_base_token_account: getAccount(accounts, 5) ?? Z,
-      user_quote_token_account: getAccount(accounts, 6) ?? Z,
-      protocol_fee_recipient: getAccount(accounts, 9) ?? Z,
-      protocol_fee_recipient_token_account: getAccount(accounts, 10) ?? Z,
-      coin_creator: Z,
+      pool: g(0),
+      user: g(1),
+      user_base_token_account: g(5),
+      user_quote_token_account: g(6),
+      protocol_fee_recipient: g(9),
+      protocol_fee_recipient_token_account: g(10),
+      coin_creator: accounts.length > 16 ? g(16) : Z,
       coin_creator_fee_basis_points: 0n,
       coin_creator_fee: 0n,
       cashback_fee_basis_points: 0n,
       cashback: 0n,
       is_pump_pool: false,
-      base_mint: ZP,
-      quote_mint: ZP,
-      pool_base_token_account: ZP,
-      pool_quote_token_account: ZP,
-      coin_creator_vault_ata: ZP,
-      coin_creator_vault_authority: ZP,
-      base_token_program: ZP,
-      quote_token_program: ZP,
+      base_mint: g(3),
+      quote_mint: g(4),
+      pool_base_token_account: g(7),
+      pool_quote_token_account: g(8),
+      coin_creator_vault_ata: accounts.length > 17 ? g(17) : ZP,
+      coin_creator_vault_authority: accounts.length > 18 ? g(18) : ZP,
+      base_token_program: g(11),
+      quote_token_program: g(12),
     };
     return { PumpSwapSell: ev };
   }
   if (discEq(head, PS.CREATE_POOL)) {
-    if (accounts.length < 5) return null;
+    if (accounts.length < 8) return null;
+    const g = (i: number) => getAccount(accounts, i) ?? Z;
     const ev: PumpSwapCreatePoolEvent = {
       metadata: meta,
       timestamp: 0n,
       index: 0,
-      creator: getAccount(accounts, 0) ?? Z,
-      base_mint: getAccount(accounts, 2) ?? Z,
-      quote_mint: getAccount(accounts, 3) ?? Z,
+      pool: g(0),
+      creator: g(2),
+      base_mint: g(3),
+      quote_mint: g(4),
       base_mint_decimals: 0,
       quote_mint_decimals: 0,
       base_amount_in: 0n,
@@ -177,23 +182,31 @@ export function parsePumpswapInstruction(
       initial_liquidity: 0n,
       lp_token_amount_out: 0n,
       pool_bump: 0,
-      pool: Z,
-      lp_mint: Z,
-      user_base_token_account: Z,
-      user_quote_token_account: Z,
-      coin_creator: Z,
+      lp_mint: g(5),
+      user_base_token_account: g(6),
+      user_quote_token_account: g(7),
+      coin_creator: g(1),
       is_mayhem_mode: false,
     };
     return { PumpSwapCreatePool: ev };
   }
   if (discEq(head, PS.DEPOSIT)) {
     if (accounts.length < 8) return null;
+    const g = (i: number) => getAccount(accounts, i) ?? Z;
+    let lp_out = 0n;
+    let max_base = 0n;
+    let max_quote = 0n;
+    if (data.length >= 24) {
+      lp_out = readU64LE(data, 0) ?? 0n;
+      max_base = readU64LE(data, 8) ?? 0n;
+      max_quote = readU64LE(data, 16) ?? 0n;
+    }
     const ev: PumpSwapLiquidityAdded = {
       metadata: meta,
       timestamp: 0n,
-      lp_token_amount_out: 0n,
-      max_base_amount_in: 0n,
-      max_quote_amount_in: 0n,
+      lp_token_amount_out: lp_out,
+      max_base_amount_in: max_base,
+      max_quote_amount_in: max_quote,
       user_base_token_reserves: 0n,
       user_quote_token_reserves: 0n,
       pool_base_token_reserves: 0n,
@@ -201,22 +214,31 @@ export function parsePumpswapInstruction(
       base_amount_in: 0n,
       quote_amount_in: 0n,
       lp_mint_supply: 0n,
-      pool: getAccount(accounts, 0) ?? Z,
-      user: getAccount(accounts, 1) ?? Z,
-      user_base_token_account: getAccount(accounts, 4) ?? Z,
-      user_quote_token_account: getAccount(accounts, 5) ?? Z,
-      user_pool_token_account: getAccount(accounts, 6) ?? Z,
+      pool: g(0),
+      user: g(1),
+      user_base_token_account: g(4),
+      user_quote_token_account: g(5),
+      user_pool_token_account: g(6),
     };
     return { PumpSwapLiquidityAdded: ev };
   }
   if (discEq(head, PS.WITHDRAW)) {
     if (accounts.length < 8) return null;
+    const g = (i: number) => getAccount(accounts, i) ?? Z;
+    let lp_in = 0n;
+    let min_base = 0n;
+    let min_quote = 0n;
+    if (data.length >= 24) {
+      lp_in = readU64LE(data, 0) ?? 0n;
+      min_base = readU64LE(data, 8) ?? 0n;
+      min_quote = readU64LE(data, 16) ?? 0n;
+    }
     const ev: PumpSwapLiquidityRemoved = {
       metadata: meta,
       timestamp: 0n,
-      lp_token_amount_in: 0n,
-      min_base_amount_out: 0n,
-      min_quote_amount_out: 0n,
+      lp_token_amount_in: lp_in,
+      min_base_amount_out: min_base,
+      min_quote_amount_out: min_quote,
       user_base_token_reserves: 0n,
       user_quote_token_reserves: 0n,
       pool_base_token_reserves: 0n,
@@ -224,11 +246,11 @@ export function parsePumpswapInstruction(
       base_amount_out: 0n,
       quote_amount_out: 0n,
       lp_mint_supply: 0n,
-      pool: getAccount(accounts, 0) ?? Z,
-      user: getAccount(accounts, 1) ?? Z,
-      user_base_token_account: getAccount(accounts, 4) ?? Z,
-      user_quote_token_account: getAccount(accounts, 5) ?? Z,
-      user_pool_token_account: getAccount(accounts, 6) ?? Z,
+      pool: g(0),
+      user: g(1),
+      user_base_token_account: g(4),
+      user_quote_token_account: g(5),
+      user_pool_token_account: g(6),
     };
     return { PumpSwapLiquidityRemoved: ev };
   }
