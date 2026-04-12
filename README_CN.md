@@ -122,18 +122,42 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 
 ---
 
-## 示例命令
+## 示例列表
 
-| | |
-|--|--|
-| gRPC 集成（PumpFun + PumpSwap） | `npx tsx scripts/test-grpc-ts.ts` |
-| PumpFun JSON / 指标 / 过滤 | `npx tsx examples/pumpfun_grpc_json.ts` · `pumpfun_with_metrics.ts` · `pumpfun_trade_filter.ts` |
-| PumpSwap JSON / 指标 / 低延迟 | `npx tsx examples/pumpswap_grpc_json.ts` · `pumpswap_with_metrics.ts` · `pumpswap_low_latency.ts` |
-| Meteora / 多协议 | `npx tsx examples/meteora_damm_grpc.ts` · `multi_protocol_grpc.ts` |
-| ShredStream | `npx tsx examples/shredstream_example.ts` · `shredstream_pumpfun_json.ts` |
-| 仅 RPC 按签名解析交易 | `npx tsx examples/parse_tx_by_signature.ts` |
+在**包根目录**执行，`npm install` 后即可。示例用 `npx tsx` 直接加载 **`src/`**，**不必先 `npm run build`**。**源码**列每个文件单独一行，链接指向 GitHub 上的对应源码（GitHub / npm 均可点击）。
 
-`package.json` 中 `npm run example:shredstream`、`example:shredstream:pumpfun-json` 为上述脚本的别名。
+| 描述 | 运行命令 | 源码 |
+|------|----------|------|
+| **本包脚本** | | |
+| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 `DexEvent`） | `npx tsx scripts/test-grpc-ts.ts` | [test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
+| 调试：打印 `metaRaw` / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
+| **PumpFun** | | |
+| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
+| PumpFun 事件 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
+| PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
+| PumpFun 快速连接测试 | `npx tsx examples/pumpfun_quick_test.ts` | [pumpfun_quick_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.ts) |
+| **PumpSwap** | | |
+| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpswap_grpc_json.ts` | [pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) |
+| PumpSwap 事件 + 性能指标 | `npx tsx examples/pumpswap_with_metrics.ts` | [pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) |
+| PumpSwap 超低延迟 | `npx tsx examples/pumpswap_low_latency.ts` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
+| **Meteora DAMM** | | |
+| Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
+| **ShredStream**（HTTP，**非** Yellowstone gRPC；端点见上文步骤 5） | | |
+| 超低延迟订阅、队列与延迟统计。端点：`--url` / `SHREDSTREAM_URL` / `.env`（默认 `http://127.0.0.1:10800`）。 | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
+| ShredStream → PumpFun `DexEvent` JSON；需 Solana **RPC** 解析 ALT（`RPC_URL` 或 `--rpc`）。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
+| **多协议** | | |
+| 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
+| **工具** | | |
+| 验证 onUpdate 同步错误不会打断 gRPC 流 | `npx tsx examples/grpc_onupdate_error_test.ts` | [grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) |
+| 按签名解析交易（`parseTransactionFromRpc`；非 gRPC）。在 `.env` 或环境中设置 `TX_SIGNATURE`。 | `npx tsx examples/parse_tx_by_signature.ts` | [parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) |
+
+**`npm run` 别名**（与上表 ShredStream 行同一源码文件，每行一条）：
+
+- `npm run example:shredstream` → [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts)
+- `npm run example:shredstream:subscribe` → [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts)
+- `npm run example:shredstream:pumpfun-json` → [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts)
+
+**环境变量：** gRPC 示例需要 **`GRPC_URL`**、**`GRPC_TOKEN`**。ShredStream 使用 **`SHREDSTREAM_URL`** / **`SHRED_URL`** 或 **`--url`**；**`shredstream_pumpfun_json`** 另需 **`RPC_URL`** / **`--rpc`**。详见 **`.env.example`**。
 
 ---
 
