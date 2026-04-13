@@ -11,5 +11,5 @@
     "esModuleInterop": true
   },
   "include": ["src/**/*"],
-  "exclude": ["src/shredstream/wasm/pkg"]
+  "exclude": ["src/**/*.test.ts"]
 }

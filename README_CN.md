@@ -114,6 +114,8 @@ console.log("subscribed", sub.id);
 
 使用 **`SHREDSTREAM_URL`** / **`SHRED_URL`**（默认 `http://127.0.0.1:10800`）或命令行 **`--url`**，**不用** `GRPC_URL`。
 
+客户端在 **TypeScript** 中解码 gRPC `entries` 负载（布局与 Go `shredstream/entries_decode` 一致），并用 `@solana/web3.js` 反序列化线格式交易，**无需 WebAssembly / wasm-pack**。
+
 ```bash
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```

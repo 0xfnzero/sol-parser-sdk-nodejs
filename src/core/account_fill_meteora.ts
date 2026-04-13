@@ -15,6 +15,7 @@ import type {
   MeteoraPoolsSwapEvent,
 } from "./dex_event.js";
 
+/** 预留：gRPC+meta 全量路径若需从 account_keys 补 vault，应对齐 cp_amm `swap` 账户顺序（IDL 中 vault/mint/token program 下标） */
 export function fillMeteoraDammV2SwapAccounts(
   _e: MeteoraDammV2SwapEvent,
   _get: (i: number) => string

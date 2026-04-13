@@ -35,6 +35,8 @@ const CPI = {
 /** 与 cp_amm Anchor IDL `instructions[].discriminator` 一致（用户直接调用的外层指令） */
 const ANCHOR = {
   SWAP: disc8([248, 198, 158, 145, 225, 117, 135, 200]),
+  /** `swap2` — `SwapParameters2`（amount_0, amount_1, swap_mode） */
+  SWAP2: disc8([65, 75, 63, 76, 235, 91, 91, 136]),
   ADD_LIQUIDITY: disc8([181, 157, 89, 67, 143, 182, 52, 72]),
   REMOVE_LIQUIDITY: disc8([80, 85, 209, 72, 24, 206, 177, 108]),
   REMOVE_ALL_LIQUIDITY: disc8([10, 51, 61, 35, 112, 105, 24, 85]),
@@ -66,7 +68,30 @@ function vaults() {
   };
 }
 
-/** 外层 `swap`：`SwapParameters` = amount_in (u64) + minimum_amount_out (u64)，账户：pool_authority(0), pool(1), … */
+/**
+ * cp_amm 外层 `swap` / `swap2` 账户顺序（见 `idls/meteora_damm_v2.json`）：
+ * 0 pool_authority, 1 pool, 2 input_token_account, 3 output_token_account,
+ * 4 token_a_vault, 5 token_b_vault, 6–7 mints, 8 payer, 9–10 token programs；
+ * 11 起为可选 referral、event_authority、program 等。
+ */
+function meteoraSwapVaultsFromAccounts(accounts: string[]) {
+  if (accounts.length < 11) {
+    return vaults();
+  }
+  return {
+    token_a_vault: getAccount(accounts, 4) ?? Z,
+    token_b_vault: getAccount(accounts, 5) ?? Z,
+    token_a_mint: getAccount(accounts, 6) ?? Z,
+    token_b_mint: getAccount(accounts, 7) ?? Z,
+    token_a_program: getAccount(accounts, 9) ?? Z,
+    token_b_program: getAccount(accounts, 10) ?? Z,
+  };
+}
+
+/**
+ * 外层 `swap`：`SwapParameters` = amount_in (u64) + minimum_amount_out (u64)。
+ * 成交额、手续费、`next_sqrt_price` 等仅在程序 `emit!`（日志 / 内联 CPI 载荷）中；**仅解析外层指令时这些字段保持 0**（与无日志的 ShredStream 一致）。
+ */
 function parseOuterSwapIx(
   instructionData: Uint8Array,
   accounts: string[],
@@ -90,7 +115,41 @@ function parseOuterSwapIx(
     referral_fee: 0n,
     actual_amount_in: amount_in,
     current_timestamp: 0n,
-    ...vaults(),
+    ...meteoraSwapVaultsFromAccounts(accounts),
+  };
+  return { MeteoraDammV2Swap: ev };
+}
+
+/** 外层 `swap2`：`SwapParameters2` = amount_0 + amount_1 + swap_mode (u8) */
+function parseOuterSwap2Ix(
+  instructionData: Uint8Array,
+  accounts: string[],
+  meta: MeteoraDammV2SwapEvent["metadata"]
+): DexEvent | null {
+  if (instructionData.length < 25) return null;
+  const amount_0 = readU64LE(instructionData, 8) ?? 0n;
+  const amount_1 = readU64LE(instructionData, 16) ?? 0n;
+  const swap_mode = readU8(instructionData, 24);
+  if (swap_mode === null) return null;
+  const [amount_in, minimum_amount_out] =
+    swap_mode === 0 ? [amount_0, amount_1] : [amount_1, amount_0];
+  const pool = getAccount(accounts, 1) ?? Z;
+  const ev: MeteoraDammV2SwapEvent = {
+    metadata: meta,
+    pool,
+    trade_direction: 0,
+    has_referral: false,
+    amount_in,
+    minimum_amount_out,
+    output_amount: 0n,
+    next_sqrt_price: 0n,
+    lp_fee: 0n,
+    protocol_fee: 0n,
+    partner_fee: 0n,
+    referral_fee: 0n,
+    actual_amount_in: amount_in,
+    current_timestamp: 0n,
+    ...meteoraSwapVaultsFromAccounts(accounts),
   };
   return { MeteoraDammV2Swap: ev };
 }
@@ -235,6 +294,7 @@ function parseOuterClosePositionIx(
 
 function parseSwapCpi(
   data: Uint8Array,
+  accounts: string[],
   meta: MeteoraDammV2SwapEvent["metadata"]
 ): DexEvent | null {
   let o = 0;
@@ -291,13 +351,14 @@ function parseSwapCpi(
     referral_fee,
     actual_amount_in,
     current_timestamp,
-    ...vaults(),
+    ...meteoraSwapVaultsFromAccounts(accounts),
   };
   return { MeteoraDammV2Swap: ev };
 }
 
 function parseSwap2Cpi(
   data: Uint8Array,
+  accounts: string[],
   meta: MeteoraDammV2SwapEvent["metadata"]
 ): DexEvent | null {
   let o = 0;
@@ -363,7 +424,7 @@ function parseSwap2Cpi(
     referral_fee,
     actual_amount_in: included_fee_input_amount,
     current_timestamp,
-    ...vaults(),
+    ...meteoraSwapVaultsFromAccounts(accounts),
   };
   return { MeteoraDammV2Swap: ev };
 }
@@ -382,6 +443,9 @@ export function parseMeteoraDammInstruction(
 
   if (instructionData.length >= 24 && headEq(instructionData, ANCHOR.SWAP)) {
     return parseOuterSwapIx(instructionData, accounts, meta);
+  }
+  if (instructionData.length >= 25 && headEq(instructionData, ANCHOR.SWAP2)) {
+    return parseOuterSwap2Ix(instructionData, accounts, meta);
   }
   if (instructionData.length >= 41 && headEq(instructionData, ANCHOR.INITIALIZE_POOL)) {
     return parseOuterInitializePoolIx(instructionData, accounts, meta);
@@ -406,8 +470,8 @@ export function parseMeteoraDammInstruction(
   const cpiHead = instructionData.subarray(8, 16);
   const cpiData = instructionData.subarray(16);
 
-  if (discEq(cpiHead, CPI.SWAP_LOG)) return parseSwapCpi(cpiData, meta);
-  if (discEq(cpiHead, CPI.SWAP2_LOG)) return parseSwap2Cpi(cpiData, meta);
+  if (discEq(cpiHead, CPI.SWAP_LOG)) return parseSwapCpi(cpiData, accounts, meta);
+  if (discEq(cpiHead, CPI.SWAP2_LOG)) return parseSwap2Cpi(cpiData, accounts, meta);
   if (discEq(cpiHead, CPI.CREATE_POSITION_LOG)) {
     let o = 0;
     const pool = readPubkeyIx(cpiData, o);

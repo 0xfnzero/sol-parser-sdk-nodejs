@@ -23,13 +23,13 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc && mkdir -p dist/shredstream/wasm && cp -r src/shredstream/wasm/pkg dist/shredstream/wasm/ && cp src/shredstream/shredstream.proto dist/shredstream/",
-    "build:shredstream-wasm": "cd ../sol-parser-sdk/shredstream-wasm && wasm-pack build --target nodejs --out-dir ../../sol-parser-sdk-ts/src/shredstream/wasm/pkg",
+    "build": "tsc && mkdir -p dist/shredstream && cp src/shredstream/shredstream.proto dist/shredstream/",
     "prepublishOnly": "npm run build",
     "check:dex-events": "tsx scripts/check-dex-event-parity.ts",
     "verify:discriminators": "tsx scripts/verify-program-log-discriminators.ts",
     "check:json-utils": "tsx scripts/check-json-utils.ts",
     "check:discriminator-lut": "tsx scripts/check-discriminator-lut.ts",
+    "test": "vitest run",
     "check:migration": "npm run check:dex-events && npm run verify:discriminators && npm run check:discriminator-lut && npm run check:json-utils && npm run build",
     "example:shredstream:subscribe": "tsx examples/shredstream_example.ts",
     "example:shredstream:pumpfun-json": "tsx examples/shredstream_pumpfun_json.ts",
@@ -48,7 +48,8 @@
     "@types/node": "^22.19.17",
     "dotenv": "^17.4.1",
     "tsx": "^4.21.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.12.4",

@@ -1,5 +1,6 @@
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
+ * `ShredWasmTx` 来自线格式交易经 `@solana/web3.js` 反序列化（见 `wire_to_shred_tx.ts`），非 WASM。
  * 完整账户列表需含 V0 ALT 展开，见 `alt_lookup.ts` + `ShredStreamConfig.connection`。
  */
 import type { MessageHeader } from "@solana/web3.js";
@@ -23,7 +24,7 @@ export type ShredWasmTx = {
   signature: string;
   accounts: string[];
   instructions?: ShredWasmCompiledIx[];
-  /** WASM 新增；缺省则按仅静态账户处理 */
+  /** 缺省则按仅静态账户处理 */
   messageVersion?: "legacy" | "v0";
   header?: MessageHeader;
   recentBlockhash?: Uint8Array;

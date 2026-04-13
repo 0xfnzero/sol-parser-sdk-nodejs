@@ -6,7 +6,7 @@
  * - 无 inner instructions，无法 CPI 解析
  * - 无 block_time
  * - 无交易日志（program logs）；客户端对每条交易走 **外层 `parseInstructionUnified`**（与 gRPC 指令解析同源），可产出 `DexEvent`（V0+ALT 若账户下标超出静态表则跳过该指令）
- * - `tx_index` 为 Entry 内下标，非 slot 内全局下标
+ * - `metadata.tx_index` 为**单条 gRPC `Entry` 消息内**跨所有 Solana `Entry` 分组的连续下标（与 golang `shredstream_entries` 扁平 `ti` 对齐），非 slot 级全局序号
  */
 export {
   type ShredStreamConfig,
@@ -27,3 +27,11 @@ export {
 } from "./instruction_parse.js";
 export { fullAccountKeyStringsFromShredTx, loadAddressLookupTableAccounts } from "./alt_lookup.js";
 export type { SubscribeEntriesRequest, ShredstreamEntryMessage } from "./proto_types.js";
+export {
+  bincodeVecEntryCount,
+  decodeEntriesBincodeFlat,
+  decodeEntriesBincodeNested,
+  decodeShredstreamEntriesBincode,
+  type DecodedWireTransaction,
+} from "./entries_decode.js";
+export { wireBytesToShredWasmTx } from "./wire_to_shred_tx.js";

@@ -114,6 +114,8 @@ console.log("subscribed", sub.id);
 
 Uses **`SHREDSTREAM_URL`** or **`SHRED_URL`** (default `http://127.0.0.1:10800`), or CLI **`--url`**. Not `GRPC_URL`.
 
+The client decodes gRPC `entries` bytes in **TypeScript** (same layout as the Go `shredstream/entries_decode` path) and deserializes wire transactions with `@solana/web3.js` — **no WebAssembly or wasm-pack build**.
+
 ```bash
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```

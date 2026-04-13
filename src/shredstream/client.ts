@@ -3,7 +3,6 @@
  */
 import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
-import { createRequire } from "node:module";
 import { join } from "node:path";
 import { type DexEvent } from "../core/dex_event.js";
 import { nowUs } from "../core/unified_parser.js";
@@ -17,21 +16,7 @@ import {
   type ShredStreamConfig,
   defaultShredStreamConfig,
 } from "./config.js";
-
-/** 与编译产物 `dist/shredstream/client.js` 同目录解析 wasm / proto（CommonJS 下 `__dirname` 可用） */
-const nodeRequire = createRequire(join(__dirname, "client.js"));
-
-/** wasm-pack `--target nodejs` 产物（构建后位于 `dist/shredstream/wasm/pkg`） */
-function loadWasm(): { decode_shredstream_entries_bincode: (data: Uint8Array) => unknown } {
-  const pkg = join(__dirname, "wasm", "pkg", "sol_parser_shredstream_wasm.js");
-  return nodeRequire(pkg) as { decode_shredstream_entries_bincode: (data: Uint8Array) => unknown };
-}
-
-let wasmModule: { decode_shredstream_entries_bincode: (data: Uint8Array) => unknown } | null = null;
-function wasm(): { decode_shredstream_entries_bincode: (data: Uint8Array) => unknown } {
-  if (!wasmModule) wasmModule = loadWasm();
-  return wasmModule;
-}
+import { decodeShredstreamEntriesBincode } from "./entries_decode.js";
 
 const PROTO_PATH = join(__dirname, "shredstream.proto");
 
@@ -333,17 +318,13 @@ export class ShredStreamClient {
     const raw = entry.entries;
     const bytes = raw instanceof Buffer ? new Uint8Array(raw) : new Uint8Array(raw);
 
-    let decoded: unknown;
+    let decoded: ShredWasmTx[][];
     try {
-      decoded = wasm().decode_shredstream_entries_bincode(bytes);
+      decoded = decodeShredstreamEntriesBincode(bytes);
     } catch (e) {
       this.receiveStats.entryDecodeFailures += 1;
       const msg = e instanceof Error ? e.message : String(e);
       console.warn(`[shredstream] bincode 解码失败 slot=${slotNum} bytes=${bytes.length}: ${msg}`);
-      return;
-    }
-    if (!Array.isArray(decoded)) {
-      console.warn(`[shredstream] 解码结果非数组 slot=${slotNum}`);
       return;
     }
 
@@ -363,7 +344,7 @@ export class ShredStreamClient {
 
   /** 无 RPC：仅用静态账户表 */
   private processEntryMessageSync(
-    decoded: unknown[],
+    decoded: ShredWasmTx[][],
     slotNum: number,
     recvUs: number,
     queue: ShredEventQueue,
@@ -371,13 +352,15 @@ export class ShredStreamClient {
   ): void {
     let txTotal = 0;
     let evTotal = 0;
+    /** 与 golang `shredstream_entries` 一致：单条 gRPC 消息内跨所有 Solana Entry 的连续下标 */
+    let globalTxIndex = 0;
 
     for (const outer of decoded) {
-      if (!Array.isArray(outer)) continue;
-      const txs = outer as ShredWasmTx[];
+      const txs = outer;
       txTotal += txs.length;
-      for (let txIndex = 0; txIndex < txs.length; txIndex++) {
-        const tx = txs[txIndex];
+      for (let i = 0; i < txs.length; i++) {
+        const tx = txs[i];
+        const txIndex = globalTxIndex++;
         if (!tx?.signature) continue;
         const events = dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, undefined);
         evTotal += events.length;
@@ -400,7 +383,7 @@ export class ShredStreamClient {
 
   /** 拉取 ALT 后完整账户表解析 */
   private async processEntryMessageWithAlt(
-    decoded: unknown[],
+    decoded: ShredWasmTx[][],
     slotNum: number,
     recvUs: number,
     queue: ShredEventQueue,
@@ -409,8 +392,7 @@ export class ShredStreamClient {
   ): Promise<void> {
     const altKeys = new Set<string>();
     for (const outer of decoded) {
-      if (!Array.isArray(outer)) continue;
-      for (const tx of outer as ShredWasmTx[]) {
+      for (const tx of outer) {
         for (const l of tx.addressTableLookups ?? []) {
           altKeys.add(l.accountKey);
         }
@@ -420,13 +402,14 @@ export class ShredStreamClient {
 
     let txTotal = 0;
     let evTotal = 0;
+    let globalTxIndex = 0;
 
     for (const outer of decoded) {
-      if (!Array.isArray(outer)) continue;
-      const txs = outer as ShredWasmTx[];
+      const txs = outer;
       txTotal += txs.length;
-      for (let txIndex = 0; txIndex < txs.length; txIndex++) {
-        const tx = txs[txIndex];
+      for (let i = 0; i < txs.length; i++) {
+        const tx = txs[i];
+        const txIndex = globalTxIndex++;
         if (!tx?.signature) continue;
         const fullKeys = fullAccountKeyStringsFromShredTx(tx, altMap);
         const events = dexEventsFromShredWasmTxWithFullKeys(
