@@ -1,6 +1,6 @@
 {
   "name": "sol-parser-sdk-nodejs",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
