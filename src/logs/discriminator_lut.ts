@@ -7,6 +7,7 @@ import { PROGRAM_LOG_DISC } from "./program_log_discriminators.js";
 /** 与 Rust `discriminator_lut::Protocol` 变体名一致（字符串联合，便于 JSON / 日志）。 */
 export type LogProtocol =
   | "PumpFun"
+  | "PumpFees"
   | "PumpSwap"
   | "RaydiumClmm"
   | "RaydiumCpmm"
@@ -17,6 +18,7 @@ export type LogProtocol =
 
 function protocolForProgramLogKey(key: string): LogProtocol {
   if (key.startsWith("PUMPFUN_")) return "PumpFun";
+  if (key.startsWith("PUMP_FEES_")) return "PumpFees";
   if (key.startsWith("PUMPSWAP_")) return "PumpSwap";
   if (key.startsWith("RAYDIUM_CLMM_")) return "RaydiumClmm";
   if (key.startsWith("RAYDIUM_CPMM_")) return "RaydiumCpmm";

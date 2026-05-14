@@ -14,6 +14,11 @@ export { bigintToJsonReplacer, dexEventToJsonString } from "./core/json_utils.js
 export type { EventMetadata } from "./core/metadata.js";
 export type { ParseError } from "./core/error.js";
 export { formatParseError } from "./core/error.js";
+export {
+  enrichCreateV2ObservedFeeRecipient,
+  enrichPumpfunTradesFromCreateInstructions,
+  enrichPumpfunSameTxPostMerge,
+} from "./core/pumpfun_fee_enrich.js";
 
 export {
   parseTransactionEvents,
@@ -112,6 +117,7 @@ export {
   eventTypeFilterIncludesOrcaWhirlpool,
   eventTypeFilterIncludesBonk,
   eventTypeFilterIncludesRaydiumLaunchpad,
+  eventTypeFilterIncludesPumpFees,
   eventTypeFilterAllowsInstructionParsing,
   ALL_EVENT_TYPES,
 } from "./grpc/types.js";
@@ -125,6 +131,7 @@ export {
   PUMPFUN_PROGRAM_ID,
   PUMPSWAP_PROGRAM_ID,
   PUMPSWAP_FEES_PROGRAM_ID,
+  PUMP_FEES_PROGRAM_ID,
   BONK_PROGRAM_ID,
   RAYDIUM_CPMM_PROGRAM_ID,
   RAYDIUM_CLMM_PROGRAM_ID,
@@ -214,6 +221,9 @@ export {
   parseNonceAccount,
   isNonceAccount,
   parseTokenAccount,
+  parsePumpfunGlobal,
+  parsePumpfunAccount,
+  isPumpfunGlobalAccount,
   parsePumpswapGlobalConfig,
   parsePumpswapPool,
   parsePumpswapAccount,
@@ -229,6 +239,7 @@ export {
   parse_account_unified,
   parse_nonce_account,
   parse_token_account,
+  parse_pumpfun_global,
   parse_pumpswap_global_config,
   parse_pumpswap_pool,
   rpc_resolve_user_wallet_pubkey,
@@ -240,6 +251,7 @@ export {
   parsePumpfunInstruction,
   parsePumpswapInstruction,
   parseMeteoraDammInstruction,
+  parsePumpFeesInstruction,
 } from "./instr/mod.js";
 
 /** Rust `instr` 根模块蛇形命名别名 */
@@ -248,11 +260,12 @@ export {
   parse_pumpfun_instruction,
   parse_pumpswap_instruction,
   parse_meteora_damm_instruction,
+  parse_pump_fees_instruction,
 } from "./instr/rust_aliases.js";
 
 export * as programIds from "./instr/program_ids.js";
 
-export { YellowstoneGrpc, type SubscribeCallbacks } from "./grpc/client.js";
+export { YellowstoneGrpc, type SubscribeCallbacks, type DexEventSubscription } from "./grpc/client.js";
 
 export {
   connectYellowstoneGeyser,

@@ -100,6 +100,8 @@ export interface SubscribeUpdate {
   blockMeta?: SubscribeUpdateBlockMeta;
   ping?: SubscribeUpdatePing;
   pong?: SubscribeUpdatePong;
+  /** Yellowstone SubscribeUpdate.created_at, Unix timestamp in microseconds. */
+  createdAtUs?: number;
 }
 
 export interface SubscribeCallbacks {
@@ -281,6 +283,16 @@ export type EventType =
   | "PumpFunCreateV2"
   | "PumpFunComplete"
   | "PumpFunMigrate"
+  | "PumpFeesCreateFeeSharingConfig"
+  | "PumpFeesInitializeFeeConfig"
+  | "PumpFeesResetFeeSharingConfig"
+  | "PumpFeesRevokeFeeSharingAuthority"
+  | "PumpFeesTransferFeeSharingAuthority"
+  | "PumpFeesUpdateAdmin"
+  | "PumpFeesUpdateFeeConfig"
+  | "PumpFeesUpdateFeeShares"
+  | "PumpFeesUpsertFeeTiers"
+  | "PumpFunMigrateBondingCurveCreator"
   // PumpSwap
   | "PumpSwapTrade"
   | "PumpSwapBuy"
@@ -345,6 +357,7 @@ export type EventType =
   | "TokenAccount"
   | "TokenInfo"
   | "NonceAccount"
+  | "AccountPumpFunGlobal"
   | "AccountPumpSwapGlobalConfig"
   | "AccountPumpSwapPool";
 
@@ -364,6 +377,16 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "PumpFunCreateV2",
   "PumpFunComplete",
   "PumpFunMigrate",
+  "PumpFeesCreateFeeSharingConfig",
+  "PumpFeesInitializeFeeConfig",
+  "PumpFeesResetFeeSharingConfig",
+  "PumpFeesRevokeFeeSharingAuthority",
+  "PumpFeesTransferFeeSharingAuthority",
+  "PumpFeesUpdateAdmin",
+  "PumpFeesUpdateFeeConfig",
+  "PumpFeesUpdateFeeShares",
+  "PumpFeesUpsertFeeTiers",
+  "PumpFunMigrateBondingCurveCreator",
   // PumpSwap
   "PumpSwapTrade",
   "PumpSwapBuy",
@@ -428,6 +451,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "TokenAccount",
   "TokenInfo",
   "NonceAccount",
+  "AccountPumpFunGlobal",
   "AccountPumpSwapGlobalConfig",
   "AccountPumpSwapPool",
 ];
@@ -477,6 +501,17 @@ export function eventTypeFilterIncludesPumpfun(filter: EventTypeFilter): boolean
         "PumpFunCreateV2",
         "PumpFunComplete",
         "PumpFunMigrate",
+        "PumpFeesCreateFeeSharingConfig",
+        "PumpFeesInitializeFeeConfig",
+        "PumpFeesResetFeeSharingConfig",
+        "PumpFeesRevokeFeeSharingAuthority",
+        "PumpFeesTransferFeeSharingAuthority",
+        "PumpFeesUpdateAdmin",
+        "PumpFeesUpdateFeeConfig",
+        "PumpFeesUpdateFeeShares",
+        "PumpFeesUpsertFeeTiers",
+        "PumpFunMigrateBondingCurveCreator",
+        "AccountPumpFunGlobal",
       ].includes(t)
     );
   }
@@ -491,8 +526,42 @@ export function eventTypeFilterIncludesPumpfun(filter: EventTypeFilter): boolean
         "PumpFunCreateV2",
         "PumpFunComplete",
         "PumpFunMigrate",
+        "PumpFeesCreateFeeSharingConfig",
+        "PumpFeesInitializeFeeConfig",
+        "PumpFeesResetFeeSharingConfig",
+        "PumpFeesRevokeFeeSharingAuthority",
+        "PumpFeesTransferFeeSharingAuthority",
+        "PumpFeesUpdateAdmin",
+        "PumpFeesUpdateFeeConfig",
+        "PumpFeesUpdateFeeShares",
+        "PumpFeesUpsertFeeTiers",
+        "PumpFunMigrateBondingCurveCreator",
+        "AccountPumpFunGlobal",
       ].includes(t)
     );
+  }
+  return true;
+}
+
+const PUMP_FEES_EVENT_TYPES: EventType[] = [
+  "PumpFeesCreateFeeSharingConfig",
+  "PumpFeesInitializeFeeConfig",
+  "PumpFeesResetFeeSharingConfig",
+  "PumpFeesRevokeFeeSharingAuthority",
+  "PumpFeesTransferFeeSharingAuthority",
+  "PumpFeesUpdateAdmin",
+  "PumpFeesUpdateFeeConfig",
+  "PumpFeesUpdateFeeShares",
+  "PumpFeesUpsertFeeTiers",
+];
+
+/** 过滤器是否包含 Pump Fees (`pfeeUx...`) 相关类型 */
+export function eventTypeFilterIncludesPumpFees(filter: EventTypeFilter): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) => PUMP_FEES_EVENT_TYPES.includes(t));
+  }
+  if (filter.exclude_types) {
+    return !filter.exclude_types.some((t) => PUMP_FEES_EVENT_TYPES.includes(t));
   }
   return true;
 }
@@ -564,6 +633,10 @@ export function eventTypeFilterIncludesRaydiumClmm(filter: EventTypeFilter): boo
         "RaydiumClmmIncreaseLiquidity",
         "RaydiumClmmDecreaseLiquidity",
         "RaydiumClmmCreatePool",
+        "RaydiumClmmOpenPosition",
+        "RaydiumClmmOpenPositionWithTokenExtNft",
+        "RaydiumClmmClosePosition",
+        "RaydiumClmmCollectFee",
       ].includes(t)
     );
   }
@@ -574,6 +647,10 @@ export function eventTypeFilterIncludesRaydiumClmm(filter: EventTypeFilter): boo
         "RaydiumClmmIncreaseLiquidity",
         "RaydiumClmmDecreaseLiquidity",
         "RaydiumClmmCreatePool",
+        "RaydiumClmmOpenPosition",
+        "RaydiumClmmOpenPositionWithTokenExtNft",
+        "RaydiumClmmClosePosition",
+        "RaydiumClmmCollectFee",
       ].includes(t)
     );
   }
@@ -664,7 +741,21 @@ export function eventTypeFilterIncludesRaydiumLaunchpad(filter: EventTypeFilter)
  */
 export function eventTypeFilterAllowsInstructionParsing(includeOnly: EventType[]): boolean {
   const ix: EventType[] = [
+    "PumpFunTrade",
+    "PumpFunBuy",
+    "PumpFunSell",
+    "PumpFunBuyExactSolIn",
+    "PumpFunCreate",
+    "PumpFunCreateV2",
     "PumpFunMigrate",
+    "PumpFunMigrateBondingCurveCreator",
+    "AccountPumpFunGlobal",
+    ...PUMP_FEES_EVENT_TYPES,
+    "PumpSwapBuy",
+    "PumpSwapSell",
+    "PumpSwapCreatePool",
+    "PumpSwapLiquidityAdded",
+    "PumpSwapLiquidityRemoved",
     "MeteoraDammV2Swap",
     "MeteoraDammV2AddLiquidity",
     "MeteoraDammV2CreatePosition",
@@ -672,6 +763,30 @@ export function eventTypeFilterAllowsInstructionParsing(includeOnly: EventType[]
     "MeteoraDammV2ClosePosition",
     "MeteoraDammV2RemoveLiquidity",
     "MeteoraDammV2RemoveAllLiquidity",
+    "RaydiumClmmSwap",
+    "RaydiumClmmIncreaseLiquidity",
+    "RaydiumClmmDecreaseLiquidity",
+    "RaydiumClmmCreatePool",
+    "RaydiumClmmOpenPosition",
+    "RaydiumClmmOpenPositionWithTokenExtNft",
+    "RaydiumClmmClosePosition",
+    "RaydiumClmmCollectFee",
+    "RaydiumCpmmSwap",
+    "RaydiumCpmmDeposit",
+    "RaydiumCpmmWithdraw",
+    "RaydiumCpmmInitialize",
+    "RaydiumAmmV4Swap",
+    "RaydiumAmmV4Deposit",
+    "RaydiumAmmV4Withdraw",
+    "RaydiumAmmV4WithdrawPnl",
+    "RaydiumAmmV4Initialize2",
+    "OrcaWhirlpoolSwap",
+    "OrcaWhirlpoolLiquidityIncreased",
+    "OrcaWhirlpoolLiquidityDecreased",
+    "OrcaWhirlpoolPoolInitialized",
+    "BonkTrade",
+    "BonkPoolCreate",
+    "BonkMigrateAmm",
   ];
   return includeOnly.some((t) => ix.includes(t));
 }

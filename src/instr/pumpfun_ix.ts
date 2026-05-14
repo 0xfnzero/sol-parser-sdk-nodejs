@@ -3,6 +3,7 @@
  */
 import type { DexEvent } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
+import type { EventMetadata } from "../core/metadata.js";
 import { getAccount, ixMeta, readBorshStrAt, readPubkeyIx, readU64LE } from "./utils.js";
 import { readI64LE } from "../util/binary.js";
 
@@ -11,6 +12,9 @@ const Z = defaultPubkey();
 const DISC = {
   CREATE: Uint8Array.from([24, 30, 200, 40, 5, 28, 7, 119]),
   CREATE_V2: Uint8Array.from([214, 144, 76, 236, 95, 139, 49, 180]),
+  BUY_V2: Uint8Array.from([184, 23, 238, 97, 103, 197, 211, 61]),
+  SELL_V2: Uint8Array.from([93, 246, 130, 60, 231, 233, 64, 178]),
+  BUY_EXACT_QUOTE_IN_V2: Uint8Array.from([194, 171, 28, 70, 104, 77, 91, 47]),
   MIGRATE_EVENT_LOG: Uint8Array.from([189, 233, 93, 185, 92, 148, 234, 148]),
 };
 
@@ -30,6 +34,58 @@ function createNumericDefaults() {
     is_mayhem_mode: false,
     is_cashback_enabled: false,
   };
+}
+
+function parsePumpfunTradeV2Instruction(
+  ixName: "buy_v2" | "sell_v2" | "buy_exact_quote_in_v2",
+  data: Uint8Array,
+  accounts: string[],
+  metadata: EventMetadata
+): DexEvent | null {
+  const minAccounts = ixName === "sell_v2" ? 26 : 27;
+  if (accounts.length < minAccounts) return null;
+
+  const first = data.length >= 8 ? readU64LE(data, 0) ?? 0n : 0n;
+  const second = data.length >= 16 ? readU64LE(data, 8) ?? 0n : 0n;
+  const tokenAmount = ixName === "buy_exact_quote_in_v2" ? second : first;
+  const solAmount = ixName === "buy_exact_quote_in_v2" ? first : second;
+
+  const trade = {
+    metadata,
+    mint: accounts[1] ?? Z,
+    bonding_curve: accounts[10] ?? Z,
+    user: accounts[13] ?? Z,
+    sol_amount: solAmount,
+    token_amount: tokenAmount,
+    fee_recipient: accounts[6] ?? Z,
+    is_buy: ixName !== "sell_v2",
+    is_created_buy: false,
+    timestamp: 0n,
+    virtual_sol_reserves: 0n,
+    virtual_token_reserves: 0n,
+    real_sol_reserves: 0n,
+    real_token_reserves: 0n,
+    fee_basis_points: 0n,
+    fee: 0n,
+    creator: Z,
+    creator_fee_basis_points: 0n,
+    creator_fee: 0n,
+    track_volume: false,
+    total_unclaimed_tokens: 0n,
+    total_claimed_tokens: 0n,
+    current_sol_volume: 0n,
+    last_update_timestamp: 0n,
+    ix_name: ixName,
+    mayhem_mode: false,
+    cashback_fee_basis_points: 0n,
+    cashback: 0n,
+    is_cashback_coin: false,
+    associated_bonding_curve: accounts[11] ?? Z,
+    token_program: accounts[3] ?? Z,
+    creator_vault: accounts[16] ?? Z,
+  };
+
+  return { PumpFunTrade: trade };
 }
 
 export function parsePumpfunInstruction(
@@ -83,9 +139,22 @@ export function parsePumpfunInstruction(
       mayhem_token_vault: accounts[13] ?? Z,
       event_authority: accounts[14] ?? Z,
       program: accounts[15] ?? Z,
+      observed_fee_recipient: Z,
       ...createNumericDefaults(),
     };
     return { PumpFunCreateV2: ev };
+  }
+
+  if (discEq(outer, DISC.BUY_V2)) {
+    return parsePumpfunTradeV2Instruction("buy_v2", data, accounts, meta);
+  }
+
+  if (discEq(outer, DISC.BUY_EXACT_QUOTE_IN_V2)) {
+    return parsePumpfunTradeV2Instruction("buy_exact_quote_in_v2", data, accounts, meta);
+  }
+
+  if (discEq(outer, DISC.SELL_V2)) {
+    return parsePumpfunTradeV2Instruction("sell_v2", data, accounts, meta);
   }
 
   if (discEq(outer, DISC.CREATE)) {

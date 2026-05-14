@@ -4,6 +4,7 @@
 export { parseAccountUnified as parse_account_unified } from "./mod.js";
 export { parseNonceAccount as parse_nonce_account } from "./nonce.js";
 export { parseTokenAccount as parse_token_account } from "./token.js";
+export { parsePumpfunGlobal as parse_pumpfun_global } from "./pumpfun.js";
 export {
   parsePumpswapGlobalConfig as parse_pumpswap_global_config,
   parsePumpswapPool as parse_pumpswap_pool,

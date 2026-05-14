@@ -15,6 +15,7 @@ import type { ParseError } from "./core/error.js";
 import type { EventTypeFilter } from "./grpc/types.js";
 import { fillAccountsFromTransactionDataRpc } from "./core/account_dispatcher_rpc.js";
 import { fillDataRpc } from "./core/common_filler_rpc.js";
+import { enrichPumpfunSameTxPostMerge } from "./core/pumpfun_fee_enrich.js";
 import {
   accountKeyToBase58,
   buildProgramInvokesMap,
@@ -22,6 +23,7 @@ import {
   getAccountKeyResolver,
   isCompiledVersionedMessage,
 } from "./core/rpc_invoke_map.js";
+import { dedupeLogInstructionEvents } from "./grpc/log_instr_dedup.js";
 import { parseInstructionUnified } from "./instr/mod.js";
 import { parseLogOptimized } from "./logs/optimized_matcher.js";
 
@@ -123,6 +125,7 @@ export function applyAccountFillsToLogEvents(
   meta: ConfirmedTransactionMeta | null
 ): void {
   applyRpcFills(events, msg, meta);
+  enrichPumpfunSameTxPostMerge(events);
 }
 
 /**
@@ -132,7 +135,7 @@ export function parseRpcTransaction(
   tx: VersionedTransactionResponse,
   signature: string,
   filter?: EventTypeFilter,
-  options?: { grpcRecvUs?: number }
+  options?: { grpcRecvUs?: number; txIndex?: number; blockTimeUs?: number }
 ): { ok: true; events: DexEvent[] } | { ok: false; error: ParseError } {
   const msg = tx.transaction?.message;
   if (!msg || !isCompiledVersionedMessage(msg)) {
@@ -148,31 +151,34 @@ export function parseRpcTransaction(
 
   const meta = tx.meta ?? null;
   const slot = tx.slot;
-  const blockTimeUs = tx.blockTime != null ? tx.blockTime * 1_000_000 : undefined;
+  const blockTimeUs =
+    options?.blockTimeUs ?? (tx.blockTime != null ? tx.blockTime * 1_000_000 : undefined);
   const grpcRecvUs = options?.grpcRecvUs ?? Math.floor(Date.now() * 1000);
+  const txIndex = options?.txIndex ?? 0;
   const rb = recentBlockhashBytes(msg.recentBlockhash);
 
-  const events: DexEvent[] = [];
+  const instructionEvents: DexEvent[] = [];
 
   parseOuterAndInnerInstructions(
     msg,
     meta,
     signature,
     slot,
-    0,
+    txIndex,
     blockTimeUs,
     grpcRecvUs,
     filter,
-    events
+    instructionEvents
   );
 
+  const logEvents: DexEvent[] = [];
   let isCreatedBuy = false;
   for (const log of meta?.logMessages ?? []) {
     const e = parseLogOptimized(
       log,
       signature,
       slot,
-      0,
+      txIndex,
       blockTimeUs,
       grpcRecvUs,
       filter,
@@ -181,11 +187,14 @@ export function parseRpcTransaction(
     );
     if (e) {
       if ("PumpFunCreate" in e || "PumpFunCreateV2" in e) isCreatedBuy = true;
-      events.push(e);
+      logEvents.push(e);
     }
   }
 
-  applyRpcFills(events, msg, meta);
+  applyRpcFills(instructionEvents, msg, meta);
+  applyRpcFills(logEvents, msg, meta);
+  const events = dedupeLogInstructionEvents(logEvents, instructionEvents);
+  enrichPumpfunSameTxPostMerge(events);
 
   return { ok: true, events };
 }

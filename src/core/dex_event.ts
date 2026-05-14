@@ -9,6 +9,16 @@ export type DexEvent =
   | { PumpFunSell: PumpFunTradeEvent }
   | { PumpFunBuyExactSolIn: PumpFunTradeEvent }
   | { PumpFunMigrate: PumpFunMigrateEvent }
+  | { PumpFeesCreateFeeSharingConfig: PumpFeesCreateFeeSharingConfigEvent }
+  | { PumpFeesInitializeFeeConfig: PumpFeesInitializeFeeConfigEvent }
+  | { PumpFeesResetFeeSharingConfig: PumpFeesResetFeeSharingConfigEvent }
+  | { PumpFeesRevokeFeeSharingAuthority: PumpFeesRevokeFeeSharingAuthorityEvent }
+  | { PumpFeesTransferFeeSharingAuthority: PumpFeesTransferFeeSharingAuthorityEvent }
+  | { PumpFeesUpdateAdmin: PumpFeesUpdateAdminEvent }
+  | { PumpFeesUpdateFeeConfig: PumpFeesUpdateFeeConfigEvent }
+  | { PumpFeesUpdateFeeShares: PumpFeesUpdateFeeSharesEvent }
+  | { PumpFeesUpsertFeeTiers: PumpFeesUpsertFeeTiersEvent }
+  | { PumpFunMigrateBondingCurveCreator: PumpFunMigrateBondingCurveCreatorEvent }
   | { PumpSwapTrade: PumpSwapTradeEvent }
   | { PumpSwapBuy: PumpSwapBuyEvent }
   | { PumpSwapSell: PumpSwapSellEvent }
@@ -63,6 +73,7 @@ export type DexEvent =
   | { TokenInfo: TokenInfoEvent }
   | { TokenAccount: TokenAccountEvent }
   | { NonceAccount: NonceAccountEvent }
+  | { PumpFunGlobalAccount: PumpFunGlobalAccountEvent }
   | { PumpSwapGlobalConfigAccount: PumpSwapGlobalConfigAccountEvent }
   | { PumpSwapPoolAccount: PumpSwapPoolAccountEvent }
   | { BlockMeta: BlockMetaEvent }
@@ -100,6 +111,7 @@ export interface PumpFunCreateV2TokenEvent extends PumpFunCreateTokenEvent {
   mayhem_token_vault: string;
   event_authority: string;
   program: string;
+  observed_fee_recipient: string;
 }
 
 export interface PumpFunTradeEvent {
@@ -148,6 +160,117 @@ export interface PumpFunMigrateEvent {
   bonding_curve: string;
   timestamp: bigint;
   pool: string;
+}
+
+export interface PumpFeesShareholder {
+  address: string;
+  share_bps: number;
+}
+
+export type PumpFeesConfigStatus = "Paused" | "Active";
+
+export interface PumpFeesFees {
+  lp_fee_bps: bigint;
+  protocol_fee_bps: bigint;
+  creator_fee_bps: bigint;
+}
+
+export interface PumpFeesFeeTier {
+  market_cap_lamports_threshold: bigint;
+  fees: PumpFeesFees;
+}
+
+export interface PumpFeesCreateFeeSharingConfigEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  bonding_curve: string;
+  pool?: string;
+  sharing_config: string;
+  admin: string;
+  initial_shareholders: PumpFeesShareholder[];
+  status: PumpFeesConfigStatus;
+}
+
+export interface PumpFeesInitializeFeeConfigEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  admin: string;
+  fee_config: string;
+}
+
+export interface PumpFeesResetFeeSharingConfigEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  sharing_config: string;
+  old_admin: string;
+  old_shareholders: PumpFeesShareholder[];
+  new_admin: string;
+  new_shareholders: PumpFeesShareholder[];
+}
+
+export interface PumpFeesRevokeFeeSharingAuthorityEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  sharing_config: string;
+  admin: string;
+}
+
+export interface PumpFeesTransferFeeSharingAuthorityEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  sharing_config: string;
+  old_admin: string;
+  new_admin: string;
+}
+
+export interface PumpFeesUpdateAdminEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  old_admin: string;
+  new_admin: string;
+}
+
+export interface PumpFeesUpdateFeeConfigEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  admin: string;
+  fee_config: string;
+  fee_tiers: PumpFeesFeeTier[];
+  flat_fees: PumpFeesFees;
+}
+
+export interface PumpFeesUpdateFeeSharesEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  sharing_config: string;
+  admin: string;
+  bonding_curve: string;
+  pump_creator_vault: string;
+  new_shareholders: PumpFeesShareholder[];
+}
+
+export interface PumpFeesUpsertFeeTiersEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  admin: string;
+  fee_config: string;
+  fee_tiers: PumpFeesFeeTier[];
+  offset: number;
+}
+
+export interface PumpFunMigrateBondingCurveCreatorEvent {
+  metadata: EventMetadata;
+  timestamp: bigint;
+  mint: string;
+  bonding_curve: string;
+  sharing_config: string;
+  old_creator: string;
+  new_creator: string;
 }
 
 /** 与 `PumpSwapTradeEvent`（IDL TradeEvent）对齐 */
@@ -933,6 +1056,35 @@ export interface NonceAccountEvent {
   rent_epoch: bigint;
   nonce: string;
   authority: string;
+}
+
+export interface PumpFunGlobal {
+  initialized: boolean;
+  authority: string;
+  fee_recipient: string;
+  initial_virtual_token_reserves: bigint;
+  initial_virtual_sol_reserves: bigint;
+  initial_real_token_reserves: bigint;
+  token_total_supply: bigint;
+  fee_basis_points: bigint;
+  withdraw_authority: string;
+  enable_migrate: boolean;
+  pool_migration_fee: bigint;
+  creator_fee_basis_points: bigint;
+  fee_recipients: string[];
+  set_creator_authority: string;
+  admin_set_creator_authority: string;
+  create_v2_enabled: boolean;
+  whitelist_pda: string;
+  reserved_fee_recipient: string;
+  mayhem_mode_enabled: boolean;
+  reserved_fee_recipients: string[];
+}
+
+export interface PumpFunGlobalAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  global: PumpFunGlobal;
 }
 
 export interface PumpSwapGlobalConfig {

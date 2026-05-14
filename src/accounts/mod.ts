@@ -2,14 +2,20 @@ import type { EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { AccountData } from "./types.js";
 import type { EventType, EventTypeFilter } from "../grpc/types.js";
-import { PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
+import { PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
 import { parseNonceAccount, isNonceAccount } from "./nonce.js";
 import { parseTokenAccount } from "./token.js";
 import { parsePumpswapAccount } from "./pumpswap.js";
+import { parsePumpfunAccount } from "./pumpfun.js";
 
 export type { AccountData } from "./types.js";
 export { parseNonceAccount, isNonceAccount } from "./nonce.js";
 export { parseTokenAccount } from "./token.js";
+export {
+  parsePumpfunGlobal,
+  parsePumpfunAccount,
+  isPumpfunGlobalAccount,
+} from "./pumpfun.js";
 export {
   parsePumpswapGlobalConfig,
   parsePumpswapPool,
@@ -24,6 +30,7 @@ export { rpcResolveUserWalletPubkey } from "./rpc_wallet.js";
 const ACCOUNT_EVENT_TYPES: EventType[] = [
   "TokenAccount",
   "NonceAccount",
+  "AccountPumpFunGlobal",
   "AccountPumpSwapGlobalConfig",
   "AccountPumpSwapPool",
 ];
@@ -47,6 +54,13 @@ export function parseAccountUnified(
       eventTypeFilter.shouldInclude("AccountPumpSwapPool")
     ) {
       const ev = parsePumpswapAccount(account, metadata);
+      if (ev) return ev;
+    }
+  }
+
+  if (account.owner === PUMPFUN_PROGRAM_ID && eventTypeFilter) {
+    if (eventTypeFilter.shouldInclude("AccountPumpFunGlobal")) {
+      const ev = parsePumpfunAccount(account, metadata);
       if (ev) return ev;
     }
   }

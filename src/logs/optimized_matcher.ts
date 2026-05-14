@@ -2,7 +2,12 @@ import { makeMetadata, type EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { decodeProgramDataLine } from "./program_data.js";
 import { nowUs } from "../core/clock.js";
-import { parseCreateFromData, parseMigrateFromData, parseTradeFromData } from "./pump.js";
+import {
+  parseCreateFromData,
+  parseMigrateBondingCurveCreatorFromData,
+  parseMigrateFromData,
+  parseTradeFromData,
+} from "./pump.js";
 import {
   parseAddLiquidityFromData,
   parseBuyFromData,
@@ -10,6 +15,17 @@ import {
   parseRemoveLiquidityFromData,
   parseSellFromData,
 } from "./pump_amm.js";
+import {
+  parseCreateFeeSharingConfigFromData,
+  parseInitializeFeeConfigFromData,
+  parseResetFeeSharingConfigFromData,
+  parseRevokeFeeSharingAuthorityFromData,
+  parseTransferFeeSharingAuthorityFromData,
+  parseUpdateAdminFromData,
+  parseUpdateFeeConfigFromData,
+  parseUpdateFeeSharesFromData,
+  parseUpsertFeeTiersFromData,
+} from "./pump_fees.js";
 import {
   parseCollectFeeFromData,
   parseCreatePoolFromData as parseClmmCreatePool,
@@ -57,31 +73,58 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.PUMPFUN_CREATE) return "PumpFunCreate";
   if (disc === DISC.PUMPFUN_TRADE) return "PumpFunTrade";
   if (disc === DISC.PUMPFUN_MIGRATE) return "PumpFunMigrate";
+  if (disc === DISC.PUMPFUN_MIGRATE_BONDING_CURVE_CREATOR) return "PumpFunMigrateBondingCurveCreator";
+  if (disc === DISC.PUMP_FEES_CREATE_FEE_SHARING_CONFIG) return "PumpFeesCreateFeeSharingConfig";
+  if (disc === DISC.PUMP_FEES_INITIALIZE_FEE_CONFIG) return "PumpFeesInitializeFeeConfig";
+  if (disc === DISC.PUMP_FEES_RESET_FEE_SHARING_CONFIG) return "PumpFeesResetFeeSharingConfig";
+  if (disc === DISC.PUMP_FEES_REVOKE_FEE_SHARING_AUTHORITY) return "PumpFeesRevokeFeeSharingAuthority";
+  if (disc === DISC.PUMP_FEES_TRANSFER_FEE_SHARING_AUTHORITY) return "PumpFeesTransferFeeSharingAuthority";
+  if (disc === DISC.PUMP_FEES_UPDATE_ADMIN) return "PumpFeesUpdateAdmin";
+  if (disc === DISC.PUMP_FEES_UPDATE_FEE_CONFIG) return "PumpFeesUpdateFeeConfig";
+  if (disc === DISC.PUMP_FEES_UPDATE_FEE_SHARES) return "PumpFeesUpdateFeeShares";
+  if (disc === DISC.PUMP_FEES_UPSERT_FEE_TIERS) return "PumpFeesUpsertFeeTiers";
   if (disc === DISC.PUMPSWAP_BUY) return "PumpSwapBuy";
   if (disc === DISC.PUMPSWAP_SELL) return "PumpSwapSell";
   if (disc === DISC.PUMPSWAP_CREATE_POOL) return "PumpSwapCreatePool";
   if (disc === DISC.PUMPSWAP_ADD_LIQUIDITY) return "PumpSwapLiquidityAdded";
   if (disc === DISC.PUMPSWAP_REMOVE_LIQUIDITY) return "PumpSwapLiquidityRemoved";
+  if (disc === DISC.RAYDIUM_CLMM_SWAP) return "RaydiumClmmSwap";
+  if (disc === DISC.RAYDIUM_CLMM_INCREASE_LIQUIDITY) return "RaydiumClmmIncreaseLiquidity";
+  if (disc === DISC.RAYDIUM_CLMM_DECREASE_LIQUIDITY) return "RaydiumClmmDecreaseLiquidity";
+  if (disc === DISC.RAYDIUM_CLMM_CREATE_POOL) return "RaydiumClmmCreatePool";
+  if (disc === DISC.RAYDIUM_CLMM_COLLECT_FEE) return "RaydiumClmmCollectFee";
+  if (disc === DISC.RAYDIUM_CPMM_SWAP_BASE_IN) return "RaydiumCpmmSwap";
+  if (disc === DISC.RAYDIUM_CPMM_SWAP_BASE_OUT) return "RaydiumCpmmSwap";
+  if (disc === DISC.RAYDIUM_CPMM_DEPOSIT) return "RaydiumCpmmDeposit";
+  if (disc === DISC.RAYDIUM_CPMM_WITHDRAW) return "RaydiumCpmmWithdraw";
+  if (disc === DISC.RAYDIUM_AMM_SWAP_BASE_IN) return "RaydiumAmmV4Swap";
+  if (disc === DISC.RAYDIUM_AMM_SWAP_BASE_OUT) return "RaydiumAmmV4Swap";
+  if (disc === DISC.RAYDIUM_AMM_DEPOSIT) return "RaydiumAmmV4Deposit";
+  if (disc === DISC.RAYDIUM_AMM_WITHDRAW) return "RaydiumAmmV4Withdraw";
+  if (disc === DISC.RAYDIUM_AMM_WITHDRAW_PNL) return "RaydiumAmmV4WithdrawPnl";
+  if (disc === DISC.RAYDIUM_AMM_INITIALIZE2) return "RaydiumAmmV4Initialize2";
+  if (disc === DISC.ORCA_TRADED) return "OrcaWhirlpoolSwap";
+  if (disc === DISC.ORCA_LIQUIDITY_INCREASED) return "OrcaWhirlpoolLiquidityIncreased";
+  if (disc === DISC.ORCA_LIQUIDITY_DECREASED) return "OrcaWhirlpoolLiquidityDecreased";
+  if (disc === DISC.ORCA_POOL_INITIALIZED) return "OrcaWhirlpoolPoolInitialized";
+  if (disc === DISC.METEORA_AMM_SWAP) return "MeteoraPoolsSwap";
+  if (disc === DISC.METEORA_AMM_ADD_LIQUIDITY) return "MeteoraPoolsAddLiquidity";
+  if (disc === DISC.METEORA_AMM_REMOVE_LIQUIDITY) return "MeteoraPoolsRemoveLiquidity";
+  if (disc === DISC.METEORA_AMM_BOOTSTRAP_LIQUIDITY) return "MeteoraPoolsBootstrapLiquidity";
+  if (disc === DISC.METEORA_AMM_POOL_CREATED) return "MeteoraPoolsPoolCreated";
+  if (disc === DISC.METEORA_AMM_SET_POOL_FEES) return "MeteoraPoolsSetPoolFees";
+  if (disc === DISC.METEORA_DAMM_SWAP) return "MeteoraDammV2Swap";
+  if (disc === DISC.METEORA_DAMM_SWAP2) return "MeteoraDammV2Swap";
+  if (disc === DISC.METEORA_DAMM_ADD_LIQUIDITY) return "MeteoraDammV2AddLiquidity";
+  if (disc === DISC.METEORA_DAMM_REMOVE_LIQUIDITY) return "MeteoraDammV2RemoveLiquidity";
+  if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
+  if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
+  if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
   return null;
 }
 
 function filterAllowsUnknownSupported(filter: EventTypeFilter | undefined): boolean {
-  if (!filter?.include_only?.length) return true;
-  return filter.include_only.some((t) =>
-    [
-      "PumpFunTrade",
-      "PumpFunCreate",
-      "PumpFunMigrate",
-      "PumpFunBuy",
-      "PumpFunSell",
-      "PumpFunBuyExactSolIn",
-      "PumpSwapBuy",
-      "PumpSwapSell",
-      "PumpSwapCreatePool",
-      "PumpSwapLiquidityAdded",
-      "PumpSwapLiquidityRemoved",
-    ].includes(t)
-  );
+  return !filter?.include_only;
 }
 
 function pumpfunTradeMatchesFilter(ev: DexEvent, includeOnly: EventType[]): boolean {
@@ -94,13 +137,22 @@ function pumpfunTradeMatchesFilter(ev: DexEvent, includeOnly: EventType[]): bool
   return false;
 }
 
+function eventTypeFromDexEvent(ev: DexEvent): EventType | null {
+  const key = Object.keys(ev)[0];
+  return key ? (key as EventType) : null;
+}
+
 function applyPumpfunSecondaryFilter(ev: DexEvent | null, filter: EventTypeFilter | undefined): DexEvent | null {
-  if (!ev || !filter?.include_only?.length) return ev;
-  const hasSpecific = filter.include_only.some((t) =>
-    ["PumpFunBuy", "PumpFunSell", "PumpFunBuyExactSolIn", "PumpFunCreate", "PumpFunCreateV2"].includes(t)
-  );
-  if (!hasSpecific) return ev;
-  return pumpfunTradeMatchesFilter(ev, filter.include_only) ? ev : null;
+  if (!ev || !filter) return ev;
+  if (filter.include_only?.length) {
+    const hasSpecific = filter.include_only.some((t) =>
+      ["PumpFunBuy", "PumpFunSell", "PumpFunBuyExactSolIn", "PumpFunCreate", "PumpFunCreateV2"].includes(t)
+    );
+    if (hasSpecific && !pumpfunTradeMatchesFilter(ev, filter.include_only)) return null;
+  }
+  const actual = eventTypeFromDexEvent(ev);
+  if (actual && !filter.shouldInclude(actual)) return null;
+  return ev;
 }
 
 export function parseLogOptimized(
@@ -144,6 +196,26 @@ export function parseLogOptimized(
       return parseCreateFromData(data, metadata);
     case DISC.PUMPFUN_MIGRATE:
       return parseMigrateFromData(data, metadata);
+    case DISC.PUMPFUN_MIGRATE_BONDING_CURVE_CREATOR:
+      return parseMigrateBondingCurveCreatorFromData(data, metadata);
+    case DISC.PUMP_FEES_CREATE_FEE_SHARING_CONFIG:
+      return parseCreateFeeSharingConfigFromData(data, metadata);
+    case DISC.PUMP_FEES_INITIALIZE_FEE_CONFIG:
+      return parseInitializeFeeConfigFromData(data, metadata);
+    case DISC.PUMP_FEES_RESET_FEE_SHARING_CONFIG:
+      return parseResetFeeSharingConfigFromData(data, metadata);
+    case DISC.PUMP_FEES_REVOKE_FEE_SHARING_AUTHORITY:
+      return parseRevokeFeeSharingAuthorityFromData(data, metadata);
+    case DISC.PUMP_FEES_TRANSFER_FEE_SHARING_AUTHORITY:
+      return parseTransferFeeSharingAuthorityFromData(data, metadata);
+    case DISC.PUMP_FEES_UPDATE_ADMIN:
+      return parseUpdateAdminFromData(data, metadata);
+    case DISC.PUMP_FEES_UPDATE_FEE_CONFIG:
+      return parseUpdateFeeConfigFromData(data, metadata);
+    case DISC.PUMP_FEES_UPDATE_FEE_SHARES:
+      return parseUpdateFeeSharesFromData(data, metadata);
+    case DISC.PUMP_FEES_UPSERT_FEE_TIERS:
+      return parseUpsertFeeTiersFromData(data, metadata);
     case DISC.PUMPSWAP_CREATE_POOL:
       return parseCreatePoolFromData(data, metadata);
     case DISC.PUMPSWAP_ADD_LIQUIDITY:

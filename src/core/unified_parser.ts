@@ -1,4 +1,5 @@
 import type { DexEvent } from "./dex_event.js";
+import { enrichPumpfunSameTxPostMerge } from "./pumpfun_fee_enrich.js";
 import { parseLogUnified, parseLogOptimized } from "../logs/optimized_matcher.js";
 import type { EventTypeFilter } from "../grpc/types.js";
 import { nowUs } from "./clock.js";
@@ -32,6 +33,7 @@ export function parseLogsOnly(
     const e = parseLogUnified(log, signature, slot, blockTimeUs, txIndex);
     if (e) out.push(e);
   }
+  enrichPumpfunSameTxPostMerge(out);
   return out;
 }
 

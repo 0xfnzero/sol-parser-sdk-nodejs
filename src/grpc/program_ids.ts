@@ -7,6 +7,7 @@ import type { AccountFilter, TransactionFilter } from "./types.js";
 export const PUMPFUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 export const PUMPSWAP_PROGRAM_ID = "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA";
 export const PUMPSWAP_FEES_PROGRAM_ID = "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ";
+export const PUMP_FEES_PROGRAM_ID = PUMPSWAP_FEES_PROGRAM_ID;
 /** 与 Rust `BONK_PROGRAM_ID`（`Protocol::Bonk`）一致 */
 export const BONK_PROGRAM_ID = "BSwp6bEBihVLdqJRKS58NaebUBSDNjN7MdpFwNaR6gn3";
 export const RAYDIUM_CPMM_PROGRAM_ID = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";

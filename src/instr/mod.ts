@@ -13,12 +13,14 @@ import {
   eventTypeFilterIncludesRaydiumAmmV4,
   eventTypeFilterIncludesOrcaWhirlpool,
   eventTypeFilterIncludesBonk,
+  eventTypeFilterIncludesPumpFees,
 } from "../grpc/types.js";
 import {
   BONK_PROGRAM_ID,
   BONK_LAUNCHPAD_PROGRAM_ID,
   BONK_PROGRAM_ID_LEGACY,
   METEORA_DAMM_V2_PROGRAM_ID,
+  PUMP_FEES_PROGRAM_ID,
   PUMPFUN_PROGRAM_ID,
   PUMPSWAP_PROGRAM_ID,
   RAYDIUM_CLMM_PROGRAM_ID,
@@ -34,6 +36,7 @@ import { parseRaydiumCpmmInstruction } from "./raydium_cpmm_ix.js";
 import { parseRaydiumAmmV4Instruction } from "./raydium_amm_v4_ix.js";
 import { parseOrcaWhirlpoolInstruction } from "./orca_whirlpool_ix.js";
 import { parseBonkInstruction } from "./bonk_ix.js";
+import { parsePumpFeesInstruction } from "./pump_fees_ix.js";
 
 function isBonkProgram(programId: string): boolean {
   return (
@@ -51,6 +54,7 @@ export { parseRaydiumCpmmInstruction } from "./raydium_cpmm_ix.js";
 export { parseRaydiumAmmV4Instruction } from "./raydium_amm_v4_ix.js";
 export { parseOrcaWhirlpoolInstruction } from "./orca_whirlpool_ix.js";
 export { parseBonkInstruction } from "./bonk_ix.js";
+export { parsePumpFeesInstruction } from "./pump_fees_ix.js";
 export * from "./program_ids.js";
 
 export function parseInstructionUnified(
@@ -99,6 +103,18 @@ export function parseInstructionUnified(
   if (programId === METEORA_DAMM_V2_PROGRAM_ID) {
     if (eventTypeFilter && !eventTypeFilterIncludesMeteoraDammV2(eventTypeFilter)) return null;
     return parseMeteoraDammInstruction(
+      instructionData,
+      accounts,
+      signature,
+      slot,
+      txIndex,
+      blockTimeUs,
+      grpcRecvUs
+    );
+  }
+  if (programId === PUMP_FEES_PROGRAM_ID) {
+    if (eventTypeFilter && !eventTypeFilterIncludesPumpFees(eventTypeFilter)) return null;
+    return parsePumpFeesInstruction(
       instructionData,
       accounts,
       signature,

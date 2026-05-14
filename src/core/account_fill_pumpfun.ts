@@ -11,6 +11,20 @@ const Z = () => defaultPubkey();
 
 export function fillPumpfunTradeAccounts(e: PumpFunTradeEvent, get: (i: number) => string): void {
   const zero = Z();
+  const isV2 =
+    e.ix_name === "buy_v2" ||
+    e.ix_name === "sell_v2" ||
+    e.ix_name === "buy_exact_quote_in_v2";
+  if (isV2) {
+    if (!e.user || e.user === zero) e.user = get(13);
+    if (!e.bonding_curve || e.bonding_curve === zero) e.bonding_curve = get(10);
+    if (!e.associated_bonding_curve || e.associated_bonding_curve === zero) {
+      e.associated_bonding_curve = get(11);
+    }
+    if (!e.creator_vault || e.creator_vault === zero) e.creator_vault = get(16);
+    if (!e.token_program || e.token_program === zero) e.token_program = get(3);
+    return;
+  }
   if (!e.user || e.user === zero) e.user = get(6);
   if (!e.bonding_curve || e.bonding_curve === zero) e.bonding_curve = get(3);
   if (!e.associated_bonding_curve || e.associated_bonding_curve === zero) {

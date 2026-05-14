@@ -1,16 +1,19 @@
 /**
- * Yellowstone gRPC 单笔交易：日志解析 + 与 Rust `parse_logs` 相同的账户/数据填充。
+ * Yellowstone gRPC 单笔交易：统一交易解析（指令 + 日志 + 与 Rust 相同的账户/数据填充）。
  * 依赖 `@triton-one/yellowstone-grpc` 的 `txEncode`（Binary）得到与 web3 兼容的 meta + 反序列化交易。
  */
 import { txEncode } from "@triton-one/yellowstone-grpc";
 import type { SubscribeUpdateTransactionInfo as YellowstoneTxInfo } from "@triton-one/yellowstone-grpc";
 import { WasmUiTransactionEncoding } from "@triton-one/yellowstone-grpc/dist/encoding/yellowstone_grpc_solana_encoding_wasm.js";
 import bs58 from "bs58";
-import { VersionedTransaction, type ConfirmedTransactionMeta } from "@solana/web3.js";
+import {
+  VersionedTransaction,
+  type ConfirmedTransactionMeta,
+  type VersionedTransactionResponse,
+} from "@solana/web3.js";
 import type { DexEvent } from "../core/dex_event.js";
-import { parseLogsOnly } from "../core/unified_parser.js";
-import { applyAccountFillsToLogEvents } from "../rpc_transaction.js";
-import type { SubscribeUpdateTransactionInfo } from "./types.js";
+import { parseRpcTransaction } from "../rpc_transaction.js";
+import type { EventTypeFilter, SubscribeUpdateTransactionInfo } from "./types.js";
 
 /**
  * Yellowstone `SubscribeUpdateTransactionInfo.index` → `EventMetadata.tx_index`。
@@ -30,7 +33,7 @@ export function grpcTxIndexFromInfo(info: Pick<SubscribeUpdateTransactionInfo, "
 export function parseDexEventsFromGrpcTransactionInfo(
   info: SubscribeUpdateTransactionInfo,
   slot: string | bigint,
-  options?: { blockTimeUs?: number }
+  options?: { blockTimeUs?: number; grpcRecvUs?: number; eventTypeFilter?: EventTypeFilter }
 ): DexEvent[] {
   const tr = info.transactionRaw;
   const mr = info.metaRaw;
@@ -48,16 +51,24 @@ export function parseDexEventsFromGrpcTransactionInfo(
   const vt = VersionedTransaction.deserialize(bs58.decode(enc.transaction as string));
   const meta = enc.meta as unknown as ConfirmedTransactionMeta;
 
-  const logs = meta?.logMessages;
-  if (!Array.isArray(logs) || logs.length === 0) return [];
-
   const slotNum = typeof slot === "bigint" ? Number(slot) : Number(slot);
   const signatureBase58 = bs58.encode(Uint8Array.from(info.signature));
   const txIndex = grpcTxIndexFromInfo(info);
-
-  const events = parseLogsOnly(logs, signatureBase58, slotNum, options?.blockTimeUs, txIndex);
-  if (events.length === 0) return [];
-
-  applyAccountFillsToLogEvents(events, vt.message, meta);
-  return events;
+  const blockTime = options?.blockTimeUs == null ? null : Math.floor(options.blockTimeUs / 1_000_000);
+  const parsed = parseRpcTransaction(
+    {
+      slot: slotNum,
+      blockTime,
+      meta,
+      transaction: vt,
+    } as unknown as VersionedTransactionResponse,
+    signatureBase58,
+    options?.eventTypeFilter,
+    {
+      blockTimeUs: options?.blockTimeUs,
+      grpcRecvUs: options?.grpcRecvUs,
+      txIndex,
+    }
+  );
+  return parsed.ok ? parsed.events : [];
 }

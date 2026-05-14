@@ -1,5 +1,11 @@
 import type { EventMetadata } from "../core/metadata.js";
-import type { DexEvent, PumpFunCreateTokenEvent, PumpFunMigrateEvent, PumpFunTradeEvent } from "../core/dex_event.js";
+import type {
+  DexEvent,
+  PumpFunCreateTokenEvent,
+  PumpFunMigrateBondingCurveCreatorEvent,
+  PumpFunMigrateEvent,
+  PumpFunTradeEvent,
+} from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
 import {
   readBool,
@@ -19,6 +25,7 @@ function disc(bytes: readonly number[]): bigint {
 const DISC_CREATE = disc([27, 114, 169, 77, 222, 235, 99, 118]);
 const DISC_TRADE = disc([189, 219, 127, 211, 78, 230, 97, 238]);
 const DISC_MIGRATE = disc([189, 233, 93, 185, 92, 148, 234, 148]);
+const DISC_MIGRATE_BONDING_CURVE_CREATOR = disc([155, 167, 104, 220, 213, 108, 243, 3]);
 
 function bnU64(v: bigint | null): bigint {
   return v ?? 0n;
@@ -35,6 +42,9 @@ export function parsePumpFunLogDecoded(programData: Uint8Array, metadata: EventM
   if (disc === DISC_CREATE) return parseCreateFromData(data, metadata);
   if (disc === DISC_TRADE) return parseTradeFromData(data, metadata, false);
   if (disc === DISC_MIGRATE) return parseMigrateFromData(data, metadata);
+  if (disc === DISC_MIGRATE_BONDING_CURVE_CREATOR) {
+    return parseMigrateBondingCurveCreatorFromData(data, metadata);
+  }
   return null;
 }
 
@@ -141,9 +151,11 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
     creator_vault: defaultPubkey(),
   };
 
-  if (ix_name === "buy") return { PumpFunBuy: trade };
-  if (ix_name === "sell") return { PumpFunSell: trade };
-  if (ix_name === "buy_exact_sol_in") return { PumpFunBuyExactSolIn: trade };
+  if (ix_name === "buy" || ix_name === "buy_v2") return { PumpFunBuy: trade };
+  if (ix_name === "sell" || ix_name === "sell_v2") return { PumpFunSell: trade };
+  if (ix_name === "buy_exact_sol_in" || ix_name === "buy_exact_quote_in_v2") {
+    return { PumpFunBuyExactSolIn: trade };
+  }
   return { PumpFunTrade: trade };
 }
 
@@ -242,7 +254,47 @@ export function parseMigrateFromData(data: Uint8Array, metadata: EventMetadata):
   return { PumpFunMigrate: ev };
 }
 
+export function parseMigrateBondingCurveCreatorFromData(
+  data: Uint8Array,
+  metadata: EventMetadata
+): DexEvent | null {
+  if (data.length < 8 + 32 * 5) return null;
+  let o = 0;
+  const timestamp = bnI64(readI64LE(data, o));
+  o += 8;
+  const mint = readPubkey(data, o);
+  if (!mint) return null;
+  o += 32;
+  const bonding_curve = readPubkey(data, o);
+  if (!bonding_curve) return null;
+  o += 32;
+  const sharing_config = readPubkey(data, o);
+  if (!sharing_config) return null;
+  o += 32;
+  const old_creator = readPubkey(data, o);
+  if (!old_creator) return null;
+  o += 32;
+  const new_creator = readPubkey(data, o);
+  if (!new_creator) return null;
+
+  const ev: PumpFunMigrateBondingCurveCreatorEvent = {
+    metadata,
+    timestamp,
+    mint,
+    bonding_curve,
+    sharing_config,
+    old_creator,
+    new_creator,
+  };
+  return { PumpFunMigrateBondingCurveCreator: ev };
+}
+
 /** u64 discriminator little-endian */
 export function pumpDiscriminators() {
-  return { CREATE: DISC_CREATE, TRADE: DISC_TRADE, MIGRATE: DISC_MIGRATE };
+  return {
+    CREATE: DISC_CREATE,
+    TRADE: DISC_TRADE,
+    MIGRATE: DISC_MIGRATE,
+    MIGRATE_BONDING_CURVE_CREATOR: DISC_MIGRATE_BONDING_CURVE_CREATOR,
+  };
 }

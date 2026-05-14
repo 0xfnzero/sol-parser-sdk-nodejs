@@ -5,6 +5,7 @@
  */
 import type { MessageHeader } from "@solana/web3.js";
 import type { DexEvent } from "../core/dex_event.js";
+import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
 import type { EventTypeFilter } from "../grpc/types.js";
 import { parseInstructionUnified } from "../instr/mod.js";
 
@@ -86,6 +87,7 @@ export function dexEventsFromShredWasmTxWithFullKeys(
     if (ev) out.push(ev);
   }
 
+  enrichPumpfunSameTxPostMerge(out);
   return out;
 }
 
