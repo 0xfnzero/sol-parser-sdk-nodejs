@@ -42,7 +42,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs
+npm install sol-parser-sdk-nodejs@0.4.4
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）

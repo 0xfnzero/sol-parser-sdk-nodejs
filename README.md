@@ -42,7 +42,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs
+npm install sol-parser-sdk-nodejs@0.4.4
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
