@@ -1,8 +1,8 @@
 /**
  * PumpFun — gRPC 订阅，按 sol-parser-sdk（Rust `DexEvent` + `serde`）语义输出标准 JSON
  *
- * 使用 `parseDexEventsFromGrpcTransactionInfo`（日志解析 + Rust gRPC 同款账户填充），
- * 再 `dexEventToJsonString(ev, 2)` 输出
+ * 使用最新 `subscribeDexEvents` 队列（统一交易/账户解析 + Rust gRPC 同款账户填充），
+ * 再用 `dexEventToJsonString(ev, 2)` 输出
  *
  * 运行（在包根目录，无需先 build）:
  *   npx tsx examples/pumpfun_grpc_json.ts
@@ -14,14 +14,13 @@
 
 import {
   YellowstoneGrpc,
-  parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
+  transactionFilterForProtocols,
+  type DexEvent,
 } from "../src/index.js";
 import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
-
-const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"];
 
 const MAX_EVENTS = (() => {
   const raw = process.env.MAX_EVENTS;
@@ -31,23 +30,11 @@ const MAX_EVENTS = (() => {
 })();
 
 let printed = 0;
-let resolveDone;
-const finished = new Promise((r) => {
-  resolveDone = r;
-});
 
-function matches(ev) {
+function matches(ev: DexEvent): boolean {
   const k = Object.keys(ev)[0];
-  return k && k.startsWith("PumpFun");
+  return Boolean(k && k.startsWith("PumpFun"));
 }
-
-const filter = {
-  account_include: PROGRAM_IDS,
-  account_exclude: [],
-  account_required: [],
-  vote: false,
-  failed: false,
-};
 
 async function main() {
   console.log("=== PumpFun gRPC → JSON（DexEvent 标准结构）===\n");
@@ -59,45 +46,37 @@ async function main() {
   }
 
   const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
+  const filter = transactionFilterForProtocols(["PumpFun"]);
+  const sub = await client.subscribeDexEvents([filter], []);
+  let interrupted = false;
 
-  const sub = await client.subscribeTransactions(filter, {
-    onUpdate: (update) => {
-      if (!update.transaction?.transaction) return;
-      const txInfo = update.transaction.transaction;
-      const slot = update.transaction.slot;
-      if (!txInfo.transactionRaw || !txInfo.metaRaw) return;
-
-      const events = parseDexEventsFromGrpcTransactionInfo(txInfo, slot, undefined);
-
-      for (const ev of events) {
-        if (!matches(ev)) continue;
-        printed++;
-        console.log(`--- Event #${printed} slot=${slot} ---`);
-        console.log(dexEventToJsonString(ev, 2));
-        console.log();
-        if (MAX_EVENTS > 0 && printed >= MAX_EVENTS) {
-          resolveDone();
-          return;
-        }
-      }
-    },
-    onError: (err) => {
+  (async () => {
+    for await (const err of sub.errors) {
       console.error("Stream error:", err.message);
-      resolveDone();
-    },
-    onEnd: () => {
-      console.log("Stream ended");
-      resolveDone();
-    },
-  });
+      sub.cancel();
+    }
+  })().catch((err) => console.error("Error stream failed:", err));
 
   process.once("SIGINT", () => {
     console.log("\n(interrupted)");
-    resolveDone();
+    interrupted = true;
+    sub.cancel();
   });
 
-  await finished;
-  client.unsubscribe(sub.id);
+  for await (const ev of sub) {
+    if (!matches(ev)) continue;
+    printed++;
+    console.log(`--- Event #${printed} ---`);
+    console.log(dexEventToJsonString(ev, 2));
+    console.log();
+    if (MAX_EVENTS > 0 && printed >= MAX_EVENTS) break;
+  }
+
+  sub.cancel();
+  if (interrupted) {
+    console.log(`Done. Printed ${printed} PumpFun JSON event(s) before interrupt.`);
+    return;
+  }
   console.log(`Done. Printed ${printed} PumpFun JSON event(s).`);
 }
 

@@ -10,19 +10,29 @@
  * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
  */
 
-import bs58 from "bs58";
-import { YellowstoneGrpc, parseLogsOnly, grpcTxIndexFromInfo, nowUs } from "../src/index.js";
+import {
+  YellowstoneGrpc,
+  eventTypeFilterIncludeOnly,
+  lowLatencyClientConfig,
+  nowUs,
+  transactionFilterForProtocols,
+  type DexEvent,
+} from "../src/index.js";
 import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
-
-const PROGRAM_IDS = ["pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"]; // PumpSwap
 
 let eventCount = 0n;
 let totalLatencyUs = 0n;
 let minLatencyUs = BigInt(Number.MAX_SAFE_INTEGER);
 let maxLatencyUs = 0n;
 let lastReportCount = 0n;
+
+function eventEntry(ev: DexEvent): [string, Record<string, unknown>] {
+  const key = Object.keys(ev)[0];
+  const value = (ev as unknown as Record<string, unknown>)[key];
+  return [key, value && typeof value === "object" ? (value as Record<string, unknown>) : {}];
+}
 
 // Periodic 10s stats
 setInterval(() => {
@@ -48,60 +58,29 @@ async function main() {
   console.log("PumpSwap event parsing with detailed performance metrics");
   console.log("🚀 Subscribing to Yellowstone gRPC (PumpSwap)...");
   console.log(`📡 Endpoint: ${ENDPOINT}`);
-  console.log(`🎯 Program: ${PROGRAM_IDS[0]}\n`);
+  console.log(`🎯 Protocol: PumpSwap\n`);
 
-  const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
+  const config = lowLatencyClientConfig();
+  config.enable_metrics = true;
+  config.order_mode = "Unordered";
+  const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN, config);
 
-  const filter = {
-    account_include: PROGRAM_IDS,
-    account_exclude: [],
-    account_required: [],
-    vote: false,
-    failed: false,
-  };
+  const filter = transactionFilterForProtocols(["PumpSwap"]);
+  const eventFilter = eventTypeFilterIncludeOnly([
+    "PumpSwapBuy",
+    "PumpSwapSell",
+    "PumpSwapCreatePool",
+    "PumpSwapLiquidityAdded",
+    "PumpSwapLiquidityRemoved",
+  ]);
 
-  const sub = await client.subscribeTransactions(filter, {
-    onUpdate: (update) => {
-      if (!update.transaction?.transaction) return;
-      const txInfo = update.transaction.transaction;
-      const slot = update.transaction.slot;
-      const logs = txInfo.metaRaw?.logMessages;
-      if (!Array.isArray(logs) || logs.length === 0) return;
+  const sub = await client.subscribeDexEvents([filter], [], eventFilter);
 
-      const sig = txInfo.signature?.length
-        ? bs58.encode(Buffer.from(txInfo.signature))
-        : "";
-      const t0 = nowUs();
-      const events = parseLogsOnly(logs, sig, Number(slot), undefined, grpcTxIndexFromInfo(txInfo));
-
-      for (const ev of events) {
-        const key = Object.keys(ev)[0];
-        if (!key.startsWith("PumpSwap")) continue;
-        const data = ev[key];
-        const parseEndUs = BigInt(data?.metadata?.grpc_recv_us ?? 0);
-        const latencyUs = parseEndUs > 0n ? parseEndUs - BigInt(t0) : 0n;
-
-        eventCount++;
-        totalLatencyUs += latencyUs;
-        if (latencyUs < minLatencyUs) minLatencyUs = latencyUs;
-        if (latencyUs > maxLatencyUs) maxLatencyUs = latencyUs;
-
-        console.log("\n================================================");
-        console.log(`parse_end_us (metadata.grpc_recv_us): ${parseEndUs} μs`);
-        console.log(`onUpdate t0                        : ${t0} μs`);
-        console.log(`Latency (parse_end - t0)           : ${latencyUs} μs`);
-        console.log("================================================");
-        console.log(`Event: ${key}`);
-        if (data?.pool) console.log(`  pool : ${data.pool}`);
-        if (data?.user) console.log(`  user : ${data.user}`);
-        if (data?.base_mint) console.log(`  base_mint : ${data.base_mint}`);
-        if (data?.quote_mint) console.log(`  quote_mint: ${data.quote_mint}`);
-        console.log();
-      }
-    },
-    onError: (err) => console.error("Stream error:", err.message),
-    onEnd: () => console.log("Stream ended"),
-  });
+  (async () => {
+    for await (const err of sub.errors) {
+      console.error("Stream error:", err.message);
+    }
+  })().catch((err) => console.error("Error stream failed:", err));
 
   console.log(`✅ gRPC client created successfully`);
   console.log(`📋 Event Filter: Buy, Sell, CreatePool, LiquidityAdded, LiquidityRemoved`);
@@ -109,9 +88,38 @@ async function main() {
   console.log("🛑 Press Ctrl+C to stop...\n");
 
   process.on("SIGINT", () => {
-    client.unsubscribe(sub.id);
+    sub.cancel();
     process.exit(0);
   });
+
+  for await (const ev of sub) {
+    const queueRecvUs = BigInt(nowUs());
+    const [key, data] = eventEntry(ev);
+    const metadata = data.metadata as
+      | { grpc_recv_us?: number; signature?: string; slot?: number | bigint }
+      | undefined;
+    const grpcRecvUs = BigInt(metadata?.grpc_recv_us ?? 0);
+    const latencyUs = grpcRecvUs > 0n && queueRecvUs > grpcRecvUs ? queueRecvUs - grpcRecvUs : 0n;
+
+    eventCount++;
+    totalLatencyUs += latencyUs;
+    if (latencyUs < minLatencyUs) minLatencyUs = latencyUs;
+    if (latencyUs > maxLatencyUs) maxLatencyUs = latencyUs;
+
+    console.log("\n================================================");
+    console.log(`gRPC recv time : ${grpcRecvUs} μs`);
+    console.log(`Queue recv time: ${queueRecvUs} μs`);
+    console.log(`Latency        : ${latencyUs} μs`);
+    console.log("================================================");
+    console.log(`Event: ${key}`);
+    console.log(`  sig  : ${metadata?.signature ?? ""}`);
+    console.log(`  slot : ${metadata?.slot ?? ""}`);
+    if (data.pool) console.log(`  pool : ${data.pool}`);
+    if (data.user) console.log(`  user : ${data.user}`);
+    if (data.base_mint) console.log(`  base_mint : ${data.base_mint}`);
+    if (data.quote_mint) console.log(`  quote_mint: ${data.quote_mint}`);
+    console.log();
+  }
 }
 
 main().catch((err) => {

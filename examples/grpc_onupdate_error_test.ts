@@ -7,14 +7,10 @@
  * 环境变量（必填）: GRPC_URL / GRPC_TOKEN — 未设置则报错退出（推荐 `.env.example` → `.env`）
  */
 
-import { YellowstoneGrpc } from "../src/index.js";
+import { YellowstoneGrpc, transactionFilterForProtocols } from "../src/index.js";
 import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
-
-const PROGRAM_IDS = [
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // PumpFun
-];
 
 const NEED_OK_AFTER_ERROR = 3;
 const TIMEOUT_MS = 90_000;
@@ -32,8 +28,8 @@ async function main() {
 
   const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
 
-  let resolveDone;
-  const done = new Promise((resolve) => {
+  let resolveDone!: (result: "timeout" | "ok" | "err" | "end") => void;
+  const done = new Promise<"timeout" | "ok" | "err" | "end">((resolve) => {
     resolveDone = resolve;
   });
 
@@ -44,14 +40,7 @@ async function main() {
     resolveDone("timeout");
   }, TIMEOUT_MS);
 
-  const filter = {
-    account_include: PROGRAM_IDS,
-    account_exclude: [],
-    account_required: [],
-    vote: false,
-    failed: false,
-  };
-
+  const filter = transactionFilterForProtocols(["PumpFun"]);
   const sub = await client.subscribeTransactions(filter, {
     onUpdate: (update) => {
       if (!update.transaction?.transaction) return;

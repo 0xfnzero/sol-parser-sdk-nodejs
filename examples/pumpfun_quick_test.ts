@@ -8,39 +8,36 @@
  * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
  */
 
-import bs58 from "bs58";
-import { YellowstoneGrpc, parseLogsOnly, grpcTxIndexFromInfo } from "../src/index.js";
+import {
+  YellowstoneGrpc,
+  transactionFilterForProtocols,
+  type DexEvent,
+} from "../src/index.js";
 import { requireGrpcEnv } from "../scripts/grpc_env.js";
 
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 
-const PROGRAM_IDS = ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]; // PumpFun
-
 let eventCount = 0;
-let sub = null;
-let client = null;
-let timeoutId = null;
+
+function eventName(ev: DexEvent): string {
+  return Object.keys(ev)[0] ?? "";
+}
 
 async function main() {
   console.log("🚀 Quick Test - Subscribing to ALL PumpFun events...");
   console.log(`📡 Endpoint: ${ENDPOINT}\n`);
 
-  client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
+  const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN);
 
-  const filter = {
-    account_include: PROGRAM_IDS,
-    account_exclude: [],
-    account_required: [],
-    vote: false,
-    failed: false,
-  };
-
+  const filter = transactionFilterForProtocols(["PumpFun"]);
   console.log("✅ Subscribing... (no event filter - will show ALL events)");
   console.log("🎧 Listening for events... (waiting up to 60 seconds)\n");
 
-  const finish = (code) => {
+  let sub: Awaited<ReturnType<YellowstoneGrpc["subscribeDexEvents"]>> | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const finish = (code: number) => {
     if (timeoutId) clearTimeout(timeoutId);
-    if (sub && client) client.unsubscribe(sub.id);
+    sub?.cancel();
     process.exit(code);
   };
 
@@ -61,40 +58,34 @@ async function main() {
     finish(0);
   });
 
-  sub = await client.subscribeTransactions(filter, {
-    onUpdate: (update) => {
-      if (!update.transaction?.transaction) return;
-      const txInfo = update.transaction.transaction;
-      const slot = update.transaction.slot;
-      const logs = txInfo.metaRaw?.logMessages;
-      if (!Array.isArray(logs) || logs.length === 0) return;
+  const activeSub = await client.subscribeDexEvents([filter], []);
+  sub = activeSub;
 
-      const sig = txInfo.signature?.length
-        ? bs58.encode(Buffer.from(txInfo.signature))
-        : "";
-      const events = parseLogsOnly(logs, sig, Number(slot), undefined, grpcTxIndexFromInfo(txInfo));
-
-      for (const ev of events) {
-        const key = Object.keys(ev)[0];
-        if (!key.startsWith("PumpFun")) continue;
-
-        eventCount++;
-        console.log(`✅ Event #${eventCount}: ${key} (slot=${slot})`);
-
-        if (eventCount >= 10) {
-          console.log(`\n🎉 Received ${eventCount} events! Test successful!`);
-          finish(0);
-        }
-      }
-    },
-    onError: (err) => {
+  (async () => {
+    for await (const err of activeSub.errors) {
       console.error("Stream error:", err.message);
       process.exit(1);
-    },
-    onEnd: () => console.log("Stream ended"),
+    }
+  })().catch((err) => {
+    console.error("Error stream failed:", err);
+    process.exit(1);
   });
 
   console.log(`✅ Connected. Waiting for PumpFun events...\n`);
+
+  for await (const ev of activeSub) {
+    const key = eventName(ev);
+    if (!key.startsWith("PumpFun")) continue;
+
+    const data = (ev as Record<string, { metadata?: { slot?: number | bigint } }>)[key] ?? {};
+    eventCount++;
+    console.log(`✅ Event #${eventCount}: ${key} (slot=${data.metadata?.slot ?? ""})`);
+
+    if (eventCount >= 10) {
+      console.log(`\n🎉 Received ${eventCount} events! Test successful!`);
+      finish(0);
+    }
+  }
 }
 
 main().catch((err) => {
