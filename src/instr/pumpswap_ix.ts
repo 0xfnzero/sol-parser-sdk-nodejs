@@ -15,6 +15,36 @@ import { getAccount, ixMeta, readU64LE } from "./utils.js";
 const ZP = defaultPubkey();
 const Z = ZP;
 
+function fillBuyUpgradeAccounts(ev: PumpSwapBuyEvent, accounts: string[]): void {
+  const g = (i: number) => getAccount(accounts, i) ?? ZP;
+  if (accounts.length >= 27) {
+    ev.pool_v2 = g(24);
+    ev.fee_recipient = g(25);
+    ev.fee_recipient_quote_token_account = g(26);
+  } else if (accounts.length >= 26) {
+    ev.pool_v2 = g(23);
+    ev.fee_recipient = g(24);
+    ev.fee_recipient_quote_token_account = g(25);
+  } else if (accounts.length >= 24) {
+    ev.pool_v2 = g(23);
+  }
+}
+
+function fillSellUpgradeAccounts(ev: PumpSwapSellEvent, accounts: string[]): void {
+  const g = (i: number) => getAccount(accounts, i) ?? ZP;
+  if (accounts.length >= 26) {
+    ev.pool_v2 = g(23);
+    ev.fee_recipient = g(24);
+    ev.fee_recipient_quote_token_account = g(25);
+  } else if (accounts.length >= 24) {
+    ev.pool_v2 = g(21);
+    ev.fee_recipient = g(22);
+    ev.fee_recipient_quote_token_account = g(23);
+  } else if (accounts.length >= 22) {
+    ev.pool_v2 = g(21);
+  }
+}
+
 function disc8(a: readonly number[]): Uint8Array {
   return Uint8Array.from(a);
 }
@@ -68,7 +98,7 @@ function buyLike(
     user_quote_token_account: g(6),
     protocol_fee_recipient: g(9),
     protocol_fee_recipient_token_account: g(10),
-    coin_creator: accounts.length > 16 ? g(16) : Z,
+    coin_creator: Z,
     coin_creator_fee_basis_points: 0n,
     coin_creator_fee: 0n,
     track_volume: false,
@@ -90,6 +120,7 @@ function buyLike(
     base_token_program: g(11),
     quote_token_program: g(12),
   };
+  fillBuyUpgradeAccounts(ev, accounts);
   return ev;
 }
 
@@ -144,7 +175,7 @@ export function parsePumpswapInstruction(
       user_quote_token_account: g(6),
       protocol_fee_recipient: g(9),
       protocol_fee_recipient_token_account: g(10),
-      coin_creator: accounts.length > 16 ? g(16) : Z,
+      coin_creator: Z,
       coin_creator_fee_basis_points: 0n,
       coin_creator_fee: 0n,
       cashback_fee_basis_points: 0n,
@@ -159,6 +190,7 @@ export function parsePumpswapInstruction(
       base_token_program: g(11),
       quote_token_program: g(12),
     };
+    fillSellUpgradeAccounts(ev, accounts);
     return { PumpSwapSell: ev };
   }
   if (discEq(head, PS.CREATE_POOL)) {

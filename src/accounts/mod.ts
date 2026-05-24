@@ -2,7 +2,7 @@ import type { EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { AccountData } from "./types.js";
 import type { EventType, EventTypeFilter } from "../grpc/types.js";
-import { PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
+import { PUMP_FEES_PROGRAM_ID, PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
 import { parseNonceAccount, isNonceAccount } from "./nonce.js";
 import { parseTokenAccount } from "./token.js";
 import { parsePumpswapAccount } from "./pumpswap.js";
@@ -13,8 +13,18 @@ export { parseNonceAccount, isNonceAccount } from "./nonce.js";
 export { parseTokenAccount } from "./token.js";
 export {
   parsePumpfunGlobal,
+  parsePumpfunBondingCurve,
+  parsePumpfunFeeConfig,
+  parsePumpfunSharingConfig,
+  parsePumpfunGlobalVolumeAccumulator,
+  parsePumpfunUserVolumeAccumulator,
   parsePumpfunAccount,
   isPumpfunGlobalAccount,
+  isPumpfunBondingCurveAccount,
+  isPumpfunFeeConfigAccount,
+  isPumpfunSharingConfigAccount,
+  isPumpfunGlobalVolumeAccumulatorAccount,
+  isPumpfunUserVolumeAccumulatorAccount,
 } from "./pumpfun.js";
 export {
   parsePumpswapGlobalConfig,
@@ -31,6 +41,11 @@ const ACCOUNT_EVENT_TYPES: EventType[] = [
   "TokenAccount",
   "NonceAccount",
   "AccountPumpFunGlobal",
+  "AccountPumpFunBondingCurve",
+  "AccountPumpFunFeeConfig",
+  "AccountPumpFunSharingConfig",
+  "AccountPumpFunGlobalVolumeAccumulator",
+  "AccountPumpFunUserVolumeAccumulator",
   "AccountPumpSwapGlobalConfig",
   "AccountPumpSwapPool",
 ];
@@ -58,8 +73,15 @@ export function parseAccountUnified(
     }
   }
 
-  if (account.owner === PUMPFUN_PROGRAM_ID && eventTypeFilter) {
-    if (eventTypeFilter.shouldInclude("AccountPumpFunGlobal")) {
+  if ((account.owner === PUMPFUN_PROGRAM_ID || account.owner === PUMP_FEES_PROGRAM_ID) && eventTypeFilter) {
+    if (
+      eventTypeFilter.shouldInclude("AccountPumpFunGlobal") ||
+      eventTypeFilter.shouldInclude("AccountPumpFunBondingCurve") ||
+      eventTypeFilter.shouldInclude("AccountPumpFunFeeConfig") ||
+      eventTypeFilter.shouldInclude("AccountPumpFunSharingConfig") ||
+      eventTypeFilter.shouldInclude("AccountPumpFunGlobalVolumeAccumulator") ||
+      eventTypeFilter.shouldInclude("AccountPumpFunUserVolumeAccumulator")
+    ) {
       const ev = parsePumpfunAccount(account, metadata);
       if (ev) return ev;
     }

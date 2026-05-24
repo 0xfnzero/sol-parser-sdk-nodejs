@@ -33,6 +33,13 @@ function fillString(to: EventPayload, key: string, from: EventPayload): void {
   }
 }
 
+function fillNonZero(to: EventPayload, key: string, from: EventPayload): void {
+  const value = from[key];
+  if ((to[key] == null || to[key] === 0n || to[key] === 0) && value != null && value !== 0n && value !== 0) {
+    to[key] = value;
+  }
+}
+
 function fillNestedString(
   to: EventPayload,
   parent: string,
@@ -54,8 +61,11 @@ function fillIxName(to: EventPayload, from: EventPayload): void {
 function ixLane(ixName: unknown): number {
   switch (ixName) {
     case "sell":
+    case "sell_v2":
       return 1;
     case "buy_exact_sol_in":
+    case "buy_exact_quote_in":
+    case "buy_exact_quote_in_v2":
       return 2;
     default:
       return 0;
@@ -119,15 +129,49 @@ function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string
 function mergePumpfunTrade(log: EventPayload, ix: EventPayload): void {
   for (const key of [
     "bonding_curve",
+    "bonding_curve_v2",
     "associated_bonding_curve",
+    "associated_user",
+    "system_program",
     "token_program",
+    "quote_token_program",
+    "associated_token_program",
     "creator_vault",
     "fee_recipient",
+    "associated_quote_fee_recipient",
+    "buyback_fee_recipient",
+    "associated_quote_buyback_fee_recipient",
+    "associated_quote_bonding_curve",
+    "associated_quote_user",
+    "associated_creator_vault",
+    "sharing_config",
+    "event_authority",
+    "program",
+    "global_volume_accumulator",
+    "user_volume_accumulator",
+    "associated_user_volume_accumulator",
+    "fee_config",
+    "fee_program",
+    "global",
+    "quote_mint",
     "creator",
   ]) {
     fillString(log, key, ix);
   }
   if (log.account == null && ix.account != null) log.account = ix.account;
+  for (const key of [
+    "amount",
+    "max_sol_cost",
+    "min_sol_output",
+    "spendable_sol_in",
+    "spendable_quote_in",
+    "min_tokens_out",
+    "quote_amount",
+    "virtual_quote_reserves",
+    "real_quote_reserves",
+  ]) {
+    fillNonZero(log, key, ix);
+  }
   fillIxName(log, ix);
   log.is_created_buy = Boolean(log.is_created_buy) || Boolean(ix.is_created_buy);
 }
@@ -188,6 +232,9 @@ function mergePumpSwapBuySell(log: EventPayload, ix: EventPayload, includeIxName
     "coin_creator_vault_authority",
     "base_token_program",
     "quote_token_program",
+    "pool_v2",
+    "fee_recipient",
+    "fee_recipient_quote_token_account",
   ]) {
     fillString(log, key, ix);
   }

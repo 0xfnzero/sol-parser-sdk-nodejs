@@ -13,6 +13,8 @@ import {
   readDiscriminatorU64,
   readI64LE,
   readPubkey,
+  readU16LE,
+  readU32LE,
   readU64LE,
 } from "../util/binary.js";
 
@@ -33,6 +35,39 @@ function bnU64(v: bigint | null): bigint {
 
 function bnI64(v: bigint | null): bigint {
   return v ?? 0n;
+}
+
+function readOptionalU64(data: Uint8Array, offset: { value: number }): bigint {
+  if (offset.value + 8 > data.length) return 0n;
+  const value = bnU64(readU64LE(data, offset.value));
+  offset.value += 8;
+  return value;
+}
+
+function readOptionalPubkey(data: Uint8Array, offset: { value: number }): string {
+  if (offset.value + 32 > data.length) return defaultPubkey();
+  const value = readPubkey(data, offset.value) ?? defaultPubkey();
+  offset.value += 32;
+  return value;
+}
+
+function readTradeShareholders(data: Uint8Array, offset: { value: number }) {
+  if (offset.value + 4 > data.length) return [];
+  const n = readU32LE(data, offset.value);
+  if (n === null || n > 64) return null;
+  offset.value += 4;
+  if (offset.value + n * 34 > data.length) return null;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const address = readPubkey(data, offset.value);
+    if (!address) return null;
+    offset.value += 32;
+    const share_bps = readU16LE(data, offset.value);
+    if (share_bps === null) return null;
+    offset.value += 2;
+    out.push({ address, share_bps });
+  }
+  return out;
 }
 
 export function parsePumpFunLogDecoded(programData: Uint8Array, metadata: EventMetadata): DexEvent | null {
@@ -115,6 +150,17 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
   const cashback_fee_basis_points = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
   o += 8;
   const cashback = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
+  o += 8;
+
+  const tail = { value: o };
+  const buyback_fee_basis_points = readOptionalU64(data, tail);
+  const buyback_fee = readOptionalU64(data, tail);
+  const shareholders = readTradeShareholders(data, tail);
+  if (shareholders === null) return null;
+  const quote_mint = readOptionalPubkey(data, tail);
+  const quote_amount = readOptionalU64(data, tail);
+  const virtual_quote_reserves = readOptionalU64(data, tail);
+  const real_quote_reserves = readOptionalU64(data, tail);
 
   const trade: PumpFunTradeEvent = {
     metadata,
@@ -144,6 +190,13 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
     mayhem_mode,
     cashback_fee_basis_points,
     cashback,
+    buyback_fee_basis_points,
+    buyback_fee,
+    shareholders,
+    quote_mint,
+    quote_amount,
+    virtual_quote_reserves,
+    real_quote_reserves,
     is_cashback_coin: cashback_fee_basis_points > 0n,
     bonding_curve: defaultPubkey(),
     associated_bonding_curve: defaultPubkey(),
@@ -153,7 +206,7 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
 
   if (ix_name === "buy" || ix_name === "buy_v2") return { PumpFunBuy: trade };
   if (ix_name === "sell" || ix_name === "sell_v2") return { PumpFunSell: trade };
-  if (ix_name === "buy_exact_sol_in" || ix_name === "buy_exact_quote_in_v2") {
+  if (ix_name === "buy_exact_sol_in" || ix_name === "buy_exact_quote_in" || ix_name === "buy_exact_quote_in_v2") {
     return { PumpFunBuyExactSolIn: trade };
   }
   return { PumpFunTrade: trade };

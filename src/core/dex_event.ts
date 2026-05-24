@@ -74,6 +74,11 @@ export type DexEvent =
   | { TokenAccount: TokenAccountEvent }
   | { NonceAccount: NonceAccountEvent }
   | { PumpFunGlobalAccount: PumpFunGlobalAccountEvent }
+  | { PumpFunBondingCurveAccount: PumpFunBondingCurveAccountEvent }
+  | { PumpFunFeeConfigAccount: PumpFunFeeConfigAccountEvent }
+  | { PumpFunSharingConfigAccount: PumpFunSharingConfigAccountEvent }
+  | { PumpFunGlobalVolumeAccumulatorAccount: PumpFunGlobalVolumeAccumulatorAccountEvent }
+  | { PumpFunUserVolumeAccumulatorAccount: PumpFunUserVolumeAccumulatorAccountEvent }
   | { PumpSwapGlobalConfigAccount: PumpSwapGlobalConfigAccountEvent }
   | { PumpSwapPoolAccount: PumpSwapPoolAccountEvent }
   | { BlockMeta: BlockMetaEvent }
@@ -142,11 +147,44 @@ export interface PumpFunTradeEvent {
   mayhem_mode: boolean;
   cashback_fee_basis_points: bigint;
   cashback: bigint;
+  buyback_fee_basis_points?: bigint;
+  buyback_fee?: bigint;
+  shareholders?: PumpFeesShareholder[];
+  quote_mint?: string;
+  quote_amount?: bigint;
+  virtual_quote_reserves?: bigint;
+  real_quote_reserves?: bigint;
   is_cashback_coin: boolean;
+  amount?: bigint;
+  max_sol_cost?: bigint;
+  min_sol_output?: bigint;
+  spendable_sol_in?: bigint;
+  spendable_quote_in?: bigint;
+  min_tokens_out?: bigint;
+  global?: string;
   bonding_curve: string;
+  bonding_curve_v2?: string;
   associated_bonding_curve: string;
+  associated_user?: string;
+  system_program?: string;
   token_program: string;
+  quote_token_program?: string;
+  associated_token_program?: string;
   creator_vault: string;
+  associated_quote_fee_recipient?: string;
+  buyback_fee_recipient?: string;
+  associated_quote_buyback_fee_recipient?: string;
+  associated_quote_bonding_curve?: string;
+  associated_quote_user?: string;
+  associated_creator_vault?: string;
+  sharing_config?: string;
+  event_authority?: string;
+  program?: string;
+  global_volume_accumulator?: string;
+  user_volume_accumulator?: string;
+  associated_user_volume_accumulator?: string;
+  fee_config?: string;
+  fee_program?: string;
   account?: string;
 }
 
@@ -346,6 +384,9 @@ export interface PumpSwapBuyEvent {
   coin_creator_vault_authority: string;
   base_token_program: string;
   quote_token_program: string;
+  pool_v2?: string;
+  fee_recipient?: string;
+  fee_recipient_quote_token_account?: string;
 }
 
 export interface PumpSwapSellEvent {
@@ -384,6 +425,9 @@ export interface PumpSwapSellEvent {
   coin_creator_vault_authority: string;
   base_token_program: string;
   quote_token_program: string;
+  pool_v2?: string;
+  fee_recipient?: string;
+  fee_recipient_quote_token_account?: string;
 }
 
 export interface PumpSwapCreatePoolEvent {
@@ -1079,12 +1123,101 @@ export interface PumpFunGlobal {
   reserved_fee_recipient: string;
   mayhem_mode_enabled: boolean;
   reserved_fee_recipients: string[];
+  is_cashback_enabled: boolean;
+  buyback_fee_recipients: string[];
+  buyback_basis_points: bigint;
+  initial_virtual_quote_reserves: bigint;
+  whitelisted_quote_mints: string[];
 }
 
 export interface PumpFunGlobalAccountEvent {
   metadata: EventMetadata;
   pubkey: string;
   global: PumpFunGlobal;
+}
+
+export interface PumpFunBondingCurve {
+  virtual_token_reserves: bigint;
+  virtual_quote_reserves: bigint;
+  real_token_reserves: bigint;
+  real_quote_reserves: bigint;
+  token_total_supply: bigint;
+  complete: boolean;
+  creator: string;
+  is_mayhem_mode: boolean;
+  is_cashback_coin: boolean;
+  quote_mint: string;
+}
+
+export interface PumpFunBondingCurveAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  bonding_curve: PumpFunBondingCurve;
+}
+
+export interface PumpFunFeeConfig {
+  bump: number;
+  admin: string;
+  flat_fees: PumpFeesFees;
+  fee_tiers: PumpFeesFeeTier[];
+  stable_fee_tiers: PumpFeesFeeTier[];
+}
+
+export interface PumpFunFeeConfigAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  fee_config: PumpFunFeeConfig;
+}
+
+export interface PumpFunSharingConfig {
+  bump: number;
+  version: number;
+  status: PumpFeesConfigStatus;
+  mint: string;
+  admin: string;
+  admin_revoked: boolean;
+  shareholders: PumpFeesShareholder[];
+}
+
+export interface PumpFunSharingConfigAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  sharing_config: PumpFunSharingConfig;
+}
+
+export interface PumpFunGlobalVolumeAccumulator {
+  start_time: bigint;
+  end_time: bigint;
+  seconds_in_a_day: bigint;
+  mint: string;
+  total_token_supply: bigint[];
+  sol_volumes: bigint[];
+}
+
+export interface PumpFunGlobalVolumeAccumulatorAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  global_volume_accumulator: PumpFunGlobalVolumeAccumulator;
+}
+
+export interface PumpFunUserVolumeAccumulator {
+  user: string;
+  needs_claim: boolean;
+  total_unclaimed_tokens: bigint;
+  total_claimed_tokens: bigint;
+  current_sol_volume: bigint;
+  last_update_timestamp: bigint;
+  has_total_claimed_tokens: boolean;
+  cashback_earned: bigint;
+  total_cashback_claimed: bigint;
+  stable_cashback_earned: bigint;
+  total_stable_cashback_claimed: bigint;
+}
+
+export interface PumpFunUserVolumeAccumulatorAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  user_volume_accumulator: PumpFunUserVolumeAccumulator;
 }
 
 export interface PumpSwapGlobalConfig {

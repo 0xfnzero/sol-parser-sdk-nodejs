@@ -51,4 +51,44 @@ describe("dedupeLogInstructionEvents", () => {
     expect(trade.bonding_curve).toBe("Curve11111111111111111111111111111111111");
     expect(trade.is_created_buy).toBe(true);
   });
+
+  it("keeps v2 buy lanes distinct when occurrence order differs", () => {
+    const base = {
+      metadata: {},
+      mint: "Mint222222222222222222222222222222222222",
+      user: "User222222222222222222222222222222222222",
+      is_buy: true,
+      sol_amount: 1n,
+      token_amount: 1n,
+      bonding_curve: defaultPubkey(),
+    };
+    const buyLog = { PumpFunTrade: { ...base, ix_name: "buy_v2" } } as unknown as DexEvent;
+    const exactLog = {
+      PumpFunTrade: { ...base, ix_name: "buy_exact_quote_in_v2" },
+    } as unknown as DexEvent;
+    const exactIx = {
+      PumpFunBuy: {
+        ...base,
+        ix_name: "buy_exact_quote_in_v2",
+        bonding_curve: "ExactCurve2222222222222222222222222222222",
+      },
+    } as unknown as DexEvent;
+    const buyIx = {
+      PumpFunBuy: {
+        ...base,
+        ix_name: "buy_v2",
+        bonding_curve: "BuyCurve22222222222222222222222222222222",
+      },
+    } as unknown as DexEvent;
+
+    const out = dedupeLogInstructionEvents([buyLog, exactLog], [exactIx, buyIx]);
+
+    expect(out).toHaveLength(2);
+    expect((out[0] as any).PumpFunTrade.bonding_curve).toBe(
+      "BuyCurve22222222222222222222222222222222"
+    );
+    expect((out[1] as any).PumpFunTrade.bonding_curve).toBe(
+      "ExactCurve2222222222222222222222222222222"
+    );
+  });
 });

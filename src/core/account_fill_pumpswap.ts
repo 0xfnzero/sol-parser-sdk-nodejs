@@ -48,10 +48,50 @@ function fillPumpswapTradeCommon(
 
 export function fillPumpswapBuyAccounts(e: PumpSwapBuyEvent, get: (i: number) => string): void {
   fillPumpswapTradeCommon(e, get);
+  const zero = Z();
+  const a26 = get(26);
+  if (a26 && a26 !== zero) {
+    if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(24);
+    if (!e.fee_recipient || e.fee_recipient === zero) e.fee_recipient = get(25);
+    if (!e.fee_recipient_quote_token_account || e.fee_recipient_quote_token_account === zero) {
+      e.fee_recipient_quote_token_account = a26;
+    }
+    return;
+  }
+  const a25 = get(25);
+  if (a25 && a25 !== zero) {
+    if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(23);
+    if (!e.fee_recipient || e.fee_recipient === zero) e.fee_recipient = get(24);
+    if (!e.fee_recipient_quote_token_account || e.fee_recipient_quote_token_account === zero) {
+      e.fee_recipient_quote_token_account = a25;
+    }
+    return;
+  }
+  if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(23);
 }
 
 export function fillPumpswapSellAccounts(e: PumpSwapSellEvent, get: (i: number) => string): void {
   fillPumpswapTradeCommon(e, get);
+  const zero = Z();
+  const a25 = get(25);
+  if (a25 && a25 !== zero) {
+    if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(23);
+    if (!e.fee_recipient || e.fee_recipient === zero) e.fee_recipient = get(24);
+    if (!e.fee_recipient_quote_token_account || e.fee_recipient_quote_token_account === zero) {
+      e.fee_recipient_quote_token_account = a25;
+    }
+    return;
+  }
+  const a23 = get(23);
+  if (a23 && a23 !== zero) {
+    if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(21);
+    if (!e.fee_recipient || e.fee_recipient === zero) e.fee_recipient = get(22);
+    if (!e.fee_recipient_quote_token_account || e.fee_recipient_quote_token_account === zero) {
+      e.fee_recipient_quote_token_account = a23;
+    }
+    return;
+  }
+  if (!e.pool_v2 || e.pool_v2 === zero) e.pool_v2 = get(21);
 }
 
 export function fillPumpswapCreatePoolAccounts(

@@ -358,6 +358,11 @@ export type EventType =
   | "TokenInfo"
   | "NonceAccount"
   | "AccountPumpFunGlobal"
+  | "AccountPumpFunBondingCurve"
+  | "AccountPumpFunFeeConfig"
+  | "AccountPumpFunSharingConfig"
+  | "AccountPumpFunGlobalVolumeAccumulator"
+  | "AccountPumpFunUserVolumeAccumulator"
   | "AccountPumpSwapGlobalConfig"
   | "AccountPumpSwapPool";
 
@@ -452,6 +457,11 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "TokenInfo",
   "NonceAccount",
   "AccountPumpFunGlobal",
+  "AccountPumpFunBondingCurve",
+  "AccountPumpFunFeeConfig",
+  "AccountPumpFunSharingConfig",
+  "AccountPumpFunGlobalVolumeAccumulator",
+  "AccountPumpFunUserVolumeAccumulator",
   "AccountPumpSwapGlobalConfig",
   "AccountPumpSwapPool",
 ];
@@ -512,6 +522,11 @@ export function eventTypeFilterIncludesPumpfun(filter: EventTypeFilter): boolean
         "PumpFeesUpsertFeeTiers",
         "PumpFunMigrateBondingCurveCreator",
         "AccountPumpFunGlobal",
+        "AccountPumpFunBondingCurve",
+        "AccountPumpFunFeeConfig",
+        "AccountPumpFunSharingConfig",
+        "AccountPumpFunGlobalVolumeAccumulator",
+        "AccountPumpFunUserVolumeAccumulator",
       ].includes(t)
     );
   }
@@ -537,6 +552,11 @@ export function eventTypeFilterIncludesPumpfun(filter: EventTypeFilter): boolean
         "PumpFeesUpsertFeeTiers",
         "PumpFunMigrateBondingCurveCreator",
         "AccountPumpFunGlobal",
+        "AccountPumpFunBondingCurve",
+        "AccountPumpFunFeeConfig",
+        "AccountPumpFunSharingConfig",
+        "AccountPumpFunGlobalVolumeAccumulator",
+        "AccountPumpFunUserVolumeAccumulator",
       ].includes(t)
     );
   }
@@ -750,6 +770,11 @@ export function eventTypeFilterAllowsInstructionParsing(includeOnly: EventType[]
     "PumpFunMigrate",
     "PumpFunMigrateBondingCurveCreator",
     "AccountPumpFunGlobal",
+    "AccountPumpFunBondingCurve",
+    "AccountPumpFunFeeConfig",
+    "AccountPumpFunSharingConfig",
+    "AccountPumpFunGlobalVolumeAccumulator",
+    "AccountPumpFunUserVolumeAccumulator",
     ...PUMP_FEES_EVENT_TYPES,
     "PumpSwapBuy",
     "PumpSwapSell",
