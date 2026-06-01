@@ -8,6 +8,7 @@ import { getAccount, ixMeta, readBool, readBorshStrAt, readPubkeyIx, readU64LE }
 import { readI64LE } from "../util/binary.js";
 
 const Z = defaultPubkey();
+export const PUMPFUN_SOL_QUOTE_MINT = "So11111111111111111111111111111111111111111";
 
 const DISC = {
   BUY: Uint8Array.from([102, 6, 61, 18, 1, 218, 235, 234]),
@@ -36,7 +37,7 @@ function createNumericDefaults() {
     token_total_supply: 0n,
     is_mayhem_mode: false,
     is_cashback_enabled: false,
-    quote_mint: Z,
+    quote_mint: PUMPFUN_SOL_QUOTE_MINT,
     virtual_quote_reserves: 0n,
   };
 }
@@ -187,7 +188,7 @@ function parsePumpfunLegacyBuyInstruction(
     cashback_fee_basis_points: 0n,
     cashback: 0n,
     is_cashback_coin: false,
-    quote_mint: Z,
+    quote_mint: PUMPFUN_SOL_QUOTE_MINT,
     quote_token_program: Z,
     associated_token_program: Z,
     associated_quote_fee_recipient: Z,
@@ -228,7 +229,7 @@ function parsePumpfunLegacySellInstruction(
   const trade = {
     metadata,
     mint: accounts[2] ?? Z,
-    quote_mint: Z,
+    quote_mint: PUMPFUN_SOL_QUOTE_MINT,
     is_buy: false,
     is_created_buy: false,
     global: accounts[0] ?? Z,

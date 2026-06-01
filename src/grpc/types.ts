@@ -654,6 +654,22 @@ export function eventTypeFilterShouldIncludeDexEvent(
   return eventType === null || filter.shouldInclude(eventType);
 }
 
+export function eventTypeFilterNormalizeDexEvent(
+  filter: EventTypeFilter,
+  event: DexEvent
+): DexEvent {
+  const includeOnly = filter.include_only;
+  if (!includeOnly || !includeOnly.includes("PumpFunTrade")) return event;
+
+  const hasSpecificTradeFilter = includeOnly.some((t) => isPumpfunTradeConcrete(t));
+  if (hasSpecificTradeFilter) return event;
+
+  if ("PumpFunBuy" in event) return { PumpFunTrade: event.PumpFunBuy };
+  if ("PumpFunSell" in event) return { PumpFunTrade: event.PumpFunSell };
+  if ("PumpFunBuyExactSolIn" in event) return { PumpFunTrade: event.PumpFunBuyExactSolIn };
+  return event;
+}
+
 export interface EventTypeFilter {
   include_only?: EventType[];
   exclude_types?: EventType[];

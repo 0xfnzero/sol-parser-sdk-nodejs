@@ -28,6 +28,7 @@ const DISC_CREATE = disc([27, 114, 169, 77, 222, 235, 99, 118]);
 const DISC_TRADE = disc([189, 219, 127, 211, 78, 230, 97, 238]);
 const DISC_MIGRATE = disc([189, 233, 93, 185, 92, 148, 234, 148]);
 const DISC_MIGRATE_BONDING_CURVE_CREATOR = disc([155, 167, 104, 220, 213, 108, 243, 3]);
+const PUMPFUN_SOL_QUOTE_MINT = "So11111111111111111111111111111111111111111";
 
 function normalizePumpfunIxName(ixName: string): string {
   if (ixName === "buy_v2") return "buy";
@@ -56,6 +57,10 @@ function readOptionalPubkey(data: Uint8Array, offset: { value: number }): string
   const value = readPubkey(data, offset.value) ?? defaultPubkey();
   offset.value += 32;
   return value;
+}
+
+function normalizePumpfunQuoteMint(quoteMint: string): string {
+  return quoteMint === defaultPubkey() ? PUMPFUN_SOL_QUOTE_MINT : quoteMint;
 }
 
 function readTradeShareholders(data: Uint8Array, offset: { value: number }) {
@@ -165,7 +170,7 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
   const buyback_fee = readOptionalU64(data, tail);
   const shareholders = readTradeShareholders(data, tail);
   if (shareholders === null) return null;
-  const quote_mint = readOptionalPubkey(data, tail);
+  const quote_mint = normalizePumpfunQuoteMint(readOptionalPubkey(data, tail));
   const quote_amount = readOptionalU64(data, tail);
   const virtual_quote_reserves = readOptionalU64(data, tail);
   const real_quote_reserves = readOptionalU64(data, tail);
@@ -262,7 +267,9 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
   o += 1;
   const is_cashback_enabled = readBool(data, o) ?? false;
   o += 1;
-  const quote_mint = o + 32 <= data.length ? readPubkey(data, o)! : defaultPubkey();
+  const quote_mint = normalizePumpfunQuoteMint(
+    o + 32 <= data.length ? readPubkey(data, o)! : defaultPubkey()
+  );
   o += 32;
   const virtual_quote_reserves = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
 

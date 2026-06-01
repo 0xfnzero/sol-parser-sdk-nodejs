@@ -17,6 +17,7 @@ import {
   eventTypeFilterIncludesRaydiumLaunchlab,
   eventTypeFilterIncludesPumpFees,
   eventTypeFilterShouldIncludeDexEvent,
+  eventTypeFilterNormalizeDexEvent,
 } from "../grpc/types.js";
 import {
   RAYDIUM_LAUNCHLAB_PROGRAM_ID,
@@ -62,7 +63,9 @@ export * from "./program_ids.js";
 
 function filterParsedEvent(ev: DexEvent | null, eventTypeFilter?: EventTypeFilter): DexEvent | null {
   if (!ev || !eventTypeFilter) return ev;
-  return eventTypeFilterShouldIncludeDexEvent(eventTypeFilter, ev) ? ev : null;
+  return eventTypeFilterShouldIncludeDexEvent(eventTypeFilter, ev)
+    ? eventTypeFilterNormalizeDexEvent(eventTypeFilter, ev)
+    : null;
 }
 
 export function parseInstructionUnified(

@@ -6,12 +6,18 @@ import type {
 } from "./dex_event.js";
 import { defaultPubkey } from "./dex_event.js";
 
+const PUMPFUN_SOL_QUOTE_MINT = "So11111111111111111111111111111111111111111";
+
 function pumpfunTradeEvent(ev: DexEvent): PumpFunTradeEvent | null {
   if ("PumpFunTrade" in ev) return ev.PumpFunTrade;
   if ("PumpFunBuy" in ev) return ev.PumpFunBuy;
   if ("PumpFunSell" in ev) return ev.PumpFunSell;
   if ("PumpFunBuyExactSolIn" in ev) return ev.PumpFunBuyExactSolIn;
   return null;
+}
+
+function isUnknownOrSolPlaceholder(v: string | undefined): boolean {
+  return !v || v === defaultPubkey() || v === PUMPFUN_SOL_QUOTE_MINT;
 }
 
 function pumpfunCreateFlags(ev: DexEvent): [string, boolean, boolean] | null {
@@ -103,6 +109,27 @@ export function enrichCreateV2ObservedFeeRecipient(events: DexEvent[]): void {
   }
 }
 
+export function enrichCreateQuoteMintFromTrades(events: DexEvent[]): void {
+  const zero = defaultPubkey();
+  const mintToQuote = new Map<string, string>();
+
+  for (const ev of events) {
+    const t = pumpfunTradeEvent(ev);
+    if (!t?.mint || t.mint === zero || !t.quote_mint || isUnknownOrSolPlaceholder(t.quote_mint)) {
+      continue;
+    }
+    if (!mintToQuote.has(t.mint)) mintToQuote.set(t.mint, t.quote_mint);
+  }
+
+  if (mintToQuote.size === 0) return;
+
+  for (const ev of events) {
+    const c = "PumpFunCreate" in ev ? ev.PumpFunCreate : "PumpFunCreateV2" in ev ? ev.PumpFunCreateV2 : null;
+    if (!c || !isUnknownOrSolPlaceholder(c.quote_mint)) continue;
+    c.quote_mint = mintToQuote.get(c.mint) ?? c.quote_mint;
+  }
+}
+
 export function enrichPumpfunTradesFromCreateInstructions(events: DexEvent[]): void {
   const flags = new Map<string, [boolean, boolean]>();
   for (const ev of events) {
@@ -126,5 +153,6 @@ export function enrichPumpfunTradesFromCreateInstructions(events: DexEvent[]): v
 export function enrichPumpfunSameTxPostMerge(events: DexEvent[]): void {
   enrichCreateV2FromCreateEvents(events);
   enrichCreateV2ObservedFeeRecipient(events);
+  enrichCreateQuoteMintFromTrades(events);
   enrichPumpfunTradesFromCreateInstructions(events);
 }

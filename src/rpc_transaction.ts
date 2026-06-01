@@ -13,6 +13,7 @@ import type { ConfirmedTransactionMeta } from "@solana/web3.js";
 import type { DexEvent } from "./core/dex_event.js";
 import type { ParseError } from "./core/error.js";
 import type { EventTypeFilter } from "./grpc/types.js";
+import { eventTypeFilterNormalizeDexEvent } from "./grpc/types.js";
 import { fillAccountsFromTransactionDataRpc } from "./core/account_dispatcher_rpc.js";
 import { fillDataRpc } from "./core/common_filler_rpc.js";
 import { enrichPumpfunSameTxPostMerge } from "./core/pumpfun_fee_enrich.js";
@@ -214,7 +215,10 @@ export function parseRpcTransaction(
   const events = dedupeLogInstructionEvents(logEvents, instructionEvents);
   enrichPumpfunSameTxPostMerge(events);
 
-  return { ok: true, events };
+  return {
+    ok: true,
+    events: filter ? events.map((event) => eventTypeFilterNormalizeDexEvent(filter, event)) : events,
+  };
 }
 
 export { fillAccountsFromTransactionDataRpc } from "./core/account_dispatcher_rpc.js";

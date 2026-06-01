@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
 import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
-import { parsePumpfunInstruction } from "./pumpfun_ix.js";
+import { parsePumpfunInstruction, PUMPFUN_SOL_QUOTE_MINT } from "./pumpfun_ix.js";
 
 const BUY_DISC = [102, 6, 61, 18, 1, 218, 235, 234];
 const SELL_DISC = [51, 230, 133, 164, 1, 127, 131, 173];
@@ -79,6 +79,7 @@ describe("PumpFun v2 parity", () => {
     expect(create.creator).toBe(pubkey(120));
     expect(create.is_mayhem_mode).toBe(true);
     expect(create.is_cashback_enabled).toBe(true);
+    expect(create.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
   });
 
   it("parses legacy buy, exact-sol-in buy, and sell instructions", () => {
@@ -100,6 +101,7 @@ describe("PumpFun v2 parity", () => {
     expect(t.creator_vault).toBe("account_9");
     expect(t.bonding_curve_v2).toBe("account_16");
     expect(t.buyback_fee_recipient).toBe("account_17");
+    expect(t.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
     expect(t.amount).toBe(111n);
     expect(t.max_sol_cost).toBe(222n);
 
@@ -364,5 +366,73 @@ describe("PumpFun v2 parity", () => {
     expect(create.virtual_sol_reserves).toBe(30_000_000_000n);
     expect(create.is_cashback_enabled).toBe(true);
     expect(create.is_mayhem_mode).toBe(true);
+  });
+
+  it("enriches create quote mint from same-tx trade when trade has a real quote", () => {
+    const events: DexEvent[] = [
+      {
+        PumpFunCreate: {
+          metadata: { signature: "sig", slot: 1, tx_index: 0, block_time_us: 0, grpc_recv_us: 10 },
+          name: "n",
+          symbol: "s",
+          uri: "u",
+          mint: "mint",
+          bonding_curve: defaultPubkey(),
+          user: defaultPubkey(),
+          creator: defaultPubkey(),
+          timestamp: 0n,
+          virtual_token_reserves: 0n,
+          virtual_sol_reserves: 0n,
+          real_token_reserves: 0n,
+          token_total_supply: 0n,
+          token_program: defaultPubkey(),
+          is_mayhem_mode: false,
+          is_cashback_enabled: false,
+          quote_mint: PUMPFUN_SOL_QUOTE_MINT,
+          virtual_quote_reserves: 0n,
+        },
+      },
+      {
+        PumpFunBuy: {
+          metadata: { signature: "sig", slot: 1, tx_index: 0, block_time_us: 0, grpc_recv_us: 10 },
+          mint: "mint",
+          sol_amount: 1n,
+          token_amount: 2n,
+          is_buy: true,
+          is_created_buy: false,
+          user: defaultPubkey(),
+          timestamp: 0n,
+          virtual_sol_reserves: 0n,
+          virtual_token_reserves: 0n,
+          real_sol_reserves: 0n,
+          real_token_reserves: 0n,
+          fee_recipient: defaultPubkey(),
+          fee_basis_points: 0n,
+          fee: 0n,
+          creator: defaultPubkey(),
+          creator_fee_basis_points: 0n,
+          creator_fee: 0n,
+          track_volume: false,
+          total_unclaimed_tokens: 0n,
+          total_claimed_tokens: 0n,
+          current_sol_volume: 0n,
+          last_update_timestamp: 0n,
+          ix_name: "buy_v2",
+          mayhem_mode: false,
+          cashback_fee_basis_points: 0n,
+          cashback: 0n,
+          quote_mint: "USDC",
+          is_cashback_coin: false,
+          bonding_curve: defaultPubkey(),
+          associated_bonding_curve: defaultPubkey(),
+          token_program: defaultPubkey(),
+          creator_vault: defaultPubkey(),
+        },
+      },
+    ];
+
+    enrichPumpfunSameTxPostMerge(events);
+
+    expect(events[0]!.PumpFunCreate.quote_mint).toBe("USDC");
   });
 });

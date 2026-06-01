@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { defaultPubkey } from "../core/dex_event.js";
 import { eventTypeFilterIncludeOnly } from "../grpc/types.js";
 import { PUMPFUN_PROGRAM_ID, RAYDIUM_CLMM_PROGRAM_ID } from "../instr/program_ids.js";
+import { PUMPFUN_SOL_QUOTE_MINT } from "../instr/pumpfun_ix.js";
 import { dexEventsFromShredWasmTx, type ShredWasmTx } from "./instruction_parse.js";
 
 const BUY_V2_DISC = [184, 23, 238, 97, 103, 197, 211, 61];
+const CREATE_DISC = [24, 30, 200, 40, 5, 28, 7, 119];
 const CLMM_SWAP_DISC = [248, 198, 158, 145, 225, 117, 135, 200];
 
 function u64Instruction(disc: number[], first: bigint, second: bigint): Uint8Array {
@@ -24,7 +26,39 @@ function clmmSwapInstruction(): Uint8Array {
   return data;
 }
 
+function createInstruction(): Uint8Array {
+  const chunks: number[] = [...CREATE_DISC];
+  for (const s of ["I Knew It", "Toy Story", "https://example.invalid/token.json"]) {
+    const bytes = new TextEncoder().encode(s);
+    const len = new Uint8Array(4);
+    new DataView(len.buffer).setUint32(0, bytes.length, true);
+    chunks.push(...len, ...bytes);
+  }
+  chunks.push(...new Uint8Array(32).fill(7));
+  return Uint8Array.from(chunks);
+}
+
 describe("ShredStream instruction parser", () => {
+  it("uses SOL quote mint for PumpFun create instructions without log tails", () => {
+    const tx: ShredWasmTx = {
+      signature: "sig",
+      accounts: [PUMPFUN_PROGRAM_ID, "mint", "auth", "curve", "assoc", "global", "mpl", "meta", "user"],
+      instructions: [
+        {
+          programIdIndex: 0,
+          accounts: Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8]),
+          data: createInstruction(),
+        },
+      ],
+    };
+
+    const events = dexEventsFromShredWasmTx(tx, 1, 0, 10);
+    expect(events).toHaveLength(1);
+    expect("PumpFunCreate" in events[0]!).toBe(true);
+    const create = "PumpFunCreate" in events[0]! ? events[0]!.PumpFunCreate : null;
+    expect(create?.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
+  });
+
   it("parses PumpFun v2 with static mint and ALT-loaded trailing accounts best-effort", () => {
     const tx: ShredWasmTx = {
       signature: "sig",
@@ -61,7 +95,9 @@ describe("ShredStream instruction parser", () => {
     };
 
     expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunSell"]))).toHaveLength(0);
-    expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunTrade"]))).toHaveLength(1);
+    const tradeEvents = dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunTrade"]));
+    expect(tradeEvents).toHaveLength(1);
+    expect("PumpFunTrade" in tradeEvents[0]!).toBe(true);
     expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["AccountPumpFunGlobal"]))).toHaveLength(0);
   });
 
