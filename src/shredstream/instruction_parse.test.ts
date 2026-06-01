@@ -62,6 +62,7 @@ describe("ShredStream instruction parser", () => {
 
     expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunSell"]))).toHaveLength(0);
     expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunTrade"]))).toHaveLength(1);
+    expect(dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["AccountPumpFunGlobal"]))).toHaveLength(0);
   });
 
   it("uses default pubkey placeholders for ALT-loaded non-PumpFun accounts", () => {

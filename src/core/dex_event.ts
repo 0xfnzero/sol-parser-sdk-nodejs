@@ -58,6 +58,9 @@ export type DexEvent =
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
+  | { MeteoraDbcSwap: MeteoraDbcSwapEvent }
+  | { MeteoraDbcInitializePool: MeteoraDbcInitializePoolEvent }
+  | { MeteoraDbcCurveComplete: MeteoraDbcCurveCompleteEvent }
   | { MeteoraDlmmSwap: MeteoraDlmmSwapEvent }
   | { MeteoraDlmmAddLiquidity: MeteoraDlmmAddLiquidityEvent }
   | { MeteoraDlmmRemoveLiquidity: MeteoraDlmmRemoveLiquidityEvent }
@@ -80,6 +83,16 @@ export type DexEvent =
   | { PumpFunUserVolumeAccumulatorAccount: PumpFunUserVolumeAccumulatorAccountEvent }
   | { PumpSwapGlobalConfigAccount: PumpSwapGlobalConfigAccountEvent }
   | { PumpSwapPoolAccount: PumpSwapPoolAccountEvent }
+  | { RaydiumClmmAmmConfigAccount: RaydiumClmmAmmConfigAccountEvent }
+  | { RaydiumClmmPoolStateAccount: RaydiumClmmPoolStateAccountEvent }
+  | { RaydiumClmmTickArrayStateAccount: RaydiumClmmTickArrayStateAccountEvent }
+  | { RaydiumCpmmAmmConfigAccount: RaydiumCpmmAmmConfigAccountEvent }
+  | { RaydiumCpmmPoolStateAccount: RaydiumCpmmPoolStateAccountEvent }
+  | { OrcaWhirlpoolAccount: OrcaWhirlpoolAccountEvent }
+  | { OrcaPositionAccount: OrcaPositionAccountEvent }
+  | { OrcaTickArrayAccount: OrcaTickArrayAccountEvent }
+  | { OrcaFeeTierAccount: OrcaFeeTierAccountEvent }
+  | { OrcaWhirlpoolsConfigAccount: OrcaWhirlpoolsConfigAccountEvent }
   | { BlockMeta: BlockMetaEvent }
   | { Error: string };
 
@@ -942,6 +955,41 @@ export interface MeteoraDammV2ClosePositionEvent {
   position_nft_mint: string;
 }
 
+export interface MeteoraDbcSwapEvent {
+  metadata: EventMetadata;
+  pool: string;
+  config: string;
+  trade_direction: number;
+  has_referral: boolean;
+  amount_in: bigint;
+  minimum_amount_out: bigint;
+  actual_input_amount: bigint;
+  output_amount: bigint;
+  next_sqrt_price: bigint;
+  trading_fee: bigint;
+  protocol_fee: bigint;
+  referral_fee: bigint;
+  current_timestamp: bigint;
+}
+
+export interface MeteoraDbcInitializePoolEvent {
+  metadata: EventMetadata;
+  pool: string;
+  config: string;
+  creator: string;
+  base_mint: string;
+  pool_type: number;
+  activation_point: bigint;
+}
+
+export interface MeteoraDbcCurveCompleteEvent {
+  metadata: EventMetadata;
+  pool: string;
+  config: string;
+  base_reserve: bigint;
+  quote_reserve: bigint;
+}
+
 /** Meteora DLMM Swap：`fee_bps` 在 Go/Python 为十进制字符串。 */
 export interface MeteoraDlmmSwapEvent {
   metadata: EventMetadata;
@@ -1258,6 +1306,287 @@ export interface PumpSwapPoolAccountEvent {
   owner: string;
   rent_epoch: bigint;
   pool: PumpSwapPool;
+}
+
+export interface RaydiumClmmAmmConfigAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  amm_config: RaydiumClmmAmmConfig;
+}
+
+export interface RaydiumClmmAmmConfig {
+  bump: number;
+  index: number;
+  owner: string;
+  protocol_fee_rate: number;
+  trade_fee_rate: number;
+  tick_spacing: number;
+  fund_fee_rate: number;
+  padding_u32: number;
+  fund_owner: string;
+  padding: bigint[];
+}
+
+export interface RaydiumClmmPoolStateAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  pool_state: RaydiumClmmPoolState;
+}
+
+export interface RaydiumClmmPoolState {
+  bump: [number];
+  amm_config: string;
+  owner: string;
+  token_mint_0: string;
+  token_mint_1: string;
+  token_vault_0: string;
+  token_vault_1: string;
+  observation_key: string;
+  mint_decimals_0: number;
+  mint_decimals_1: number;
+  tick_spacing: number;
+  liquidity: bigint;
+  sqrt_price_x64: bigint;
+  tick_current: number;
+  padding3: number;
+  padding4: number;
+  fee_growth_global_0_x64: bigint;
+  fee_growth_global_1_x64: bigint;
+  protocol_fees_token_0: bigint;
+  protocol_fees_token_1: bigint;
+  padding5: bigint[];
+  status: number;
+  fee_on: number;
+  padding: number[];
+  reward_infos: RaydiumClmmRewardInfo[];
+  tick_array_bitmap: bigint[];
+  padding6: bigint[];
+  fund_fees_token_0: bigint;
+  fund_fees_token_1: bigint;
+  open_time: bigint;
+  recent_epoch: bigint;
+  dynamic_fee_info: RaydiumClmmDynamicFeeInfo;
+  padding1: bigint[];
+  padding2: bigint[];
+}
+
+export interface RaydiumClmmRewardInfo {
+  reward_state: number;
+  open_time: bigint;
+  end_time: bigint;
+  last_update_time: bigint;
+  emissions_per_second_x64: bigint;
+  reward_total_emitted: bigint;
+  reward_claimed: bigint;
+  token_mint: string;
+  token_vault: string;
+  authority: string;
+  reward_growth_global_x64: bigint;
+}
+
+export interface RaydiumClmmDynamicFeeInfo {
+  filter_period: number;
+  decay_period: number;
+  reduction_factor: number;
+  dynamic_fee_control: number;
+  max_volatility_accumulator: number;
+  tick_spacing_index_reference: number;
+  volatility_reference: number;
+  volatility_accumulator: number;
+  last_update_timestamp: bigint;
+  padding: number[];
+}
+
+export interface RaydiumClmmTickArrayStateAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  tick_array_state: RaydiumClmmTickArrayState;
+}
+
+export interface RaydiumClmmTickArrayState {
+  pool_id: string;
+  start_tick_index: number;
+  ticks: Tick[];
+  initialized_tick_count: number;
+  recent_epoch: bigint;
+  padding: number[];
+}
+
+export interface Tick {
+  tick: number;
+  liquidity_net: bigint;
+  liquidity_gross: bigint;
+  fee_growth_outside_0_x64: bigint;
+  fee_growth_outside_1_x64: bigint;
+  reward_growths_outside_x64: bigint[];
+  order_phase: bigint;
+  orders_amount: bigint;
+  part_filled_orders_remaining: bigint;
+  unfilled_ratio_x64: bigint;
+  padding: number[];
+}
+
+export interface RaydiumCpmmAmmConfigAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  amm_config: RaydiumCpmmAmmConfig;
+}
+
+export interface RaydiumCpmmAmmConfig {
+  bump: number;
+  disable_create_pool: boolean;
+  index: number;
+  trade_fee_rate: bigint;
+  protocol_fee_rate: bigint;
+  fund_fee_rate: bigint;
+  create_pool_fee: bigint;
+  protocol_owner: string;
+  fund_owner: string;
+  creator_fee_rate: bigint;
+  padding: bigint[];
+}
+
+export interface RaydiumCpmmPoolStateAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  pool_state: RaydiumCpmmPoolState;
+}
+
+export interface RaydiumCpmmPoolState {
+  amm_config: string;
+  pool_creator: string;
+  token_0_vault: string;
+  token_1_vault: string;
+  lp_mint: string;
+  token_0_mint: string;
+  token_1_mint: string;
+  token_0_program: string;
+  token_1_program: string;
+  observation_key: string;
+  auth_bump: number;
+  status: number;
+  lp_mint_decimals: number;
+  mint_0_decimals: number;
+  mint_1_decimals: number;
+  lp_supply: bigint;
+  protocol_fees_token_0: bigint;
+  protocol_fees_token_1: bigint;
+  fund_fees_token_0: bigint;
+  fund_fees_token_1: bigint;
+  open_time: bigint;
+  recent_epoch: bigint;
+  creator_fee_on: number;
+  enable_creator_fee: boolean;
+  padding1: number[];
+  creator_fees_token_0: bigint;
+  creator_fees_token_1: bigint;
+  padding: bigint[];
+}
+
+export interface OrcaWhirlpoolAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  whirlpool: OrcaWhirlpoolAccount;
+}
+
+export interface OrcaWhirlpoolAccount {
+  whirlpools_config: string;
+  whirlpool_bump: number;
+  tick_spacing: number;
+  tick_spacing_seed: number[];
+  fee_rate: number;
+  protocol_fee_rate: number;
+  liquidity: bigint;
+  sqrt_price: bigint;
+  tick_current_index: number;
+  protocol_fee_owed_a: bigint;
+  protocol_fee_owed_b: bigint;
+  token_mint_a: string;
+  token_vault_a: string;
+  fee_growth_global_a: bigint;
+  token_mint_b: string;
+  token_vault_b: string;
+  fee_growth_global_b: bigint;
+  reward_last_updated_timestamp: bigint;
+  reward_infos: OrcaWhirlpoolRewardInfo[];
+}
+
+export interface OrcaWhirlpoolRewardInfo {
+  mint: string;
+  vault: string;
+  authority: string;
+  emissions_per_second_x64: bigint;
+  growth_global_x64: bigint;
+}
+
+export interface OrcaPositionAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  position: OrcaPositionAccount;
+}
+
+export interface OrcaPositionAccount {
+  whirlpool: string;
+  position_mint: string;
+  liquidity: bigint;
+  tick_lower_index: number;
+  tick_upper_index: number;
+  fee_growth_checkpoint_a: bigint;
+  fee_owed_a: bigint;
+  fee_growth_checkpoint_b: bigint;
+  fee_owed_b: bigint;
+  reward_infos: OrcaPositionRewardInfo[];
+}
+
+export interface OrcaPositionRewardInfo {
+  growth_inside_checkpoint: bigint;
+  amount_owed: bigint;
+}
+
+export interface OrcaTickArrayAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  tick_array: OrcaTickArrayAccount;
+}
+
+export interface OrcaTickArrayAccount {
+  start_tick_index: number;
+  ticks: OrcaTick[];
+  whirlpool: string;
+}
+
+export interface OrcaTick {
+  initialized: boolean;
+  liquidity_net: bigint;
+  liquidity_gross: bigint;
+  fee_growth_outside_a: bigint;
+  fee_growth_outside_b: bigint;
+  reward_growths_outside: bigint[];
+}
+
+export interface OrcaFeeTierAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  fee_tier: OrcaFeeTierAccount;
+}
+
+export interface OrcaFeeTierAccount {
+  whirlpools_config: string;
+  tick_spacing: number;
+  default_fee_rate: number;
+}
+
+export interface OrcaWhirlpoolsConfigAccountEvent {
+  metadata: EventMetadata;
+  pubkey: string;
+  config: OrcaWhirlpoolsConfigAccount;
+}
+
+export interface OrcaWhirlpoolsConfigAccount {
+  fee_authority: string;
+  collect_protocol_fees_authority: string;
+  reward_emissions_super_authority: string;
+  default_protocol_fee_rate: number;
 }
 
 export interface BlockMetaEvent {

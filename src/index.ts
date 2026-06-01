@@ -197,7 +197,13 @@ export {
   buildSubscribeTransactionFiltersNamed as build_subscribe_transaction_filters_named,
 } from "./grpc/subscribe_builder.js";
 
-export { parseLogUnified, parseLogOptimized } from "./logs/optimized_matcher.js";
+export {
+  parseInvokeInfo,
+  parseLogOptimized,
+  parseLogOptimizedWithProgramId,
+  parseLogUnified,
+  parseProgramCompleteInfo,
+} from "./logs/optimized_matcher.js";
 
 /** Rust `logs` 蛇形命名别名（`parse_meteora_damm_log` 等） */
 export {

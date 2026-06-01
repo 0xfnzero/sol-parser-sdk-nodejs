@@ -6,7 +6,7 @@
 import type { MessageHeader } from "@solana/web3.js";
 import { defaultPubkey, type DexEvent } from "../core/dex_event.js";
 import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
-import type { EventTypeFilter } from "../grpc/types.js";
+import { eventTypeFilterAllowsInstructionParsing, type EventTypeFilter } from "../grpc/types.js";
 import { parseInstructionUnified } from "../instr/mod.js";
 import {
   METEORA_DAMM_V2_PROGRAM_ID,
@@ -66,6 +66,11 @@ const UNKNOWN_PROGRAM_CANDIDATES = [
 
 const SHRED_DEFAULT_PUBKEY = defaultPubkey();
 
+function shouldParseShredInstructions(eventTypeFilter?: EventTypeFilter): boolean {
+  const includeOnly = eventTypeFilter?.include_only;
+  return !includeOnly || eventTypeFilterAllowsInstructionParsing(includeOnly);
+}
+
 function ixAccountStrings(fullAccountKeys: string[], accBytes: Uint8Array): string[] {
   const accountStrs: string[] = [];
   for (let i = 0; i < accBytes.length; i++) {
@@ -88,6 +93,7 @@ export function dexEventsFromShredWasmTxWithFullKeys(
 ): DexEvent[] {
   const ixs = tx.instructions;
   if (!ixs?.length || fullAccountKeys.length === 0) return [];
+  if (!shouldParseShredInstructions(eventTypeFilter)) return [];
 
   const out: DexEvent[] = [];
 

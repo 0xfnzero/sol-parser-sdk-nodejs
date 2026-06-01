@@ -25,7 +25,11 @@ import {
 } from "./core/rpc_invoke_map.js";
 import { dedupeLogInstructionEvents } from "./grpc/log_instr_dedup.js";
 import { parseInstructionUnified } from "./instr/mod.js";
-import { parseLogOptimized } from "./logs/optimized_matcher.js";
+import {
+  parseInvokeInfo,
+  parseLogOptimizedWithProgramId,
+  parseProgramCompleteInfo,
+} from "./logs/optimized_matcher.js";
 
 const DEFAULT_PK = PublicKey.default.toBase58();
 
@@ -173,8 +177,15 @@ export function parseRpcTransaction(
 
   const logEvents: DexEvent[] = [];
   let isCreatedBuy = false;
+  const activeProgramStack: string[] = [];
   for (const log of meta?.logMessages ?? []) {
-    const e = parseLogOptimized(
+    const invoke = parseInvokeInfo(log);
+    if (invoke) {
+      activeProgramStack.length = Math.max(0, invoke.depth - 1);
+      activeProgramStack.push(invoke.programId);
+    }
+
+    const e = parseLogOptimizedWithProgramId(
       log,
       signature,
       slot,
@@ -183,11 +194,18 @@ export function parseRpcTransaction(
       grpcRecvUs,
       filter,
       isCreatedBuy,
-      rb
+      rb,
+      activeProgramStack[activeProgramStack.length - 1]
     );
     if (e) {
       if ("PumpFunCreate" in e || "PumpFunCreateV2" in e) isCreatedBuy = true;
       logEvents.push(e);
+    }
+
+    const completed = parseProgramCompleteInfo(log);
+    if (completed) {
+      const idx = activeProgramStack.lastIndexOf(completed);
+      if (idx >= 0) activeProgramStack.length = idx;
     }
   }
 

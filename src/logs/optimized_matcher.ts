@@ -63,11 +63,21 @@ import {
   parseSwapFromData as parseMeteoraPoolsSwap,
 } from "./meteora_amm.js";
 import { parseMeteoraDammLog } from "./meteora_damm.js";
+import { parseMeteoraDbcFromDiscriminator, METEORA_DBC_DISC } from "./meteora_dbc.js";
 import { parseDlmmFromDecoded } from "./meteora_dlmm.js";
-import { parseRaydiumLaunchlabFromDiscriminator } from "./raydium_launchlab.js";
+import {
+  parseRaydiumLaunchlabFromDiscriminator,
+  RAYDIUM_LAUNCHLAB_DISC,
+} from "./raydium_launchlab.js";
 import type { EventType, EventTypeFilter } from "../grpc/types.js";
 import { readDiscriminatorU64 } from "../util/binary.js";
 import { PROGRAM_LOG_DISC as DISC } from "./program_log_discriminators.js";
+import {
+  METEORA_DAMM_V2_PROGRAM_ID,
+  METEORA_DBC_PROGRAM_ID,
+  METEORA_DLMM_PROGRAM_ID,
+  RAYDIUM_LAUNCHLAB_PROGRAM_ID,
+} from "../grpc/program_ids.js";
 
 function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.PUMPFUN_CREATE) return "PumpFunCreate";
@@ -123,8 +133,79 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   return null;
 }
 
+function programScopedDiscriminatorToEventType(programId: string | undefined, disc: bigint): EventType | null {
+  if (programId === RAYDIUM_LAUNCHLAB_PROGRAM_ID) {
+    if (disc === RAYDIUM_LAUNCHLAB_DISC.TRADE) return "RaydiumLaunchlabTrade";
+    if (disc === RAYDIUM_LAUNCHLAB_DISC.POOL_CREATE) return "RaydiumLaunchlabPoolCreate";
+    return null;
+  }
+  if (programId === METEORA_DAMM_V2_PROGRAM_ID) {
+    if (disc === DISC.METEORA_DAMM_SWAP || disc === DISC.METEORA_DAMM_SWAP2) return "MeteoraDammV2Swap";
+    if (disc === DISC.METEORA_DAMM_ADD_LIQUIDITY) return "MeteoraDammV2AddLiquidity";
+    if (disc === DISC.METEORA_DAMM_REMOVE_LIQUIDITY) return "MeteoraDammV2RemoveLiquidity";
+    if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
+    if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
+    if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
+    return null;
+  }
+  if (programId === METEORA_DBC_PROGRAM_ID) {
+    if (disc === METEORA_DBC_DISC.SWAP) return "MeteoraDbcSwap";
+    if (disc === METEORA_DBC_DISC.INITIALIZE_POOL) return "MeteoraDbcInitializePool";
+    if (disc === METEORA_DBC_DISC.CURVE_COMPLETE) return "MeteoraDbcCurveComplete";
+    return null;
+  }
+  return discriminatorToEventType(disc);
+}
+
 function filterAllowsUnknownSupported(filter: EventTypeFilter | undefined): boolean {
   return !filter?.include_only;
+}
+
+function filterIncludesAny(filter: EventTypeFilter, types: readonly EventType[]): boolean {
+  if (filter.include_only) {
+    return filter.include_only.some((t) => types.includes(t));
+  }
+  return types.some((t) => filter.shouldInclude(t));
+}
+
+function filterIncludesProgram(programId: string | undefined, filter: EventTypeFilter): boolean {
+  if (programId === RAYDIUM_LAUNCHLAB_PROGRAM_ID) {
+    return filterIncludesAny(filter, [
+      "RaydiumLaunchlabTrade",
+      "RaydiumLaunchlabPoolCreate",
+      "RaydiumLaunchlabMigrateAmm",
+    ]);
+  }
+  if (programId === METEORA_DAMM_V2_PROGRAM_ID) {
+    return filterIncludesAny(filter, [
+      "MeteoraDammV2Swap",
+      "MeteoraDammV2AddLiquidity",
+      "MeteoraDammV2RemoveLiquidity",
+      "MeteoraDammV2InitializePool",
+      "MeteoraDammV2CreatePosition",
+      "MeteoraDammV2ClosePosition",
+    ]);
+  }
+  if (programId === METEORA_DBC_PROGRAM_ID) {
+    return filterIncludesAny(filter, [
+      "MeteoraDbcSwap",
+      "MeteoraDbcInitializePool",
+      "MeteoraDbcCurveComplete",
+    ]);
+  }
+  if (programId === METEORA_DLMM_PROGRAM_ID) {
+    return filterIncludesAny(filter, [
+      "MeteoraDlmmSwap",
+      "MeteoraDlmmAddLiquidity",
+      "MeteoraDlmmRemoveLiquidity",
+      "MeteoraDlmmInitializePool",
+      "MeteoraDlmmInitializeBinArray",
+      "MeteoraDlmmCreatePosition",
+      "MeteoraDlmmClosePosition",
+      "MeteoraDlmmClaimFee",
+    ]);
+  }
+  return filterAllowsUnknownSupported(filter);
 }
 
 function pumpfunTradeMatchesFilter(ev: DexEvent, includeOnly: EventType[]): boolean {
@@ -169,7 +250,8 @@ export function parseLogOptimized(
   grpcRecvUs: number,
   eventTypeFilter: EventTypeFilter | undefined,
   isCreatedBuy: boolean,
-  recentBlockhash?: Uint8Array
+  recentBlockhash?: Uint8Array,
+  programId?: string
 ): DexEvent | null {
   const buf = decodeProgramDataLine(log);
   if (!buf) return null;
@@ -180,11 +262,26 @@ export function parseLogOptimized(
     recentBlockhash && recentBlockhash.length > 0 ? bs58.encode(recentBlockhash) : undefined;
   const metadata: EventMetadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
 
-  const et = discriminatorToEventType(disc);
+  const et = programScopedDiscriminatorToEventType(programId, disc);
   if (eventTypeFilter && et !== null) {
     if (!eventTypeFilter.shouldInclude(et)) return null;
   } else if (eventTypeFilter && et === null) {
-    if (!filterAllowsUnknownSupported(eventTypeFilter)) return null;
+    if (programId) {
+      if (!filterIncludesProgram(programId, eventTypeFilter)) return null;
+    } else if (!filterAllowsUnknownSupported(eventTypeFilter)) return null;
+  }
+
+  if (programId === RAYDIUM_LAUNCHLAB_PROGRAM_ID) {
+    const ev = parseRaydiumLaunchlabFromDiscriminator(disc, data, metadata);
+    return applyActualEventTypeFilter(ev, eventTypeFilter);
+  }
+  if (programId === METEORA_DBC_PROGRAM_ID) {
+    const ev = parseMeteoraDbcFromDiscriminator(disc, data, metadata);
+    return applyActualEventTypeFilter(ev, eventTypeFilter);
+  }
+  if (programId === METEORA_DLMM_PROGRAM_ID) {
+    const ev = parseDlmmFromDecoded(buf, metadata);
+    return applyActualEventTypeFilter(ev, eventTypeFilter);
   }
 
   if (disc === DISC.PUMPFUN_TRADE) {
@@ -301,4 +398,59 @@ export function parseLogUnified(
 ): DexEvent | null {
   const grpcRecvUs = nowUs();
   return parseLogOptimized(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs, undefined, false, undefined);
+}
+
+export function parseLogOptimizedWithProgramId(
+  log: string,
+  signature: string,
+  slot: number,
+  txIndex: number,
+  blockTimeUs: number | undefined,
+  grpcRecvUs: number,
+  eventTypeFilter: EventTypeFilter | undefined,
+  isCreatedBuy: boolean,
+  recentBlockhash: Uint8Array | undefined,
+  programId: string | undefined
+): DexEvent | null {
+  return parseLogOptimized(
+    log,
+    signature,
+    slot,
+    txIndex,
+    blockTimeUs,
+    grpcRecvUs,
+    eventTypeFilter,
+    isCreatedBuy,
+    recentBlockhash,
+    programId
+  );
+}
+
+export function parseInvokeInfo(log: string): { programId: string; depth: number } | null {
+  const prefix = "Program ";
+  const start = log.indexOf(prefix);
+  if (start < 0) return null;
+  const invoke = " invoke [";
+  const invokeIdx = log.indexOf(invoke, start + prefix.length);
+  if (invokeIdx < 0) return null;
+  const programId = log.slice(start + prefix.length, invokeIdx);
+  const depthStart = invokeIdx + invoke.length;
+  const depthEnd = log.indexOf("]", depthStart);
+  if (depthEnd < 0) return null;
+  const depth = Number(log.slice(depthStart, depthEnd));
+  if (!programId || !Number.isInteger(depth) || depth <= 0) return null;
+  return { programId, depth };
+}
+
+export function parseProgramCompleteInfo(log: string): string | null {
+  const prefix = "Program ";
+  const start = log.indexOf(prefix);
+  if (start < 0) return null;
+  const success = " success";
+  const failed = " failed:";
+  const successIdx = log.indexOf(success, start + prefix.length);
+  if (successIdx >= 0) return log.slice(start + prefix.length, successIdx);
+  const failedIdx = log.indexOf(failed, start + prefix.length);
+  if (failedIdx >= 0) return log.slice(start + prefix.length, failedIdx);
+  return null;
 }

@@ -37,6 +37,14 @@
 
 ## 发布说明
 
+### v0.5.6
+
+- 新增 Meteora DBC 日志解析，并按当前 program context 做路由与过滤。
+- 新增 Raydium CLMM/CPMM、Orca account parser 与导出。
+- RPC 解析保留区块内交易序号，并在日志解析中维护 active program context。
+- ShredStream 对 account-only 或空 include-only filter 直接跳过指令解析。
+- 收紧 ShredStream/RPC 的过滤行为，与 Rust/Python/Go 低延迟路径保持一致。
+
 ### v0.5.5
 
 - ShredStream 低延迟静态账户路径与 Rust/Python/Go 对齐。
@@ -54,7 +62,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.5
+npm install sol-parser-sdk-nodejs@0.5.6
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）

@@ -626,6 +626,16 @@ const DEX_EVENT_TYPE_BY_VARIANT: Partial<Record<string, EventType>> = {
   PumpFunUserVolumeAccumulatorAccount: "AccountPumpFunUserVolumeAccumulator",
   PumpSwapGlobalConfigAccount: "AccountPumpSwapGlobalConfig",
   PumpSwapPoolAccount: "AccountPumpSwapPool",
+  RaydiumClmmAmmConfigAccount: "AccountRaydiumClmmAmmConfig",
+  RaydiumClmmPoolStateAccount: "AccountRaydiumClmmPoolState",
+  RaydiumClmmTickArrayStateAccount: "AccountRaydiumClmmTickArrayState",
+  RaydiumCpmmAmmConfigAccount: "AccountRaydiumCpmmAmmConfig",
+  RaydiumCpmmPoolStateAccount: "AccountRaydiumCpmmPoolState",
+  OrcaWhirlpoolAccount: "AccountOrcaWhirlpool",
+  OrcaPositionAccount: "AccountOrcaPosition",
+  OrcaTickArrayAccount: "AccountOrcaTickArray",
+  OrcaFeeTierAccount: "AccountOrcaFeeTier",
+  OrcaWhirlpoolsConfigAccount: "AccountOrcaWhirlpoolsConfig",
 };
 
 export function eventTypeFromDexEvent(event: DexEvent): EventType | null {

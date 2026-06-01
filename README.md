@@ -37,6 +37,14 @@
 
 ## Release notes
 
+### v0.5.6
+
+- Adds Meteora DBC log parsing with program-context routing and filter parity.
+- Adds Raydium CLMM/CPMM and Orca account parsers and exports.
+- Preserves RPC block transaction indexes and active program context for log parsing.
+- Skips ShredStream instruction parsing early for account-only or empty include-only filters.
+- Tightens ShredStream/RPC filter behavior to match Rust/Python/Go low-latency paths.
+
 ### v0.5.5
 
 - Aligns ShredStream parsing with Rust/Python/Go for low-latency static-account paths.
@@ -54,7 +62,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.5
+npm install sol-parser-sdk-nodejs@0.5.6
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
