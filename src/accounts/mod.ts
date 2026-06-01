@@ -2,6 +2,7 @@ import type { EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { AccountData } from "./types.js";
 import type { EventType, EventTypeFilter } from "../grpc/types.js";
+import { eventTypeFilterShouldIncludeDexEvent } from "../grpc/types.js";
 import { PUMP_FEES_PROGRAM_ID, PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
 import { parseNonceAccount, isNonceAccount } from "./nonce.js";
 import { parseTokenAccount } from "./token.js";
@@ -39,6 +40,7 @@ export { rpcResolveUserWalletPubkey } from "./rpc_wallet.js";
 
 const ACCOUNT_EVENT_TYPES: EventType[] = [
   "TokenAccount",
+  "TokenInfo",
   "NonceAccount",
   "AccountPumpFunGlobal",
   "AccountPumpFunBondingCurve",
@@ -49,6 +51,11 @@ const ACCOUNT_EVENT_TYPES: EventType[] = [
   "AccountPumpSwapGlobalConfig",
   "AccountPumpSwapPool",
 ];
+
+function filterParsedEvent(ev: DexEvent | null, eventTypeFilter?: EventTypeFilter): DexEvent | null {
+  if (!ev || !eventTypeFilter) return ev;
+  return eventTypeFilterShouldIncludeDexEvent(eventTypeFilter, ev) ? ev : null;
+}
 
 /** 账户数据统一解析入口 */
 export function parseAccountUnified(
@@ -63,18 +70,21 @@ export function parseAccountUnified(
     if (!shouldParse) return null;
   }
 
-  if (account.owner === PUMPSWAP_PROGRAM_ID && eventTypeFilter) {
+  if (account.owner === PUMPSWAP_PROGRAM_ID) {
     if (
+      !eventTypeFilter ||
       eventTypeFilter.shouldInclude("AccountPumpSwapGlobalConfig") ||
       eventTypeFilter.shouldInclude("AccountPumpSwapPool")
     ) {
       const ev = parsePumpswapAccount(account, metadata);
-      if (ev) return ev;
+      if (ev) return filterParsedEvent(ev, eventTypeFilter);
     }
+    return null;
   }
 
-  if ((account.owner === PUMPFUN_PROGRAM_ID || account.owner === PUMP_FEES_PROGRAM_ID) && eventTypeFilter) {
+  if (account.owner === PUMPFUN_PROGRAM_ID || account.owner === PUMP_FEES_PROGRAM_ID) {
     if (
+      !eventTypeFilter ||
       eventTypeFilter.shouldInclude("AccountPumpFunGlobal") ||
       eventTypeFilter.shouldInclude("AccountPumpFunBondingCurve") ||
       eventTypeFilter.shouldInclude("AccountPumpFunFeeConfig") ||
@@ -83,8 +93,9 @@ export function parseAccountUnified(
       eventTypeFilter.shouldInclude("AccountPumpFunUserVolumeAccumulator")
     ) {
       const ev = parsePumpfunAccount(account, metadata);
-      if (ev) return ev;
+      if (ev) return filterParsedEvent(ev, eventTypeFilter);
     }
+    return null;
   }
 
   if (isNonceAccount(account.data)) {
@@ -92,6 +103,12 @@ export function parseAccountUnified(
     return parseNonceAccount(account, metadata);
   }
 
-  if (eventTypeFilter && !eventTypeFilter.shouldInclude("TokenAccount")) return null;
-  return parseTokenAccount(account, metadata);
+  if (
+    eventTypeFilter &&
+    !eventTypeFilter.shouldInclude("TokenAccount") &&
+    !eventTypeFilter.shouldInclude("TokenInfo")
+  ) {
+    return null;
+  }
+  return filterParsedEvent(parseTokenAccount(account, metadata), eventTypeFilter);
 }

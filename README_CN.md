@@ -35,6 +35,18 @@
 
 ---
 
+## 发布说明
+
+### v0.5.5
+
+- ShredStream 低延迟静态账户路径与 Rust/Python/Go 对齐。
+- V0 ALT-loaded 指令账户不再整条跳过，而是用默认 pubkey 占位继续 best-effort 解析。
+- 当 ShredStream 外层 program id 来自 ALT 时，按 discriminator 做候选 program id fallback。
+- 改进 Pump.fun v2 短账户解析、create/create_v2 处理和事件类型过滤一致性。
+- 更新 Pump.fun、PumpSwap、Pump Fees、Raydium、Orca、Meteora 的多协议路由。
+
+---
+
 ## 怎么用
 
 ### 1. 安装
@@ -42,7 +54,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.4.5
+npm install sol-parser-sdk-nodejs@0.5.5
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -126,7 +138,7 @@ console.log("subscribed", sub.id);
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```
 
-`shredstream_pumpfun_json.ts` 另需 Solana **`RPC_URL`**（或 `--rpc`）解析 ALT。
+无 RPC 时，V0 ALT-loaded 账户索引用默认 pubkey 占位并继续 best-effort 解析。若需要精确的 ALT 加载账户字段，`shredstream_pumpfun_json.ts` 也可以使用 Solana **`RPC_URL`**（或 `--rpc`）展开 ALT。
 
 ---
 
@@ -152,7 +164,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream**（HTTP，**非** Yellowstone gRPC；端点见上文步骤 5） | | |
 | 超低延迟订阅、队列与延迟统计。端点：`--url` / `SHREDSTREAM_URL` / `.env`（默认 `http://127.0.0.1:10800`）。 | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
-| ShredStream → PumpFun `DexEvent` JSON；需 Solana **RPC** 解析 ALT（`RPC_URL` 或 `--rpc`）。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
+| ShredStream → PumpFun `DexEvent` JSON；无 RPC 时可静态 ALT fallback，配置 Solana **RPC**（`RPC_URL` 或 `--rpc`）时可展开完整 ALT 账户。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **多协议** | | |
 | 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **工具** | | |
@@ -171,7 +183,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 
 ## 协议
 
-PumpFun、PumpSwap、Raydium AMM V4 / CLMM / CPMM、Orca Whirlpool、Meteora DAMM V2 / DLMM、Bonk Launchpad（见 `src/instr/`）。
+PumpFun、PumpSwap、Raydium AMM V4 / CLMM / CPMM、Orca Whirlpool、Meteora DAMM V2 / DLMM、Raydium LaunchLab（见 `src/instr/`）。
 
 ---
 

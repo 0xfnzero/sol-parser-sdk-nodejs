@@ -97,12 +97,12 @@ function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string
       return `PumpFunCreateV2|${data.mint}`;
     case "PumpFunMigrate":
       return `PumpFunMigrate|${data.mint}|${data.pool}|${data.user}`;
-    case "BonkTrade":
-      return `BonkTrade|${data.pool_state}|${data.user}|${Boolean(data.is_buy)}`;
-    case "BonkPoolCreate":
-      return `BonkPoolCreate|${data.pool_state}`;
-    case "BonkMigrateAmm":
-      return `BonkMigrateAmm|${data.old_pool}|${data.new_pool}|${data.user}`;
+    case "RaydiumLaunchlabTrade":
+      return `RaydiumLaunchlabTrade|${data.pool_state}|${data.user}|${Boolean(data.is_buy)}`;
+    case "RaydiumLaunchlabPoolCreate":
+      return `RaydiumLaunchlabPoolCreate|${data.pool_state}`;
+    case "RaydiumLaunchlabMigrateAmm":
+      return `RaydiumLaunchlabMigrateAmm|${data.old_pool}|${data.new_pool}|${data.user}`;
     case "PumpSwapTrade":
       return `PumpSwapTrade|${data.mint}|${data.user}|${Boolean(data.is_buy)}|${ixLane(data.ix_name)}`;
     case "PumpSwapBuy":
@@ -185,9 +185,11 @@ function mergePumpfunCreate(log: EventPayload, ix: EventPayload): void {
     "user",
     "creator",
     "token_program",
+    "quote_mint",
   ]) {
     fillString(log, key, ix);
   }
+  fillNonZero(log, "virtual_quote_reserves", ix);
 }
 
 function mergePumpfunCreateV2(log: EventPayload, ix: EventPayload): void {
@@ -293,14 +295,14 @@ function mergeRaydiumAmmV4Swap(log: EventPayload, ix: EventPayload): void {
   }
 }
 
-function mergeBonkPoolCreate(log: EventPayload, ix: EventPayload): void {
+function mergeRaydiumLaunchlabPoolCreate(log: EventPayload, ix: EventPayload): void {
   fillString(log, "creator", ix);
   for (const key of ["name", "symbol", "uri"]) {
     fillNestedString(log, "base_mint_param", key, ix);
   }
 }
 
-function mergeBonkMigrateAmm(log: EventPayload, ix: EventPayload): void {
+function mergeRaydiumLaunchlabMigrateAmm(log: EventPayload, ix: EventPayload): void {
   for (const key of ["old_pool", "new_pool", "user"]) {
     fillString(log, key, ix);
   }
@@ -352,11 +354,11 @@ function mergeGrpcInstructionIntoLog(logEvent: DexEvent, ixEvent: DexEvent): voi
     case "RaydiumAmmV4Swap":
       if (ixName === "RaydiumAmmV4Swap") mergeRaydiumAmmV4Swap(log, ix);
       break;
-    case "BonkPoolCreate":
-      if (ixName === "BonkPoolCreate") mergeBonkPoolCreate(log, ix);
+    case "RaydiumLaunchlabPoolCreate":
+      if (ixName === "RaydiumLaunchlabPoolCreate") mergeRaydiumLaunchlabPoolCreate(log, ix);
       break;
-    case "BonkMigrateAmm":
-      if (ixName === "BonkMigrateAmm") mergeBonkMigrateAmm(log, ix);
+    case "RaydiumLaunchlabMigrateAmm":
+      if (ixName === "RaydiumLaunchlabMigrateAmm") mergeRaydiumLaunchlabMigrateAmm(log, ix);
       break;
     default:
       break;

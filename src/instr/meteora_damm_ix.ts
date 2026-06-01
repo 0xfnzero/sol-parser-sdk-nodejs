@@ -10,7 +10,6 @@ import type {
   MeteoraDammV2ClosePositionEvent,
   MeteoraDammV2CreatePositionEvent,
   MeteoraDammV2InitializePoolEvent,
-  MeteoraDammV2RemoveAllLiquidityEvent,
   MeteoraDammV2RemoveLiquidityEvent,
   MeteoraDammV2SwapEvent,
 } from "../core/dex_event.js";
@@ -184,16 +183,19 @@ function parseOuterAddLiquidityIx(
 function parseOuterRemoveAllLiquidityIx(
   instructionData: Uint8Array,
   accounts: string[],
-  meta: MeteoraDammV2RemoveAllLiquidityEvent["metadata"]
+  meta: MeteoraDammV2RemoveLiquidityEvent["metadata"]
 ): DexEvent {
   const token_a_amount_threshold = readU64LE(instructionData, 8) ?? 0n;
   const token_b_amount_threshold = readU64LE(instructionData, 16) ?? 0n;
   return {
-    MeteoraDammV2RemoveAllLiquidity: {
+    MeteoraDammV2RemoveLiquidity: {
       metadata: meta,
       pool: getAccount(accounts, 1) ?? Z,
       position: getAccount(accounts, 2) ?? Z,
       owner: getAccount(accounts, 10) ?? Z,
+      token_a_amount: 0n,
+      token_b_amount: 0n,
+      liquidity_delta: 0n,
       token_a_amount_threshold,
       token_b_amount_threshold,
     },

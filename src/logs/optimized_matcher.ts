@@ -64,7 +64,7 @@ import {
 } from "./meteora_amm.js";
 import { parseMeteoraDammLog } from "./meteora_damm.js";
 import { parseDlmmFromDecoded } from "./meteora_dlmm.js";
-import { parseBonkFromDiscriminator } from "./raydium_launchpad.js";
+import { parseRaydiumLaunchlabFromDiscriminator } from "./raydium_launchlab.js";
 import type { EventType, EventTypeFilter } from "../grpc/types.js";
 import { readDiscriminatorU64 } from "../util/binary.js";
 import { PROGRAM_LOG_DISC as DISC } from "./program_log_discriminators.js";
@@ -142,6 +142,13 @@ function eventTypeFromDexEvent(ev: DexEvent): EventType | null {
   return key ? (key as EventType) : null;
 }
 
+function applyActualEventTypeFilter(ev: DexEvent | null, filter: EventTypeFilter | undefined): DexEvent | null {
+  if (!ev || !filter) return ev;
+  const actual = eventTypeFromDexEvent(ev);
+  if (actual && !filter.shouldInclude(actual)) return null;
+  return ev;
+}
+
 function applyPumpfunSecondaryFilter(ev: DexEvent | null, filter: EventTypeFilter | undefined): DexEvent | null {
   if (!ev || !filter) return ev;
   if (filter.include_only?.length) {
@@ -150,9 +157,7 @@ function applyPumpfunSecondaryFilter(ev: DexEvent | null, filter: EventTypeFilte
     );
     if (hasSpecific && !pumpfunTradeMatchesFilter(ev, filter.include_only)) return null;
   }
-  const actual = eventTypeFromDexEvent(ev);
-  if (actual && !filter.shouldInclude(actual)) return null;
-  return ev;
+  return applyActualEventTypeFilter(ev, filter);
 }
 
 export function parseLogOptimized(
@@ -277,10 +282,10 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_CLOSE_POSITION:
       return parseMeteoraDammLog(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs);
     default: {
-      const bonk = parseBonkFromDiscriminator(disc, data, metadata);
-      if (bonk) return bonk;
+      const raydium_launchlab = parseRaydiumLaunchlabFromDiscriminator(disc, data, metadata);
+      if (raydium_launchlab) return applyActualEventTypeFilter(raydium_launchlab, eventTypeFilter);
       const dlmm = parseDlmmFromDecoded(buf, metadata);
-      if (dlmm) return dlmm;
+      if (dlmm) return applyActualEventTypeFilter(dlmm, eventTypeFilter);
       return null;
     }
   }

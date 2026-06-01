@@ -36,6 +36,8 @@ function createNumericDefaults() {
     token_total_supply: 0n,
     is_mayhem_mode: false,
     is_cashback_enabled: false,
+    quote_mint: Z,
+    virtual_quote_reserves: 0n,
   };
 }
 
@@ -45,8 +47,9 @@ function parsePumpfunTradeV2Instruction(
   accounts: string[],
   metadata: EventMetadata
 ): DexEvent | null {
-  const minAccounts = ixName === "sell_v2" ? 26 : 27;
-  if (accounts.length < minAccounts) return null;
+  if (!accounts[1]) return null;
+  const normalizedIxName =
+    ixName === "buy_v2" ? "buy" : ixName === "sell_v2" ? "sell" : "buy_exact_quote_in";
 
   const first = data.length >= 8 ? readU64LE(data, 0) ?? 0n : 0n;
   const second = data.length >= 16 ? readU64LE(data, 8) ?? 0n : 0n;
@@ -88,7 +91,7 @@ function parsePumpfunTradeV2Instruction(
     total_claimed_tokens: 0n,
     current_sol_volume: 0n,
     last_update_timestamp: 0n,
-    ix_name: ixName,
+    ix_name: normalizedIxName,
     mayhem_mode: false,
     cashback_fee_basis_points: 0n,
     cashback: 0n,
@@ -116,9 +119,9 @@ function parsePumpfunTradeV2Instruction(
     fee_program: accounts[ixName === "sell_v2" ? 22 : 23] ?? Z,
   };
 
-  if (ixName === "buy_v2") return { PumpFunBuy: trade };
-  if (ixName === "sell_v2") return { PumpFunSell: trade };
-  return { PumpFunBuyExactSolIn: trade };
+  if (normalizedIxName === "buy") return { PumpFunBuy: trade };
+  if (normalizedIxName === "sell") return { PumpFunSell: trade };
+  return { PumpFunBuy: trade };
 }
 
 function parsePumpfunLegacyBuyInstruction(

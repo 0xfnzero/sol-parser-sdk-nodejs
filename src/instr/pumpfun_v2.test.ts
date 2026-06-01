@@ -155,7 +155,7 @@ describe("PumpFun v2 parity", () => {
     expect(ev).toBeTruthy();
     expect("PumpFunBuy" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("buy_v2");
+    expect(t.ix_name).toBe("buy");
     expect(t.mint).toBe("account_1");
     expect(t.fee_recipient).toBe("account_6");
     expect(t.bonding_curve).toBe("account_10");
@@ -179,9 +179,9 @@ describe("PumpFun v2 parity", () => {
     );
 
     expect(ev).toBeTruthy();
-    expect("PumpFunBuyExactSolIn" in ev!).toBe(true);
+    expect("PumpFunBuy" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("buy_exact_quote_in_v2");
+    expect(t.ix_name).toBe("buy_exact_quote_in");
     expect(t.amount).toBe(888n);
     expect(t.max_sol_cost).toBe(0n);
     expect(t.quote_amount).toBe(777n);
@@ -204,7 +204,7 @@ describe("PumpFun v2 parity", () => {
     expect(ev).toBeTruthy();
     expect("PumpFunSell" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("sell_v2");
+    expect(t.ix_name).toBe("sell");
     expect(t.amount).toBe(333n);
     expect(t.min_sol_output).toBe(444n);
     expect(t.max_sol_cost).toBe(0n);
@@ -230,6 +230,8 @@ describe("PumpFun v2 parity", () => {
           token_program: defaultPubkey(),
           is_mayhem_mode: true,
           is_cashback_enabled: true,
+          quote_mint: defaultPubkey(),
+          virtual_quote_reserves: 0n,
           mint_authority: defaultPubkey(),
           associated_bonding_curve: defaultPubkey(),
           global: defaultPubkey(),
@@ -270,7 +272,7 @@ describe("PumpFun v2 parity", () => {
           total_claimed_tokens: 0n,
           current_sol_volume: 0n,
           last_update_timestamp: 0n,
-          ix_name: "buy_v2",
+          ix_name: "buy",
           mayhem_mode: false,
           cashback_fee_basis_points: 0n,
           cashback: 0n,
@@ -290,5 +292,77 @@ describe("PumpFun v2 parity", () => {
     expect(t.mayhem_mode).toBe(true);
     expect(t.is_cashback_coin).toBe(true);
     expect(t.track_volume).toBe(true);
+  });
+
+  it("enriches CreateV2 launch reserves from same-tx Create event", () => {
+    const events: DexEvent[] = [
+      {
+        PumpFunCreateV2: {
+          metadata: { signature: "sig", slot: 1, tx_index: 0, block_time_us: 0, grpc_recv_us: 10 },
+          name: "ix-name",
+          symbol: "",
+          uri: "",
+          mint: "mint",
+          bonding_curve: defaultPubkey(),
+          user: defaultPubkey(),
+          creator: defaultPubkey(),
+          timestamp: 0n,
+          virtual_token_reserves: 0n,
+          virtual_sol_reserves: 0n,
+          real_token_reserves: 0n,
+          token_total_supply: 0n,
+          token_program: defaultPubkey(),
+          is_mayhem_mode: false,
+          is_cashback_enabled: false,
+          quote_mint: defaultPubkey(),
+          virtual_quote_reserves: 0n,
+          mint_authority: defaultPubkey(),
+          associated_bonding_curve: defaultPubkey(),
+          global: defaultPubkey(),
+          system_program: defaultPubkey(),
+          associated_token_program: defaultPubkey(),
+          mayhem_program_id: defaultPubkey(),
+          global_params: defaultPubkey(),
+          sol_vault: defaultPubkey(),
+          mayhem_state: defaultPubkey(),
+          mayhem_token_vault: defaultPubkey(),
+          event_authority: defaultPubkey(),
+          program: defaultPubkey(),
+          observed_fee_recipient: defaultPubkey(),
+        },
+      },
+      {
+        PumpFunCreate: {
+          metadata: { signature: "sig", slot: 1, tx_index: 0, block_time_us: 0, grpc_recv_us: 10 },
+          name: "event-name",
+          symbol: "EVT",
+          uri: "uri",
+          mint: "mint",
+          bonding_curve: "curve",
+          user: "user",
+          creator: "creator",
+          timestamp: 123n,
+          virtual_token_reserves: 1n,
+          virtual_sol_reserves: 30_000_000_000n,
+          real_token_reserves: 2n,
+          token_total_supply: 3n,
+          token_program: "token-program",
+          is_mayhem_mode: true,
+          is_cashback_enabled: true,
+          quote_mint: "USDC",
+          virtual_quote_reserves: 4_292_000_000n,
+        },
+      },
+    ];
+
+    enrichPumpfunSameTxPostMerge(events);
+
+    const create = events[0]!.PumpFunCreateV2;
+    expect(create.name).toBe("ix-name");
+    expect(create.quote_mint).toBe("USDC");
+    expect(create.virtual_quote_reserves).toBe(4_292_000_000n);
+    expect(create.virtual_sol_reserves).toBe(30_000_000_000n);
+    expect(create.is_cashback_enabled).toBe(true);
+    expect(create.is_mayhem_mode).toBe(true);
   });
 });

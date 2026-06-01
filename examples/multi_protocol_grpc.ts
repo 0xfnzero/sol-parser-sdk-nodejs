@@ -2,7 +2,7 @@
  * Multi-Protocol gRPC Example
  *
  * Demonstrates subscribing to multiple DEX protocols simultaneously:
- * PumpFun, PumpSwap, Raydium, Orca, Meteora, Bonk
+ * PumpFun, PumpSwap, Raydium, Orca, Meteora, RaydiumLaunchlab
  *
  * Run: npx tsx examples/multi_protocol_grpc.ts（先在包根目录配置 `.env`，见 `.env.example`）
  * （GRPC_URL / GRPC_TOKEN 必填，未设置则退出）
@@ -25,7 +25,7 @@ const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 const PROTOCOLS = [
   "PumpFun",
   "PumpSwap",
-  "Bonk",
+  "RaydiumLaunchlab",
   "RaydiumCpmm",
   "RaydiumClmm",
   "RaydiumAmmV4",

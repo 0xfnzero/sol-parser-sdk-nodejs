@@ -35,6 +35,18 @@
 
 ---
 
+## Release notes
+
+### v0.5.5
+
+- Aligns ShredStream parsing with Rust/Python/Go for low-latency static-account paths.
+- Uses default pubkey placeholders for V0 ALT-loaded instruction accounts instead of dropping the instruction.
+- Adds discriminator fallback when the ShredStream outer program id is ALT-loaded.
+- Improves Pump.fun v2 short-account parsing, create/create_v2 handling, and event-type filter parity.
+- Refreshes multi-protocol routing for Pump.fun, PumpSwap, Pump Fees, Raydium, Orca, and Meteora paths.
+
+---
+
 ## How to use
 
 ### 1. Install
@@ -42,7 +54,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.4.5
+npm install sol-parser-sdk-nodejs@0.5.5
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
@@ -126,7 +138,7 @@ The client decodes gRPC `entries` bytes in **TypeScript** (same layout as the Go
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```
 
-`shredstream_pumpfun_json.ts` also needs a Solana **`RPC_URL`** (or `--rpc`) for ALTs.
+Without RPC, V0 ALT-loaded account indexes are represented with default pubkey placeholders and parsed best-effort. `shredstream_pumpfun_json.ts` can also use Solana **`RPC_URL`** (or `--rpc`) to expand ALTs when exact loaded-account fields are required.
 
 ---
 
@@ -152,7 +164,7 @@ From the **package root** after `npm install`. Examples use `npx tsx` and load `
 | Meteora DAMM V2 events | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream** (HTTP, not Yellowstone gRPC; see **step 5** above) | | |
 | Ultra-low-latency subscribe + queue / latency stats. URL: `--url` / `SHREDSTREAM_URL` / `.env` (default `http://127.0.0.1:10800`). | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
-| PumpFun `DexEvent` JSON from ShredStream; needs Solana **RPC** for ALTs (`RPC_URL` or `--rpc`). | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
+| PumpFun `DexEvent` JSON from ShredStream; static ALT fallback works without RPC, and Solana **RPC** (`RPC_URL` or `--rpc`) expands full ALT accounts when needed. | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **Multi-protocol** | | |
 | Subscribe to all DEX protocols | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **Utility** | | |
@@ -171,7 +183,7 @@ From the **package root** after `npm install`. Examples use `npx tsx` and load `
 
 ## Protocols
 
-PumpFun, PumpSwap, Raydium AMM V4 / CLMM / CPMM, Orca Whirlpool, Meteora DAMM V2 / DLMM, Bonk Launchpad (see `src/instr/`).
+PumpFun, PumpSwap, Raydium AMM V4 / CLMM / CPMM, Orca Whirlpool, Meteora DAMM V2 / DLMM, Raydium LaunchLab (see `src/instr/`).
 
 ---
 

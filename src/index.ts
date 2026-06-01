@@ -15,6 +15,7 @@ export type { EventMetadata } from "./core/metadata.js";
 export type { ParseError } from "./core/error.js";
 export { formatParseError } from "./core/error.js";
 export {
+  enrichCreateV2FromCreateEvents,
   enrichCreateV2ObservedFeeRecipient,
   enrichPumpfunTradesFromCreateInstructions,
   enrichPumpfunSameTxPostMerge,
@@ -35,6 +36,14 @@ export {
 } from "./core/unified_parser.js";
 
 export { nowMicros, nowNanos, elapsedMicrosSince } from "./core/clock.js";
+export {
+  sqrtPriceX64ToPrice,
+  vaultPriceFromBalances,
+  normalizeBuySellFromTokenDelta,
+  normalizeBuySellFromInputMint,
+  type NumericAmount,
+  type NormalizedTradeSide,
+} from "./util/market.js";
 
 export {
   AccountPubkeyCache,
@@ -111,12 +120,14 @@ export {
   eventTypeFilterIncludesPumpfun,
   eventTypeFilterIncludesPumpswap,
   eventTypeFilterIncludesMeteoraDammV2,
+  eventTypeFilterIncludesMeteoraDbc,
+  eventTypeFilterIncludesMeteoraPools,
+  eventTypeFilterIncludesMeteoraDlmm,
   eventTypeFilterIncludesRaydiumClmm,
   eventTypeFilterIncludesRaydiumCpmm,
   eventTypeFilterIncludesRaydiumAmmV4,
   eventTypeFilterIncludesOrcaWhirlpool,
-  eventTypeFilterIncludesBonk,
-  eventTypeFilterIncludesRaydiumLaunchpad,
+  eventTypeFilterIncludesRaydiumLaunchlab,
   eventTypeFilterIncludesPumpFees,
   eventTypeFilterAllowsInstructionParsing,
   ALL_EVENT_TYPES,
@@ -132,7 +143,7 @@ export {
   PUMPSWAP_PROGRAM_ID,
   PUMPSWAP_FEES_PROGRAM_ID,
   PUMP_FEES_PROGRAM_ID,
-  BONK_PROGRAM_ID,
+  RAYDIUM_LAUNCHLAB_PROGRAM_ID,
   RAYDIUM_CPMM_PROGRAM_ID,
   RAYDIUM_CLMM_PROGRAM_ID,
   RAYDIUM_AMM_V4_PROGRAM_ID,
@@ -140,6 +151,7 @@ export {
   METEORA_POOLS_PROGRAM_ID,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
+  METEORA_DBC_PROGRAM_ID,
   getProgramIdsForProtocols,
   transactionFilterForProtocols,
   accountFilterForProtocols,
@@ -251,6 +263,8 @@ export {
   parsePumpfunInstruction,
   parsePumpswapInstruction,
   parseMeteoraDammInstruction,
+  parseMeteoraDlmmInstruction,
+  parseMeteoraPoolsInstruction,
   parsePumpFeesInstruction,
 } from "./instr/mod.js";
 
@@ -260,6 +274,8 @@ export {
   parse_pumpfun_instruction,
   parse_pumpswap_instruction,
   parse_meteora_damm_instruction,
+  parse_meteora_dlmm_instruction,
+  parse_meteora_pools_instruction,
   parse_pump_fees_instruction,
 } from "./instr/rust_aliases.js";
 

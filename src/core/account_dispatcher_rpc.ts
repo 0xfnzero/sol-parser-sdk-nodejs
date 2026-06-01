@@ -4,9 +4,7 @@
  */
 import type { DexEvent } from "./dex_event.js";
 import {
-  BONK_PROGRAM_ID,
-  BONK_LAUNCHPAD_PROGRAM_ID,
-  BONK_PROGRAM_ID_LEGACY,
+  RAYDIUM_LAUNCHLAB_PROGRAM_ID,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
   METEORA_POOLS_PROGRAM_ID,
@@ -59,15 +57,14 @@ import {
   fillOrcaWhirlpoolSwapAccounts,
 } from "./account_fill_orca.js";
 import {
-  fillBonkPoolCreateAccounts,
-  fillBonkTradeAccounts,
-} from "./account_fill_bonk.js";
+  fillRaydiumLaunchlabPoolCreateAccounts,
+  fillRaydiumLaunchlabTradeAccounts,
+} from "./account_fill_raydium_launchlab.js";
 import {
   fillMeteoraDammV2AddLiquidityAccounts,
   fillMeteoraDammV2ClosePositionAccounts,
   fillMeteoraDammV2CreatePositionAccounts,
   fillMeteoraDammV2InitializePoolAccounts,
-  fillMeteoraDammV2RemoveAllLiquidityAccounts,
   fillMeteoraDammV2RemoveLiquidityAccounts,
   fillMeteoraDammV2SwapAccounts,
   fillMeteoraDlmmAddLiquidityAccounts,
@@ -91,30 +88,6 @@ function tryFill(
   const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
   if (!get) return;
   fn(get);
-}
-
-const BONK_PROGRAM_FILL_ORDER = [
-  BONK_PROGRAM_ID,
-  BONK_LAUNCHPAD_PROGRAM_ID,
-  BONK_PROGRAM_ID_LEGACY,
-] as const;
-
-/** Bonk 多程序 ID：按 Rust 主网 ID → Launchpad → 旧 TS 兼容顺序尝试 CPI 账户填充 */
-function tryFillBonk(
-  programInvokes: Map<string, InvokePair[]>,
-  message: Message | MessageV0,
-  meta: ConfirmedTransactionMeta | null,
-  resolver: { get(i: number): PublicKey | undefined },
-  fn: (get: (i: number) => string) => void
-): void {
-  for (const programId of BONK_PROGRAM_FILL_ORDER) {
-    const invoke = findMaxAccountsInvoke(programId, programInvokes, message, meta);
-    if (!invoke) continue;
-    const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
-    if (!get) continue;
-    fn(get);
-    return;
-  }
 }
 
 /** 就地修改事件体内字段 */
@@ -265,10 +238,6 @@ export function fillAccountsFromTransactionDataRpc(
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2AddLiquidityAccounts(ev.MeteoraDammV2AddLiquidity, g)
     );
-  } else if ("MeteoraDammV2RemoveAllLiquidity" in ev) {
-    tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillMeteoraDammV2RemoveAllLiquidityAccounts(ev.MeteoraDammV2RemoveAllLiquidity, g)
-    );
   } else if ("MeteoraDammV2RemoveLiquidity" in ev) {
     tryFill(METEORA_DAMM_V2_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDammV2RemoveLiquidityAccounts(ev.MeteoraDammV2RemoveLiquidity, g)
@@ -297,13 +266,13 @@ export function fillAccountsFromTransactionDataRpc(
     tryFill(METEORA_DLMM_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillMeteoraDlmmRemoveLiquidityAccounts(ev.MeteoraDlmmRemoveLiquidity, g)
     );
-  } else if ("BonkTrade" in ev) {
-    tryFillBonk(programInvokes, message, meta, resolver, (g) =>
-      fillBonkTradeAccounts(ev.BonkTrade, g)
+  } else if ("RaydiumLaunchlabTrade" in ev) {
+    tryFill(RAYDIUM_LAUNCHLAB_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+      fillRaydiumLaunchlabTradeAccounts(ev.RaydiumLaunchlabTrade, g)
     );
-  } else if ("BonkPoolCreate" in ev) {
-    tryFillBonk(programInvokes, message, meta, resolver, (g) =>
-      fillBonkPoolCreateAccounts(ev.BonkPoolCreate, g)
+  } else if ("RaydiumLaunchlabPoolCreate" in ev) {
+    tryFill(RAYDIUM_LAUNCHLAB_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
+      fillRaydiumLaunchlabPoolCreateAccounts(ev.RaydiumLaunchlabPoolCreate, g)
     );
   }
 }

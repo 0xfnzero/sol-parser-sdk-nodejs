@@ -29,6 +29,13 @@ const DISC_TRADE = disc([189, 219, 127, 211, 78, 230, 97, 238]);
 const DISC_MIGRATE = disc([189, 233, 93, 185, 92, 148, 234, 148]);
 const DISC_MIGRATE_BONDING_CURVE_CREATOR = disc([155, 167, 104, 220, 213, 108, 243, 3]);
 
+function normalizePumpfunIxName(ixName: string): string {
+  if (ixName === "buy_v2") return "buy";
+  if (ixName === "sell_v2") return "sell";
+  if (ixName === "buy_exact_quote_in_v2") return "buy_exact_quote_in";
+  return ixName;
+}
+
 function bnU64(v: bigint | null): bigint {
   return v ?? 0n;
 }
@@ -144,6 +151,7 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
       o = rs.next;
     }
   }
+  ix_name = normalizePumpfunIxName(ix_name);
 
   const mayhem_mode = readBool(data, o) ?? false;
   o += 1;
@@ -204,11 +212,12 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
     creator_vault: defaultPubkey(),
   };
 
-  if (ix_name === "buy" || ix_name === "buy_v2") return { PumpFunBuy: trade };
-  if (ix_name === "sell" || ix_name === "sell_v2") return { PumpFunSell: trade };
-  if (ix_name === "buy_exact_sol_in" || ix_name === "buy_exact_quote_in" || ix_name === "buy_exact_quote_in_v2") {
+  if (ix_name === "buy") return { PumpFunBuy: trade };
+  if (ix_name === "sell") return { PumpFunSell: trade };
+  if (ix_name === "buy_exact_sol_in") {
     return { PumpFunBuyExactSolIn: trade };
   }
+  if (ix_name === "buy_exact_quote_in") return { PumpFunBuy: trade };
   return { PumpFunTrade: trade };
 }
 
@@ -252,6 +261,10 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
   const is_mayhem_mode = readBool(data, o) ?? false;
   o += 1;
   const is_cashback_enabled = readBool(data, o) ?? false;
+  o += 1;
+  const quote_mint = o + 32 <= data.length ? readPubkey(data, o)! : defaultPubkey();
+  o += 32;
+  const virtual_quote_reserves = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
 
   const ev: PumpFunCreateTokenEvent = {
     metadata,
@@ -270,6 +283,8 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
     token_program,
     is_mayhem_mode,
     is_cashback_enabled,
+    quote_mint,
+    virtual_quote_reserves,
   };
   return { PumpFunCreate: ev };
 }

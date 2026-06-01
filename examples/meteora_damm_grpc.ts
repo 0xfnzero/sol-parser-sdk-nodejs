@@ -43,7 +43,6 @@ async function main() {
     "MeteoraDammV2Swap",
     "MeteoraDammV2AddLiquidity",
     "MeteoraDammV2RemoveLiquidity",
-    "MeteoraDammV2RemoveAllLiquidity",
     "MeteoraDammV2CreatePosition",
     "MeteoraDammV2ClosePosition",
   ]);
@@ -82,7 +81,6 @@ async function main() {
         console.log(`💧 ADD_LIQUIDITY #${addLiqCount} | sig=${metadata?.signature ?? ""} slot=${metadata?.slot ?? ""}`);
         break;
       case "MeteoraDammV2RemoveLiquidity":
-      case "MeteoraDammV2RemoveAllLiquidity":
         removeLiqCount++;
         console.log(`🔥 ${key} #${removeLiqCount} | sig=${metadata?.signature ?? ""} slot=${metadata?.slot ?? ""}`);
         break;

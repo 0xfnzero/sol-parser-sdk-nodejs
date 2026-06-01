@@ -4,7 +4,6 @@ import type {
   MeteoraDammV2ClosePositionEvent,
   MeteoraDammV2CreatePositionEvent,
   MeteoraDammV2InitializePoolEvent,
-  MeteoraDammV2RemoveAllLiquidityEvent,
   MeteoraDammV2RemoveLiquidityEvent,
   MeteoraDammV2SwapEvent,
   MeteoraDlmmAddLiquidityEvent,
@@ -43,11 +42,6 @@ export function fillMeteoraDammV2AddLiquidityAccounts(
 
 export function fillMeteoraDammV2RemoveLiquidityAccounts(
   _e: MeteoraDammV2RemoveLiquidityEvent,
-  _get: (i: number) => string
-): void {}
-
-export function fillMeteoraDammV2RemoveAllLiquidityAccounts(
-  _e: MeteoraDammV2RemoveAllLiquidityEvent,
   _get: (i: number) => string
 ): void {}
 

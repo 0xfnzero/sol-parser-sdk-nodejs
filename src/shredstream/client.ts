@@ -6,6 +6,7 @@ import * as protoLoader from "@grpc/proto-loader";
 import { join } from "node:path";
 import { type DexEvent } from "../core/dex_event.js";
 import { nowUs } from "../core/unified_parser.js";
+import type { EventTypeFilter } from "../grpc/types.js";
 import {
   dexEventsFromShredWasmTx,
   dexEventsFromShredWasmTxWithFullKeys,
@@ -193,7 +194,7 @@ export class ShredStreamClient {
    * 订阅 DEX 事件（自动重连）；返回队列供轮询消费（与 Rust `subscribe` 一致）。
    * 重连循环使用订阅时刻的配置快照（与 Rust 在 `tokio::spawn` 前 `config.clone()` 一致）。
    */
-  async subscribe(): Promise<ShredEventQueue> {
+  async subscribe(eventTypeFilter?: EventTypeFilter): Promise<ShredEventQueue> {
     await this.stop();
     this.receiveStats = {
       entryMessagesReceived: 0,
@@ -205,8 +206,13 @@ export class ShredStreamClient {
     const ac = new AbortController();
     this.loopAbort = ac;
     const configSnapshot: ShredStreamConfig = { ...this.config };
-    this.loopPromise = this.runReconnectLoop(queue, ac.signal, configSnapshot);
+    this.loopPromise = this.runReconnectLoop(queue, ac.signal, configSnapshot, eventTypeFilter);
     return queue;
+  }
+
+  /** 与 Rust `subscribe_with_filter` 对齐：在解析热路径按事件类型预过滤。 */
+  async subscribeWithFilter(eventTypeFilter?: EventTypeFilter): Promise<ShredEventQueue> {
+    return this.subscribe(eventTypeFilter);
   }
 
   /** 停止订阅并中止当前流 */
@@ -224,7 +230,8 @@ export class ShredStreamClient {
   private async runReconnectLoop(
     queue: ShredEventQueue,
     signal: AbortSignal,
-    config: ShredStreamConfig
+    config: ShredStreamConfig,
+    eventTypeFilter?: EventTypeFilter
   ): Promise<void> {
     let delay = config.reconnect_delay_ms;
     let attempts = 0;
@@ -238,7 +245,7 @@ export class ShredStreamClient {
       attempts += 1;
 
       try {
-        await this.streamOnce(queue, signal, config);
+        await this.streamOnce(queue, signal, config, eventTypeFilter);
         delay = config.reconnect_delay_ms;
         attempts = 0;
       } catch (e) {
@@ -256,7 +263,8 @@ export class ShredStreamClient {
   private streamOnce(
     queue: ShredEventQueue,
     signal: AbortSignal,
-    config: ShredStreamConfig
+    config: ShredStreamConfig,
+    eventTypeFilter?: EventTypeFilter
   ): Promise<void> {
     if (signal.aborted) return Promise.resolve();
 
@@ -287,7 +295,7 @@ export class ShredStreamClient {
       call.on("data", (entry) => {
         if (signal.aborted) return;
         try {
-          void this.processEntryMessage(entry, queue);
+          void this.processEntryMessage(entry, queue, eventTypeFilter);
         } catch (err) {
           console.error("processEntryMessage:", err);
         }
@@ -310,7 +318,8 @@ export class ShredStreamClient {
 
   private async processEntryMessage(
     entry: { slot: string | number | bigint; entries: Buffer | Uint8Array },
-    queue: ShredEventQueue
+    queue: ShredEventQueue,
+    eventTypeFilter?: EventTypeFilter
   ): Promise<void> {
     this.receiveStats.entryMessagesReceived += 1;
     const recvUs = nowUs();
@@ -331,15 +340,23 @@ export class ShredStreamClient {
     const conn = this.config.connection;
     if (conn) {
       try {
-        await this.processEntryMessageWithAlt(decoded, slotNum, recvUs, queue, bytes.length, conn);
+        await this.processEntryMessageWithAlt(
+          decoded,
+          slotNum,
+          recvUs,
+          queue,
+          bytes.length,
+          conn,
+          eventTypeFilter
+        );
       } catch (e) {
         console.warn(`[shredstream] ALT/RPC 解析失败 slot=${slotNum}:`, e);
-        this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length);
+        this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length, eventTypeFilter);
       }
       return;
     }
 
-    this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length);
+    this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length, eventTypeFilter);
   }
 
   /** 无 RPC：仅用静态账户表 */
@@ -348,7 +365,8 @@ export class ShredStreamClient {
     slotNum: number,
     recvUs: number,
     queue: ShredEventQueue,
-    entriesBytesLen: number
+    entriesBytesLen: number,
+    eventTypeFilter?: EventTypeFilter
   ): void {
     let txTotal = 0;
     let evTotal = 0;
@@ -362,7 +380,7 @@ export class ShredStreamClient {
         const tx = txs[i];
         const txIndex = globalTxIndex++;
         if (!tx?.signature) continue;
-        const events = dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, undefined);
+        const events = dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, eventTypeFilter);
         evTotal += events.length;
         for (const ev of events) {
           setGrpcRecvUsMut(ev, recvUs);
@@ -388,7 +406,8 @@ export class ShredStreamClient {
     recvUs: number,
     queue: ShredEventQueue,
     entriesBytesLen: number,
-    conn: import("@solana/web3.js").Connection
+    conn: import("@solana/web3.js").Connection,
+    eventTypeFilter?: EventTypeFilter
   ): Promise<void> {
     const altKeys = new Set<string>();
     for (const outer of decoded) {
@@ -418,7 +437,7 @@ export class ShredStreamClient {
           slotNum,
           txIndex,
           recvUs,
-          undefined
+          eventTypeFilter
         );
         evTotal += events.length;
         for (const ev of events) {

@@ -23,7 +23,7 @@ export function fillPumpfunTradeAccounts(e: PumpFunTradeEvent, get: (i: number) 
     e.ix_name === "buy_v2" ||
     e.ix_name === "sell_v2" ||
     e.ix_name === "buy_exact_quote_in_v2" ||
-    (e.ix_name === "buy_exact_quote_in" && accountAtMatchesMint(1));
+    accountAtMatchesMint(1);
   if (isV2) {
     set("global", 0);
     set("quote_mint", 2);
@@ -43,7 +43,7 @@ export function fillPumpfunTradeAccounts(e: PumpFunTradeEvent, get: (i: number) 
     set("associated_quote_buyback_fee_recipient", 9);
     set("associated_creator_vault", 17);
     set("sharing_config", 18);
-    if (e.ix_name === "sell_v2") {
+    if (e.ix_name === "sell_v2" || (!e.is_buy && e.ix_name === "sell")) {
       set("user_volume_accumulator", 19);
       set("associated_user_volume_accumulator", 20);
       set("fee_config", 21);

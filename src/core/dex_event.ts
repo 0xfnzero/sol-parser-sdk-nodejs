@@ -55,7 +55,6 @@ export type DexEvent =
   | { MeteoraDammV2Swap: MeteoraDammV2SwapEvent }
   | { MeteoraDammV2AddLiquidity: MeteoraDammV2AddLiquidityEvent }
   | { MeteoraDammV2RemoveLiquidity: MeteoraDammV2RemoveLiquidityEvent }
-  | { MeteoraDammV2RemoveAllLiquidity: MeteoraDammV2RemoveAllLiquidityEvent }
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
@@ -67,9 +66,9 @@ export type DexEvent =
   | { MeteoraDlmmCreatePosition: MeteoraDlmmCreatePositionEvent }
   | { MeteoraDlmmClosePosition: MeteoraDlmmClosePositionEvent }
   | { MeteoraDlmmClaimFee: MeteoraDlmmClaimFeeEvent }
-  | { BonkTrade: BonkTradeEvent }
-  | { BonkPoolCreate: BonkPoolCreateEvent }
-  | { BonkMigrateAmm: BonkMigrateAmmEvent }
+  | { RaydiumLaunchlabTrade: RaydiumLaunchlabTradeEvent }
+  | { RaydiumLaunchlabPoolCreate: RaydiumLaunchlabPoolCreateEvent }
+  | { RaydiumLaunchlabMigrateAmm: RaydiumLaunchlabMigrateAmmEvent }
   | { TokenInfo: TokenInfoEvent }
   | { TokenAccount: TokenAccountEvent }
   | { NonceAccount: NonceAccountEvent }
@@ -101,6 +100,8 @@ export interface PumpFunCreateTokenEvent {
   token_program: string;
   is_mayhem_mode: boolean;
   is_cashback_enabled: boolean;
+  quote_mint: string;
+  virtual_quote_reserves: bigint;
 }
 
 export interface PumpFunCreateV2TokenEvent extends PumpFunCreateTokenEvent {
@@ -906,16 +907,6 @@ export interface MeteoraDammV2RemoveLiquidityEvent {
   token_b_amount_threshold: bigint;
 }
 
-/** 外层 `remove_all_liquidity`；指令仅含两 u64 阈值，无 `liquidity_delta`。 */
-export interface MeteoraDammV2RemoveAllLiquidityEvent {
-  metadata: EventMetadata;
-  pool: string;
-  position: string;
-  owner: string;
-  token_a_amount_threshold: bigint;
-  token_b_amount_threshold: bigint;
-}
-
 /** 与 `MeteoraDammV2CreatePositionEvent` 对齐 */
 export interface MeteoraDammV2CreatePositionEvent {
   metadata: EventMetadata;
@@ -1036,7 +1027,7 @@ export interface MeteoraDlmmClaimFeeEvent {
 
 export type TradeDirection = "Buy" | "Sell";
 
-export interface BonkTradeEvent {
+export interface RaydiumLaunchlabTradeEvent {
   metadata: EventMetadata;
   pool_state: string;
   user: string;
@@ -1054,14 +1045,14 @@ export interface BaseMintParam {
   decimals: number;
 }
 
-export interface BonkPoolCreateEvent {
+export interface RaydiumLaunchlabPoolCreateEvent {
   metadata: EventMetadata;
   base_mint_param: BaseMintParam;
   pool_state: string;
   creator: string;
 }
 
-export interface BonkMigrateAmmEvent {
+export interface RaydiumLaunchlabMigrateAmmEvent {
   metadata: EventMetadata;
   old_pool: string;
   new_pool: string;

@@ -22,6 +22,58 @@ function pumpfunCreateFlags(ev: DexEvent): [string, boolean, boolean] | null {
   return [c.mint, c.is_cashback_enabled, c.is_mayhem_mode];
 }
 
+function fillString(dst: PumpFunCreateV2TokenEvent, key: keyof PumpFunCreateTokenEvent, value: string): void {
+  const zero = defaultPubkey();
+  if ((!dst[key] || dst[key] === zero) && value && value !== zero) {
+    (dst as unknown as Record<string, unknown>)[key] = value;
+  }
+}
+
+function fillBigint(dst: PumpFunCreateV2TokenEvent, key: keyof PumpFunCreateTokenEvent, value: bigint): void {
+  if (dst[key] === 0n && value !== 0n) {
+    (dst as unknown as Record<string, unknown>)[key] = value;
+  }
+}
+
+export function enrichCreateV2FromCreateEvents(events: DexEvent[]): void {
+  const zero = defaultPubkey();
+  const creates = new Map<string, PumpFunCreateTokenEvent>();
+
+  for (const ev of events) {
+    if (!("PumpFunCreate" in ev)) continue;
+    const c = ev.PumpFunCreate;
+    if (c.mint && c.mint !== zero && !creates.has(c.mint)) {
+      creates.set(c.mint, c);
+    }
+  }
+
+  if (creates.size === 0) return;
+
+  for (const ev of events) {
+    if (!("PumpFunCreateV2" in ev)) continue;
+    const c2 = ev.PumpFunCreateV2;
+    const c = creates.get(c2.mint);
+    if (!c) continue;
+
+    fillString(c2, "name", c.name);
+    fillString(c2, "symbol", c.symbol);
+    fillString(c2, "uri", c.uri);
+    fillString(c2, "bonding_curve", c.bonding_curve);
+    fillString(c2, "user", c.user);
+    fillString(c2, "creator", c.creator);
+    fillString(c2, "token_program", c.token_program);
+    fillString(c2, "quote_mint", c.quote_mint);
+    fillBigint(c2, "timestamp", c.timestamp);
+    fillBigint(c2, "virtual_token_reserves", c.virtual_token_reserves);
+    fillBigint(c2, "virtual_sol_reserves", c.virtual_sol_reserves);
+    fillBigint(c2, "real_token_reserves", c.real_token_reserves);
+    fillBigint(c2, "token_total_supply", c.token_total_supply);
+    fillBigint(c2, "virtual_quote_reserves", c.virtual_quote_reserves);
+    c2.is_mayhem_mode ||= c.is_mayhem_mode;
+    c2.is_cashback_enabled ||= c.is_cashback_enabled;
+  }
+}
+
 export function enrichCreateV2ObservedFeeRecipient(events: DexEvent[]): void {
   const zero = defaultPubkey();
   const mintToFee = new Map<string, string>();
@@ -72,6 +124,7 @@ export function enrichPumpfunTradesFromCreateInstructions(events: DexEvent[]): v
 }
 
 export function enrichPumpfunSameTxPostMerge(events: DexEvent[]): void {
+  enrichCreateV2FromCreateEvents(events);
   enrichCreateV2ObservedFeeRecipient(events);
   enrichPumpfunTradesFromCreateInstructions(events);
 }

@@ -32,7 +32,7 @@ function bnI64(v: ReturnType<typeof readI64LE>): bigint {
 const ZP = defaultPubkey();
 
 export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const MIN = 14 * 8 + 7 * 32 + 1 + 5 * 8 + 4;
+  const MIN = 16 * 8 + 7 * 32 + 1 + 5 * 8 + 4;
   if (data.length < MIN) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));
