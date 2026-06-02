@@ -39,6 +39,7 @@ function createNumericDefaults() {
     is_cashback_enabled: false,
     quote_mint: PUMPFUN_SOL_QUOTE_MINT,
     virtual_quote_reserves: 0n,
+    ix_name: "",
   };
 }
 
@@ -352,6 +353,7 @@ export function parsePumpfunInstruction(
       program: accounts[15] ?? Z,
       observed_fee_recipient: Z,
       ...createNumericDefaults(),
+      ix_name: "create_v2",
       is_mayhem_mode: isMayhemMode,
       is_cashback_enabled: isCashbackEnabled,
     };
@@ -408,6 +410,7 @@ export function parsePumpfunInstruction(
         creator,
         token_program: Z,
         ...createNumericDefaults(),
+        ix_name: "create",
       },
     };
   }

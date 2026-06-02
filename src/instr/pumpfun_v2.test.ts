@@ -80,6 +80,7 @@ describe("PumpFun v2 parity", () => {
     expect(create.is_mayhem_mode).toBe(true);
     expect(create.is_cashback_enabled).toBe(true);
     expect(create.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
+    expect(create.ix_name).toBe("create_v2");
   });
 
   it("parses legacy buy, exact-sol-in buy, and sell instructions", () => {

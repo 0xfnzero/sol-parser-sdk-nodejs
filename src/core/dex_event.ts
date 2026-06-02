@@ -115,6 +115,7 @@ export interface PumpFunCreateTokenEvent {
   is_cashback_enabled: boolean;
   quote_mint: string;
   virtual_quote_reserves: bigint;
+  ix_name: string;
 }
 
 export interface PumpFunCreateV2TokenEvent extends PumpFunCreateTokenEvent {

@@ -292,6 +292,7 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
     is_cashback_enabled,
     quote_mint,
     virtual_quote_reserves,
+    ix_name: "create",
   };
   return { PumpFunCreate: ev };
 }

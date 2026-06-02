@@ -190,6 +190,7 @@ function mergePumpfunCreate(log: EventPayload, ix: EventPayload): void {
     fillString(log, key, ix);
   }
   fillNonZero(log, "virtual_quote_reserves", ix);
+  fillIxName(log, ix);
 }
 
 function mergePumpfunCreateV2(log: EventPayload, ix: EventPayload): void {

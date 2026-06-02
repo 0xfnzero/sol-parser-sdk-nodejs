@@ -57,6 +57,7 @@ describe("ShredStream instruction parser", () => {
     expect("PumpFunCreate" in events[0]!).toBe(true);
     const create = "PumpFunCreate" in events[0]! ? events[0]!.PumpFunCreate : null;
     expect(create?.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
+    expect(create?.ix_name).toBe("create");
   });
 
   it("parses PumpFun v2 with static mint and ALT-loaded trailing accounts best-effort", () => {
