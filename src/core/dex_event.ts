@@ -33,6 +33,15 @@ export type DexEvent =
   | { RaydiumClmmOpenPositionWithTokenExtNft: RaydiumClmmOpenPositionWithTokenExtNftEvent }
   | { RaydiumClmmClosePosition: RaydiumClmmClosePositionEvent }
   | { RaydiumClmmCollectFee: RaydiumClmmCollectFeeEvent }
+  | { RaydiumClmmLiquidityChange: RaydiumClmmLiquidityChangeEvent }
+  | { RaydiumClmmConfigChange: RaydiumClmmConfigChangeEvent }
+  | { RaydiumClmmCreatePersonalPosition: RaydiumClmmCreatePersonalPositionEvent }
+  | { RaydiumClmmLiquidityCalculate: RaydiumClmmLiquidityCalculateEvent }
+  | { RaydiumClmmOpenLimitOrder: RaydiumClmmOpenLimitOrderEvent }
+  | { RaydiumClmmIncreaseLimitOrder: RaydiumClmmIncreaseLimitOrderEvent }
+  | { RaydiumClmmDecreaseLimitOrder: RaydiumClmmDecreaseLimitOrderEvent }
+  | { RaydiumClmmSettleLimitOrder: RaydiumClmmSettleLimitOrderEvent }
+  | { RaydiumClmmUpdateRewardInfos: RaydiumClmmUpdateRewardInfosEvent }
   | { RaydiumCpmmSwap: RaydiumCpmmSwapEvent }
   | { RaydiumCpmmDeposit: RaydiumCpmmDepositEvent }
   | { RaydiumCpmmWithdraw: RaydiumCpmmWithdrawEvent }
@@ -114,6 +123,8 @@ export interface PumpFunCreateTokenEvent {
   is_mayhem_mode: boolean;
   is_cashback_enabled: boolean;
   quote_mint: string;
+  quote_vault: string;
+  quote_token_program: string;
   virtual_quote_reserves: bigint;
   ix_name: string;
 }
@@ -538,6 +549,10 @@ export interface RaydiumClmmIncreaseLiquidityEvent {
   position_nft_mint: string;
   user: string;
   liquidity: bigint;
+  amount_0: bigint;
+  amount_1: bigint;
+  amount_0_transfer_fee: bigint;
+  amount_1_transfer_fee: bigint;
   amount0_max: bigint;
   amount1_max: bigint;
 }
@@ -549,6 +564,13 @@ export interface RaydiumClmmDecreaseLiquidityEvent {
   position_nft_mint: string;
   user: string;
   liquidity: bigint;
+  decrease_amount_0: bigint;
+  decrease_amount_1: bigint;
+  fee_amount_0: bigint;
+  fee_amount_1: bigint;
+  reward_amounts: [bigint, bigint, bigint];
+  transfer_fee_0: bigint;
+  transfer_fee_1: bigint;
   amount0_min: bigint;
   amount1_min: bigint;
 }
@@ -563,6 +585,9 @@ export interface RaydiumClmmCreatePoolEvent {
   fee_rate: number;
   creator: string;
   sqrt_price_x64: bigint;
+  tick: number;
+  token_vault_0: string;
+  token_vault_1: string;
   open_time: bigint;
 }
 
@@ -600,8 +625,107 @@ export interface RaydiumClmmCollectFeeEvent {
   metadata: EventMetadata;
   pool_state: string;
   position_nft_mint: string;
+  recipient_token_account_0: string;
+  recipient_token_account_1: string;
   amount_0: bigint;
   amount_1: bigint;
+}
+
+export interface RaydiumClmmLiquidityChangeEvent {
+  metadata: EventMetadata;
+  pool_state: string;
+  tick: number;
+  tick_lower: number;
+  tick_upper: number;
+  liquidity_before: bigint;
+  liquidity_after: bigint;
+}
+
+export interface RaydiumClmmConfigChangeEvent {
+  metadata: EventMetadata;
+  index: number;
+  owner: string;
+  protocol_fee_rate: number;
+  trade_fee_rate: number;
+  tick_spacing: number;
+  fund_fee_rate: number;
+  fund_owner: string;
+}
+
+export interface RaydiumClmmCreatePersonalPositionEvent {
+  metadata: EventMetadata;
+  pool_state: string;
+  minter: string;
+  nft_owner: string;
+  tick_lower_index: number;
+  tick_upper_index: number;
+  liquidity: bigint;
+  deposit_amount_0: bigint;
+  deposit_amount_1: bigint;
+  deposit_amount_0_transfer_fee: bigint;
+  deposit_amount_1_transfer_fee: bigint;
+}
+
+export interface RaydiumClmmLiquidityCalculateEvent {
+  metadata: EventMetadata;
+  pool_liquidity: bigint;
+  pool_sqrt_price_x64: bigint;
+  pool_tick: number;
+  calc_amount_0: bigint;
+  calc_amount_1: bigint;
+  trade_fee_owed_0: bigint;
+  trade_fee_owed_1: bigint;
+  transfer_fee_0: bigint;
+  transfer_fee_1: bigint;
+}
+
+export interface RaydiumClmmOpenLimitOrderEvent {
+  metadata: EventMetadata;
+  pool_id: string;
+  limit_order: string;
+  zero_for_one: boolean;
+  tick_index: number;
+  total_amount: bigint;
+  transfer_fee: bigint;
+}
+
+export interface RaydiumClmmIncreaseLimitOrderEvent {
+  metadata: EventMetadata;
+  pool_id: string;
+  limit_order: string;
+  zero_for_one: boolean;
+  tick_index: number;
+  total_amount: bigint;
+  increased_amount: bigint;
+  transfer_fee: bigint;
+}
+
+export interface RaydiumClmmDecreaseLimitOrderEvent {
+  metadata: EventMetadata;
+  pool_id: string;
+  limit_order: string;
+  zero_for_one: boolean;
+  tick_index: number;
+  total_amount: bigint;
+  filled_amount: bigint;
+  settled_output_amount: bigint;
+  decreased_amount: bigint;
+}
+
+export interface RaydiumClmmSettleLimitOrderEvent {
+  metadata: EventMetadata;
+  pool_id: string;
+  limit_order: string;
+  zero_for_one: boolean;
+  tick_index: number;
+  total_amount: bigint;
+  filled_amount: bigint;
+  settled_amount_out: bigint;
+}
+
+export interface RaydiumClmmUpdateRewardInfosEvent {
+  metadata: EventMetadata;
+  reward_growth_global_x64: [bigint, bigint, bigint];
 }
 
 export interface RaydiumCpmmSwapEvent {
@@ -930,21 +1054,31 @@ export interface MeteoraDammV2CreatePositionEvent {
   position_nft_mint: string;
 }
 
-/**
- * 外层 `initialize_pool`（`InitializePoolParameters`）；无日志时仅含指令内字段与账户索引映射。
- * Go/Python 中 `liquidity` / `sqrt_price` 为十进制字符串；`activation_point` 为 `None` 或十进制字符串。
- */
 export interface MeteoraDammV2InitializePoolEvent {
   metadata: EventMetadata;
-  creator: string;
-  position_nft_mint: string;
   pool: string;
-  position: string;
   token_a_mint: string;
   token_b_mint: string;
+  creator: string;
+  payer: string;
+  alpha_vault: string;
+  pool_fees: unknown;
+  sqrt_min_price: bigint;
+  sqrt_max_price: bigint;
+  activation_type: number;
+  collect_fee_mode: number;
   liquidity: bigint;
   sqrt_price: bigint;
-  activation_point: bigint | null;
+  activation_point: bigint;
+  token_a_flag: number;
+  token_b_flag: number;
+  token_a_amount: bigint;
+  token_b_amount: bigint;
+  total_amount_a: bigint;
+  total_amount_b: bigint;
+  pool_type: number;
+  position?: string;
+  position_nft_mint?: string;
 }
 
 /** 与 `MeteoraDammV2ClosePositionEvent` 对齐 */

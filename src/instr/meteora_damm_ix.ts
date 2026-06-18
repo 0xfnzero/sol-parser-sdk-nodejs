@@ -213,7 +213,7 @@ function parseOuterInitializePoolIx(
   const sqrt_price = readU128LE(instructionData, 24) ?? 0n;
   const tag = readU8(instructionData, 40);
   if (tag === null) return null;
-  let activation_point: bigint | null = null;
+  let activation_point = 0n;
   if (tag === 1) {
     if (instructionData.length < 49) return null;
     activation_point = readU64LE(instructionData, 41) ?? 0n;
@@ -228,9 +228,23 @@ function parseOuterInitializePoolIx(
       position: getAccount(accounts, 7) ?? Z,
       token_a_mint: getAccount(accounts, 8) ?? Z,
       token_b_mint: getAccount(accounts, 9) ?? Z,
+      payer: Z,
+      alpha_vault: Z,
+      pool_fees: null,
+      sqrt_min_price: 0n,
+      sqrt_max_price: 0n,
+      activation_type: 0,
+      collect_fee_mode: 0,
       liquidity,
       sqrt_price,
       activation_point,
+      token_a_flag: 0,
+      token_b_flag: 0,
+      token_a_amount: 0n,
+      token_b_amount: 0n,
+      total_amount_a: 0n,
+      total_amount_b: 0n,
+      pool_type: 0,
     },
   };
 }

@@ -94,7 +94,7 @@ function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string
     case "PumpFunCreate":
       return `PumpFunCreate|${data.mint}`;
     case "PumpFunCreateV2":
-      return `PumpFunCreateV2|${data.mint}`;
+      return `PumpFunCreate|${data.mint}`;
     case "PumpFunMigrate":
       return `PumpFunMigrate|${data.mint}|${data.pool}|${data.user}`;
     case "RaydiumLaunchlabTrade":
@@ -181,16 +181,31 @@ function mergePumpfunCreate(log: EventPayload, ix: EventPayload): void {
     "name",
     "symbol",
     "uri",
+    "mint",
     "bonding_curve",
     "user",
     "creator",
     "token_program",
     "quote_mint",
+    "quote_vault",
+    "quote_token_program",
   ]) {
     fillString(log, key, ix);
   }
-  fillNonZero(log, "virtual_quote_reserves", ix);
+  for (const key of [
+    "timestamp",
+    "virtual_token_reserves",
+    "virtual_sol_reserves",
+    "real_token_reserves",
+    "token_total_supply",
+    "virtual_quote_reserves",
+  ]) {
+    fillNonZero(log, key, ix);
+  }
   fillIxName(log, ix);
+  log.is_mayhem_mode = Boolean(log.is_mayhem_mode) || Boolean(ix.is_mayhem_mode);
+  log.is_cashback_enabled =
+    Boolean(log.is_cashback_enabled) || Boolean(ix.is_cashback_enabled);
 }
 
 function mergePumpfunCreateV2(log: EventPayload, ix: EventPayload): void {
@@ -318,6 +333,15 @@ function mergeGrpcInstructionIntoLog(logEvent: DexEvent, ixEvent: DexEvent): voi
 
   if (PUMPFUN_TRADE_NAMES.has(logName) && PUMPFUN_TRADE_NAMES.has(ixName)) {
     mergePumpfunTrade(log, ix);
+    return;
+  }
+
+  if (logName === "PumpFunCreate" && ixName === "PumpFunCreateV2") {
+    mergePumpfunCreate(log, ix);
+    return;
+  }
+  if (logName === "PumpFunCreateV2" && ixName === "PumpFunCreate") {
+    mergePumpfunCreateV2(log, ix);
     return;
   }
 

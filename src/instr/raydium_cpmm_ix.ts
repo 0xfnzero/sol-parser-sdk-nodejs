@@ -3,7 +3,7 @@
  */
 import type { DexEvent } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
-import { PROGRAM_LOG_DISC } from "../logs/program_log_discriminators.js";
+import { PROGRAM_LOG_DISC, u64leDiscriminator } from "../logs/program_log_discriminators.js";
 import { getAccount, ixMeta, readU64LE } from "./utils.js";
 
 const Z = defaultPubkey();
@@ -11,6 +11,7 @@ const Z = defaultPubkey();
 const DISC = {
   SWAP_BASE_IN: PROGRAM_LOG_DISC.RAYDIUM_CPMM_SWAP_BASE_IN,
   SWAP_BASE_OUT: PROGRAM_LOG_DISC.RAYDIUM_CPMM_SWAP_BASE_OUT,
+  INITIALIZE: u64leDiscriminator([175, 175, 109, 31, 13, 152, 155, 237]),
   DEPOSIT: PROGRAM_LOG_DISC.RAYDIUM_CPMM_DEPOSIT,
   WITHDRAW: PROGRAM_LOG_DISC.RAYDIUM_CPMM_WITHDRAW,
 };
@@ -35,13 +36,11 @@ export function parseRaydiumCpmmInstruction(
 
   if (discEq(instructionData, DISC.SWAP_BASE_IN)) {
     if (instructionData.length < 8 + 8 + 8) return null;
-    const amount_in = readU64LE(instructionData, 8) ?? 0n;
-    const minimum_amount_out = readU64LE(instructionData, 16) ?? 0n;
     return {
       RaydiumCpmmSwap: {
         metadata: meta,
-        pool_id: getAccount(accounts, 2) ?? Z,
-        input_amount: amount_in,
+        pool_id: Z,
+        input_amount: 0n,
         output_amount: 0n,
         input_vault_before: 0n,
         output_vault_before: 0n,
@@ -54,19 +53,32 @@ export function parseRaydiumCpmmInstruction(
 
   if (discEq(instructionData, DISC.SWAP_BASE_OUT)) {
     if (instructionData.length < 8 + 8 + 8) return null;
-    const max_amount_in = readU64LE(instructionData, 8) ?? 0n;
-    const amount_out = readU64LE(instructionData, 16) ?? 0n;
     return {
       RaydiumCpmmSwap: {
         metadata: meta,
-        pool_id: getAccount(accounts, 2) ?? Z,
-        input_amount: max_amount_in,
-        output_amount: amount_out,
+        pool_id: Z,
+        input_amount: 0n,
+        output_amount: 0n,
         input_vault_before: 0n,
         output_vault_before: 0n,
         input_transfer_fee: 0n,
         output_transfer_fee: 0n,
         base_input: false,
+      },
+    };
+  }
+
+  if (discEq(instructionData, DISC.INITIALIZE)) {
+    if (instructionData.length < 8 + 8 + 8 + 8) return null;
+    const init_amount0 = readU64LE(instructionData, 8) ?? 0n;
+    const init_amount1 = readU64LE(instructionData, 16) ?? 0n;
+    return {
+      RaydiumCpmmInitialize: {
+        metadata: meta,
+        pool: getAccount(accounts, 0) ?? Z,
+        creator: getAccount(accounts, 1) ?? Z,
+        init_amount0,
+        init_amount1,
       },
     };
   }
@@ -79,8 +91,8 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmDeposit: {
         metadata: meta,
-        pool: getAccount(accounts, 2) ?? Z,
-        user: getAccount(accounts, 0) ?? Z,
+        pool: getAccount(accounts, 0) ?? Z,
+        user: getAccount(accounts, 1) ?? Z,
         lp_token_amount,
         token0_amount,
         token1_amount,
@@ -96,8 +108,8 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmWithdraw: {
         metadata: meta,
-        pool: getAccount(accounts, 2) ?? Z,
-        user: getAccount(accounts, 0) ?? Z,
+        pool: getAccount(accounts, 0) ?? Z,
+        user: getAccount(accounts, 1) ?? Z,
         lp_token_amount,
         token0_amount,
         token1_amount,

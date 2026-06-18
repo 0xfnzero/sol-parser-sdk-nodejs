@@ -69,6 +69,8 @@ export function enrichCreateV2FromCreateEvents(events: DexEvent[]): void {
     fillString(c2, "creator", c.creator);
     fillString(c2, "token_program", c.token_program);
     fillString(c2, "quote_mint", c.quote_mint);
+    fillString(c2, "quote_vault", c.quote_vault);
+    fillString(c2, "quote_token_program", c.quote_token_program);
     fillBigint(c2, "timestamp", c.timestamp);
     fillBigint(c2, "virtual_token_reserves", c.virtual_token_reserves);
     fillBigint(c2, "virtual_sol_reserves", c.virtual_sol_reserves);

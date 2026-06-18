@@ -19,10 +19,10 @@ function u64Instruction(disc: number[], first: bigint, second: bigint): Uint8Arr
 }
 
 function clmmSwapInstruction(): Uint8Array {
-  const data = new Uint8Array(33);
+  const data = new Uint8Array(41);
   data.set(CLMM_SWAP_DISC, 0);
   new DataView(data.buffer).setBigUint64(24, 123n, true);
-  data[32] = 1;
+  data[40] = 1;
   return data;
 }
 
@@ -109,7 +109,7 @@ describe("ShredStream instruction parser", () => {
       instructions: [
         {
           programIdIndex: 0,
-          accounts: Uint8Array.from([1, 99]),
+          accounts: Uint8Array.from([99, 99, 1]),
           data: clmmSwapInstruction(),
         },
       ],

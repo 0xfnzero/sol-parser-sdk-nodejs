@@ -6,15 +6,17 @@
  */
 import type { DexEvent } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
-import { PROGRAM_LOG_DISC } from "../logs/program_log_discriminators.js";
-import { getAccount, ixMeta, readBool, readU64LE, readU128LE } from "./utils.js";
+import { u64leDiscriminator } from "../logs/program_log_discriminators.js";
+import { getAccount, ixMeta, readBool, readU16LE, readU64LE, readU128LE } from "./utils.js";
 
 const Z = defaultPubkey();
 
 const DISC = {
-  SWAP: PROGRAM_LOG_DISC.RAYDIUM_CLMM_SWAP,
-  INCREASE_LIQUIDITY: PROGRAM_LOG_DISC.RAYDIUM_CLMM_INCREASE_LIQUIDITY,
-  DECREASE_LIQUIDITY: PROGRAM_LOG_DISC.RAYDIUM_CLMM_DECREASE_LIQUIDITY,
+  SWAP: u64leDiscriminator([248, 198, 158, 145, 225, 117, 135, 200]),
+  SWAP_V2: u64leDiscriminator([43, 4, 237, 11, 26, 201, 30, 98]),
+  INCREASE_LIQUIDITY: u64leDiscriminator([46, 156, 243, 118, 13, 205, 251, 178]),
+  DECREASE_LIQUIDITY: u64leDiscriminator([160, 38, 208, 111, 104, 91, 44, 1]),
+  INITIALIZE_POOL: u64leDiscriminator([17, 43, 80, 74, 168, 202, 6, 113]),
 };
 
 function discEq(data: Uint8Array, disc: bigint): boolean {
@@ -22,13 +24,6 @@ function discEq(data: Uint8Array, disc: bigint): boolean {
   const v = readU64LE(data, 0);
   return v === disc;
 }
-
-const SWAP_ACC = {
-  WHIRLPOOL: 2,
-  SENDER: 1,
-  TOKEN_A_USER: 3,
-  TOKEN_B_USER: 5,
-} as const;
 
 export function parseOrcaWhirlpoolInstruction(
   instructionData: Uint8Array,
@@ -42,7 +37,7 @@ export function parseOrcaWhirlpoolInstruction(
   if (instructionData.length < 8) return null;
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
-  if (discEq(instructionData, DISC.SWAP)) {
+  if (discEq(instructionData, DISC.SWAP) || discEq(instructionData, DISC.SWAP_V2)) {
     if (instructionData.length < 42) return null;
     const amount = readU64LE(instructionData, 8) ?? 0n;
     const other_threshold = readU64LE(instructionData, 16) ?? 0n;
@@ -50,14 +45,14 @@ export function parseOrcaWhirlpoolInstruction(
     const amount_specified_is_input = readBool(instructionData, 40);
     const a_to_b = readBool(instructionData, 41);
     if (amount_specified_is_input === null || a_to_b === null) return null;
-    const input_amount = amount_specified_is_input ? amount : other_threshold;
+    const input_amount = amount_specified_is_input ? amount : 0n;
     const output_amount = amount_specified_is_input ? other_threshold : amount;
     return {
       OrcaWhirlpoolSwap: {
         metadata: meta,
-        whirlpool: getAccount(accounts, SWAP_ACC.WHIRLPOOL) ?? Z,
+        whirlpool: getAccount(accounts, 1) ?? Z,
         a_to_b,
-        pre_sqrt_price: 0n,
+        pre_sqrt_price: sqrt_price_limit,
         post_sqrt_price: 0n,
         input_amount,
         output_amount,
@@ -78,7 +73,7 @@ export function parseOrcaWhirlpoolInstruction(
     return {
       OrcaWhirlpoolLiquidityIncreased: {
         metadata: meta,
-        whirlpool: getAccount(accounts, 2) ?? Z,
+        whirlpool: getAccount(accounts, 1) ?? Z,
         position: getAccount(accounts, 3) ?? Z,
         tick_lower_index: 0,
         tick_upper_index: 0,
@@ -100,7 +95,7 @@ export function parseOrcaWhirlpoolInstruction(
     return {
       OrcaWhirlpoolLiquidityDecreased: {
         metadata: meta,
-        whirlpool: getAccount(accounts, 2) ?? Z,
+        whirlpool: getAccount(accounts, 1) ?? Z,
         position: getAccount(accounts, 3) ?? Z,
         tick_lower_index: 0,
         tick_upper_index: 0,
@@ -109,6 +104,27 @@ export function parseOrcaWhirlpoolInstruction(
         token_b_amount: token_min_b,
         token_a_transfer_fee: 0n,
         token_b_transfer_fee: 0n,
+      },
+    };
+  }
+
+  if (discEq(instructionData, DISC.INITIALIZE_POOL)) {
+    if (instructionData.length < 8 + 2 + 16) return null;
+    const tick_spacing = readU16LE(instructionData, 8) ?? 0;
+    const initial_sqrt_price = readU128LE(instructionData, 10) ?? 0n;
+    return {
+      OrcaWhirlpoolPoolInitialized: {
+        metadata: meta,
+        whirlpool: getAccount(accounts, 1) ?? Z,
+        whirlpools_config: getAccount(accounts, 2) ?? Z,
+        token_mint_a: getAccount(accounts, 3) ?? Z,
+        token_mint_b: getAccount(accounts, 4) ?? Z,
+        tick_spacing,
+        token_program_a: getAccount(accounts, 8) ?? Z,
+        token_program_b: getAccount(accounts, 9) ?? Z,
+        decimals_a: 0,
+        decimals_b: 0,
+        initial_sqrt_price,
       },
     };
   }

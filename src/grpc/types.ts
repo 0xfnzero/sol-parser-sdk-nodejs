@@ -280,6 +280,10 @@ export function accountFilterMemcmp(
 export type EventType =
   // Block
   | "BlockMeta"
+  // RaydiumLaunchlab
+  | "RaydiumLaunchlabTrade"
+  | "RaydiumLaunchlabPoolCreate"
+  | "RaydiumLaunchlabMigrateAmm"
   // PumpFun
   | "PumpFunTrade"
   | "PumpFunBuy"
@@ -306,26 +310,35 @@ export type EventType =
   | "PumpSwapCreatePool"
   | "PumpSwapLiquidityAdded"
   | "PumpSwapLiquidityRemoved"
-  // Raydium CLMM
-  | "RaydiumClmmSwap"
-  | "RaydiumClmmIncreaseLiquidity"
-  | "RaydiumClmmDecreaseLiquidity"
-  | "RaydiumClmmCreatePool"
-  | "RaydiumClmmOpenPosition"
-  | "RaydiumClmmOpenPositionWithTokenExtNft"
-  | "RaydiumClmmClosePosition"
-  | "RaydiumClmmCollectFee"
   // Raydium CPMM
   | "RaydiumCpmmSwap"
   | "RaydiumCpmmDeposit"
   | "RaydiumCpmmWithdraw"
   | "RaydiumCpmmInitialize"
+  // Raydium CLMM
+  | "RaydiumClmmSwap"
+  | "RaydiumClmmCreatePool"
+  | "RaydiumClmmOpenPosition"
+  | "RaydiumClmmClosePosition"
+  | "RaydiumClmmIncreaseLiquidity"
+  | "RaydiumClmmDecreaseLiquidity"
+  | "RaydiumClmmLiquidityChange"
+  | "RaydiumClmmConfigChange"
+  | "RaydiumClmmCreatePersonalPosition"
+  | "RaydiumClmmLiquidityCalculate"
+  | "RaydiumClmmOpenLimitOrder"
+  | "RaydiumClmmIncreaseLimitOrder"
+  | "RaydiumClmmDecreaseLimitOrder"
+  | "RaydiumClmmSettleLimitOrder"
+  | "RaydiumClmmUpdateRewardInfos"
+  | "RaydiumClmmOpenPositionWithTokenExtNft"
+  | "RaydiumClmmCollectFee"
   // Raydium AMM V4
   | "RaydiumAmmV4Swap"
   | "RaydiumAmmV4Deposit"
   | "RaydiumAmmV4Withdraw"
-  | "RaydiumAmmV4WithdrawPnl"
   | "RaydiumAmmV4Initialize2"
+  | "RaydiumAmmV4WithdrawPnl"
   // Orca Whirlpool
   | "OrcaWhirlpoolSwap"
   | "OrcaWhirlpoolLiquidityIncreased"
@@ -342,8 +355,8 @@ export type EventType =
   | "MeteoraDammV2Swap"
   | "MeteoraDammV2AddLiquidity"
   | "MeteoraDammV2RemoveLiquidity"
-  | "MeteoraDammV2CreatePosition"
   | "MeteoraDammV2InitializePool"
+  | "MeteoraDammV2CreatePosition"
   | "MeteoraDammV2ClosePosition"
   // Meteora DBC
   | "MeteoraDbcSwap"
@@ -358,10 +371,6 @@ export type EventType =
   | "MeteoraDlmmCreatePosition"
   | "MeteoraDlmmClosePosition"
   | "MeteoraDlmmClaimFee"
-  // RaydiumLaunchlab
-  | "RaydiumLaunchlabTrade"
-  | "RaydiumLaunchlabPoolCreate"
-  | "RaydiumLaunchlabMigrateAmm"
   // Account types
   | "TokenAccount"
   | "TokenInfo"
@@ -392,6 +401,10 @@ export type StreamingEventType = EventType;
 export const ALL_EVENT_TYPES: EventType[] = [
   // Block
   "BlockMeta",
+  // RaydiumLaunchlab
+  "RaydiumLaunchlabTrade",
+  "RaydiumLaunchlabPoolCreate",
+  "RaydiumLaunchlabMigrateAmm",
   // PumpFun
   "PumpFunTrade",
   "PumpFunBuy",
@@ -418,26 +431,35 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "PumpSwapCreatePool",
   "PumpSwapLiquidityAdded",
   "PumpSwapLiquidityRemoved",
-  // Raydium CLMM
-  "RaydiumClmmSwap",
-  "RaydiumClmmIncreaseLiquidity",
-  "RaydiumClmmDecreaseLiquidity",
-  "RaydiumClmmCreatePool",
-  "RaydiumClmmOpenPosition",
-  "RaydiumClmmOpenPositionWithTokenExtNft",
-  "RaydiumClmmClosePosition",
-  "RaydiumClmmCollectFee",
   // Raydium CPMM
   "RaydiumCpmmSwap",
   "RaydiumCpmmDeposit",
   "RaydiumCpmmWithdraw",
   "RaydiumCpmmInitialize",
+  // Raydium CLMM
+  "RaydiumClmmSwap",
+  "RaydiumClmmCreatePool",
+  "RaydiumClmmOpenPosition",
+  "RaydiumClmmClosePosition",
+  "RaydiumClmmIncreaseLiquidity",
+  "RaydiumClmmDecreaseLiquidity",
+  "RaydiumClmmLiquidityChange",
+  "RaydiumClmmConfigChange",
+  "RaydiumClmmCreatePersonalPosition",
+  "RaydiumClmmLiquidityCalculate",
+  "RaydiumClmmOpenLimitOrder",
+  "RaydiumClmmIncreaseLimitOrder",
+  "RaydiumClmmDecreaseLimitOrder",
+  "RaydiumClmmSettleLimitOrder",
+  "RaydiumClmmUpdateRewardInfos",
+  "RaydiumClmmOpenPositionWithTokenExtNft",
+  "RaydiumClmmCollectFee",
   // Raydium AMM V4
   "RaydiumAmmV4Swap",
   "RaydiumAmmV4Deposit",
   "RaydiumAmmV4Withdraw",
-  "RaydiumAmmV4WithdrawPnl",
   "RaydiumAmmV4Initialize2",
+  "RaydiumAmmV4WithdrawPnl",
   // Orca Whirlpool
   "OrcaWhirlpoolSwap",
   "OrcaWhirlpoolLiquidityIncreased",
@@ -454,8 +476,8 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2Swap",
   "MeteoraDammV2AddLiquidity",
   "MeteoraDammV2RemoveLiquidity",
-  "MeteoraDammV2CreatePosition",
   "MeteoraDammV2InitializePool",
+  "MeteoraDammV2CreatePosition",
   "MeteoraDammV2ClosePosition",
   // Meteora DBC
   "MeteoraDbcSwap",
@@ -470,10 +492,6 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDlmmCreatePosition",
   "MeteoraDlmmClosePosition",
   "MeteoraDlmmClaimFee",
-  // RaydiumLaunchlab
-  "RaydiumLaunchlabTrade",
-  "RaydiumLaunchlabPoolCreate",
-  "RaydiumLaunchlabMigrateAmm",
   // Account types
   "TokenAccount",
   "TokenInfo",
@@ -572,6 +590,15 @@ const RAYDIUM_CLMM_FILTER_TYPES: readonly EventType[] = [
   "RaydiumClmmSwap",
   "RaydiumClmmIncreaseLiquidity",
   "RaydiumClmmDecreaseLiquidity",
+  "RaydiumClmmLiquidityChange",
+  "RaydiumClmmConfigChange",
+  "RaydiumClmmCreatePersonalPosition",
+  "RaydiumClmmLiquidityCalculate",
+  "RaydiumClmmOpenLimitOrder",
+  "RaydiumClmmIncreaseLimitOrder",
+  "RaydiumClmmDecreaseLimitOrder",
+  "RaydiumClmmSettleLimitOrder",
+  "RaydiumClmmUpdateRewardInfos",
   "RaydiumClmmCreatePool",
   "RaydiumClmmOpenPosition",
   "RaydiumClmmOpenPositionWithTokenExtNft",

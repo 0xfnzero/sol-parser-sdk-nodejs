@@ -33,6 +33,7 @@ export function readPubkeyIx(data: Uint8Array, o: number): string | null {
 export {
   readU64LE,
   readU128LE,
+  readU16LE,
   readU8,
   readBool,
   readI64LE,

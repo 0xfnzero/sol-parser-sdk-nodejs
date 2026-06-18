@@ -291,6 +291,8 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
     is_mayhem_mode,
     is_cashback_enabled,
     quote_mint,
+    quote_vault: defaultPubkey(),
+    quote_token_program: defaultPubkey(),
     virtual_quote_reserves,
     ix_name: "create",
   };

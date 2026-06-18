@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { parseCreateFromData, parseTradeFromData } from "./pump.js";
 import { parseLogOptimized } from "./optimized_matcher.js";
 import { RAYDIUM_LAUNCHLAB_DISC } from "./raydium_launchlab.js";
-import { eventTypeFilterExclude } from "../grpc/types.js";
+import { eventTypeFilterExclude, eventTypeFilterIncludeOnly } from "../grpc/types.js";
+import { METEORA_DLMM_PROGRAM_ID } from "../grpc/program_ids.js";
 
 function pk(seed: number): PublicKey {
   return new PublicKey(Uint8Array.from({ length: 32 }, (_, i) => (seed + i) & 0xff));
@@ -141,6 +142,76 @@ describe("PumpFun CreateEvent log parser", () => {
 });
 
 describe("fallback log parsers", () => {
+  it("parses the shared PumpFun/Raydium LaunchLab trade discriminator by requested event type", () => {
+    const out: number[] = [];
+    pushU64(out, RAYDIUM_LAUNCHLAB_DISC.TRADE);
+    pushPubkey(out, pk(10));
+    while (out.length < 8 + 88) out.push(0);
+    pushU64(out, 111n);
+    pushU64(out, 222n);
+    while (out.length < 8 + 136) out.push(0);
+    out.push(0);
+    out.push(0);
+    out.push(1);
+
+    const log = `Program data: ${Buffer.from(out).toString("base64")}`;
+    const ev = parseLogOptimized(
+      log,
+      "sig",
+      1,
+      0,
+      undefined,
+      1,
+      eventTypeFilterIncludeOnly(["RaydiumLaunchlabTrade"]),
+      false
+    );
+
+    expect(ev && "RaydiumLaunchlabTrade" in ev).toBe(true);
+    const trade = ev && "RaydiumLaunchlabTrade" in ev ? ev.RaydiumLaunchlabTrade : null;
+    expect(trade?.pool_state).toBe(pk(10).toBase58());
+    expect(trade?.amount_in).toBe(111n);
+    expect(trade?.amount_out).toBe(222n);
+    expect(trade?.is_buy).toBe(true);
+    expect(trade?.exact_in).toBe(true);
+  });
+
+  it("routes shared CPMM/DLMM swap Program data by scoped program id", () => {
+    const out: number[] = [];
+    pushU64(out, 0xDE331EC4DA5ABE8Fn);
+    pushPubkey(out, pk(11));
+    pushPubkey(out, pk(12));
+    out.push(0, 0, 0, 0);
+    out.push(0, 0, 0, 0);
+    pushU64(out, 333n);
+    pushU64(out, 444n);
+    out.push(1);
+    pushU64(out, 5n);
+    pushU64(out, 6n);
+    for (let i = 0; i < 16; i++) out.push(0);
+    pushU64(out, 7n);
+
+    const log = `Program data: ${Buffer.from(out).toString("base64")}`;
+    const ev = parseLogOptimized(
+      log,
+      "sig",
+      1,
+      0,
+      undefined,
+      1,
+      eventTypeFilterIncludeOnly(["MeteoraDlmmSwap"]),
+      false,
+      undefined,
+      METEORA_DLMM_PROGRAM_ID
+    );
+
+    expect(ev && "MeteoraDlmmSwap" in ev).toBe(true);
+    const swap = ev && "MeteoraDlmmSwap" in ev ? ev.MeteoraDlmmSwap : null;
+    expect(swap?.pool).toBe(pk(11).toBase58());
+    expect(swap?.from).toBe(pk(12).toBase58());
+    expect(swap?.amount_in).toBe(333n);
+    expect(swap?.amount_out).toBe(444n);
+  });
+
   it("applies actual event filters to Raydium LaunchLab fallback events", () => {
     const out: number[] = [];
     pushU64(out, RAYDIUM_LAUNCHLAB_DISC.POOL_CREATE);
