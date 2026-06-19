@@ -35,7 +35,26 @@
 
 ---
 
+## 这个 SDK 适合什么场景
+
+`sol-parser-sdk-nodejs` 是 FnZero Solana DEX 解析 SDK 的 TypeScript/Node.js 版本，适合 Bot、索引服务、跟单服务、狙击管道和后端系统，从 Yellowstone gRPC、Jito ShredStream、RPC 交易或协议账户数据中解析强类型 DEX 事件。
+
+| 方向 | 覆盖范围 |
+|------|----------|
+| 解析输入 | Yellowstone gRPC、ShredStream、RPC 交易、编码交易、协议账户数据 |
+| DEX 协议 | PumpFun、PumpSwap、Pump Fees、Raydium LaunchLab、Raydium CPMM、Raydium CLMM、Raydium AMM V4、Meteora DAMM v2、Meteora DLMM、Meteora DBC、Orca Whirlpool |
+| 使用场景 | 实时 DEX 事件解析、代币发射监控、跟单交易、狙击机器人、账户填充、JSON 事件管道 |
+| 运行环境 | Node.js 18+、TypeScript、npm/yarn/pnpm 项目 |
+
+---
+
 ## 发布说明
+
+### v0.5.8
+
+- 与 Rust SDK 的事件模型和 program 路由保持解析对齐。
+- 保持 PumpFun create 指令名与 ShredStream quote-mint 处理在多语言 SDK 中一致。
+- 继续维护支持 DEX 协议的低延迟 gRPC/RPC/ShredStream 解析路径。
 
 ### v0.5.6
 
@@ -62,7 +81,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.6
+npm install sol-parser-sdk-nodejs@0.5.8
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）

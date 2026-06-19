@@ -35,7 +35,26 @@
 
 ---
 
+## What This SDK Is For
+
+`sol-parser-sdk-nodejs` is the TypeScript/Node.js implementation of the FnZero Solana DEX parser SDK. It is built for bots, indexers, copy-trading services, sniper pipelines, and backend systems that need typed DEX events from Yellowstone gRPC, Jito ShredStream, RPC transactions, or protocol account data.
+
+| Area | Coverage |
+|------|----------|
+| Parser inputs | Yellowstone gRPC, ShredStream, RPC transactions, encoded transactions, protocol account data |
+| DEX protocols | PumpFun, PumpSwap, Pump Fees, Raydium LaunchLab, Raydium CPMM, Raydium CLMM, Raydium AMM V4, Meteora DAMM v2, Meteora DLMM, Meteora DBC, Orca Whirlpool |
+| Use cases | Real-time DEX event parsing, token launch monitoring, copy trading, sniper bots, account filling, JSON event pipelines |
+| Runtime | Node.js 18+, TypeScript, npm/yarn/pnpm projects |
+
+---
+
 ## Release notes
+
+### v0.5.8
+
+- Syncs parser parity with the Rust SDK event model and program routing.
+- Keeps PumpFun create instruction names and ShredStream quote-mint handling aligned across language SDKs.
+- Maintains low-latency gRPC/RPC/ShredStream parsing paths for supported DEX protocols.
 
 ### v0.5.6
 
@@ -62,7 +81,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.6
+npm install sol-parser-sdk-nodejs@0.5.8
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
