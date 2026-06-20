@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/sol-parser-sdk-nodejs"><img src="https://img.shields.io/badge/npm-sol--parser--sdk--nodejs-red.svg" alt="npm"></a>
+    <a href="https://www.npmjs.com/package/sol-parser-sdk"><img src="https://img.shields.io/badge/npm-sol--parser--sdk-red.svg" alt="npm"></a>
     <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -37,7 +37,7 @@
 
 ## 这个 SDK 适合什么场景
 
-`sol-parser-sdk-nodejs` 是 FnZero Solana DEX 解析 SDK 的 TypeScript/Node.js 版本，适合 Bot、索引服务、跟单服务、狙击管道和后端系统，从 Yellowstone gRPC、Jito ShredStream、RPC 交易或协议账户数据中解析强类型 DEX 事件。
+`sol-parser-sdk` 是 FnZero Solana DEX 解析 SDK 的 TypeScript/Node.js 版本。GitHub 仓库名为 `sol-parser-sdk-nodejs`，用于和 Rust/Python/Go 仓库区分。它适合 Bot、索引服务、跟单服务、狙击管道和后端系统，从 Yellowstone gRPC、Jito ShredStream、RPC 交易或协议账户数据中解析强类型 DEX 事件。
 
 | 方向 | 覆盖范围 |
 |------|----------|
@@ -81,7 +81,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.8
+npm install sol-parser-sdk@0.5.8
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -119,7 +119,7 @@ import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} from "sol-parser-sdk-nodejs";
+} from "sol-parser-sdk";
 
 const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
 const X_TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";

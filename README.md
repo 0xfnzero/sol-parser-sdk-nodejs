@@ -4,7 +4,7 @@
 </div>
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/sol-parser-sdk-nodejs"><img src="https://img.shields.io/badge/npm-sol--parser--sdk--nodejs-red.svg" alt="npm"></a>
+    <a href="https://www.npmjs.com/package/sol-parser-sdk"><img src="https://img.shields.io/badge/npm-sol--parser--sdk-red.svg" alt="npm"></a>
     <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
 </p>
 
@@ -37,7 +37,7 @@
 
 ## What This SDK Is For
 
-`sol-parser-sdk-nodejs` is the TypeScript/Node.js implementation of the FnZero Solana DEX parser SDK. It is built for bots, indexers, copy-trading services, sniper pipelines, and backend systems that need typed DEX events from Yellowstone gRPC, Jito ShredStream, RPC transactions, or protocol account data.
+`sol-parser-sdk` is the TypeScript/Node.js implementation of the FnZero Solana DEX parser SDK. The GitHub repository is named `sol-parser-sdk-nodejs` to distinguish it from the Rust/Python/Go repositories. It is built for bots, indexers, copy-trading services, sniper pipelines, and backend systems that need typed DEX events from Yellowstone gRPC, Jito ShredStream, RPC transactions, or protocol account data.
 
 | Area | Coverage |
 |------|----------|
@@ -81,7 +81,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk-nodejs@0.5.8
+npm install sol-parser-sdk@0.5.8
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
@@ -119,7 +119,7 @@ import {
   YellowstoneGrpc,
   parseDexEventsFromGrpcTransactionInfo,
   dexEventToJsonString,
-} from "sol-parser-sdk-nodejs";
+} from "sol-parser-sdk";
 
 const ENDPOINT = process.env.GRPC_URL?.trim() ?? "";
 const X_TOKEN = process.env.GRPC_TOKEN?.trim() ?? "";
