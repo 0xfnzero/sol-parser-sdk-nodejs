@@ -12,6 +12,7 @@ import {
   readBool,
   readI64LE,
   readPubkey,
+  readU128LE,
   readU16LE,
   readU32LE,
   readU64LE,
@@ -31,9 +32,74 @@ function bnI64(v: ReturnType<typeof readI64LE>): bigint {
 
 const ZP = defaultPubkey();
 
+interface PumpSwapTradeTail {
+  cashback_fee_basis_points: bigint;
+  cashback: bigint;
+  buyback_fee_basis_points: bigint;
+  buyback_fee: bigint;
+  virtual_quote_reserves: bigint;
+  can_boost: boolean;
+  base_supply: bigint;
+}
+
+function emptyTradeTail(): PumpSwapTradeTail {
+  return {
+    cashback_fee_basis_points: 0n,
+    cashback: 0n,
+    buyback_fee_basis_points: 0n,
+    buyback_fee: 0n,
+    virtual_quote_reserves: 0n,
+    can_boost: false,
+    base_supply: 0n,
+  };
+}
+
+function parseTradeTail(data: Uint8Array): PumpSwapTradeTail | null {
+  const tail = emptyTradeTail();
+  if (data.length === 0) return tail;
+  if (data.length < 16) return null;
+
+  tail.cashback_fee_basis_points = bn64(readU64LE(data, 0));
+  tail.cashback = bn64(readU64LE(data, 8));
+  if (data.length === 16) return tail;
+  if (data.length < 32) return null;
+
+  tail.buyback_fee_basis_points = bn64(readU64LE(data, 16));
+  tail.buyback_fee = bn64(readU64LE(data, 24));
+  if (data.length === 32) return tail;
+  if (data.length < 57) return null;
+
+  const virtual = readU128LE(data, 32);
+  if (virtual === null) return null;
+  tail.virtual_quote_reserves = BigInt.asIntN(128, virtual);
+  const canBoost = readU8(data, 48);
+  if (canBoost !== 0 && canBoost !== 1) return null;
+  tail.can_boost = canBoost === 1;
+  tail.base_supply = bn64(readU64LE(data, 49));
+  return tail;
+}
+
+function readStrictBorshString(
+  data: Uint8Array,
+  offset: number
+): { value: string; next: number } | null {
+  const len = readU32LE(data, offset);
+  if (len === null || offset + 4 + len > data.length) return null;
+  try {
+    const value = new TextDecoder("utf-8", { fatal: true }).decode(
+      data.subarray(offset + 4, offset + 4 + len)
+    );
+    return { value, next: offset + 4 + len };
+  } catch {
+    return null;
+  }
+}
+
 export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const MIN = 16 * 8 + 7 * 32 + 1 + 5 * 8 + 4;
-  if (data.length < MIN) return null;
+  const LEGACY_LEN = 16 * 8 + 7 * 32 + 1 + 4 * 8;
+  const MIN_REQUIRED_LEN = LEGACY_LEN + 8 + 4;
+  if (data.length !== LEGACY_LEN && data.length < MIN_REQUIRED_LEN) return null;
+  if (data[352] !== 0 && data[352] !== 1) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));
   o += 8;
@@ -81,7 +147,7 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
   o += 8;
   const coin_creator_fee = bn64(readU64LE(data, o));
   o += 8;
-  const track_volume = readBool(data, o)!;
+  const track_volume = data[o] === 1;
   o += 1;
   const total_unclaimed_tokens = bn64(readU64LE(data, o));
   o += 8;
@@ -91,15 +157,19 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
   o += 8;
   const last_update_timestamp = bnI64(readI64LE(data, o));
   o += 8;
-  const min_base_amount_out = bn64(readU64LE(data, o));
-  o += 8;
+  let min_base_amount_out = 0n;
   let ix_name = "";
-  if (o + 4 <= data.length) {
-    const len = readU32LE(data, o)!;
-    o += 4;
-    if (o + len <= data.length) {
-      ix_name = new TextDecoder().decode(data.subarray(o, o + len));
-    }
+  let tail = emptyTradeTail();
+  if (data.length !== LEGACY_LEN) {
+    min_base_amount_out = bn64(readU64LE(data, o));
+    o += 8;
+    const name = readStrictBorshString(data, o);
+    if (name === null) return null;
+    ix_name = name.value;
+    o = name.next;
+    const parsedTail = parseTradeTail(data.subarray(o));
+    if (parsedTail === null) return null;
+    tail = parsedTail;
   }
   const ev: PumpSwapBuyEvent = {
     metadata,
@@ -133,8 +203,13 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
     last_update_timestamp,
     min_base_amount_out,
     ix_name,
-    cashback_fee_basis_points: 0n,
-    cashback: 0n,
+    cashback_fee_basis_points: tail.cashback_fee_basis_points,
+    cashback: tail.cashback,
+    buyback_fee_basis_points: tail.buyback_fee_basis_points,
+    buyback_fee: tail.buyback_fee,
+    virtual_quote_reserves: tail.virtual_quote_reserves,
+    can_boost: tail.can_boost,
+    base_supply: tail.base_supply,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,
@@ -149,8 +224,10 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
 }
 
 export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const REQUIRED = 13 * 8 + 7 * 32;
+  const REQUIRED = 14 * 8 + 7 * 32 + 2 * 8;
   if (data.length < REQUIRED) return null;
+  const tail = parseTradeTail(data.subarray(REQUIRED));
+  if (tail === null) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));
   o += 8;
@@ -198,12 +275,6 @@ export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): De
   o += 8;
   const coin_creator_fee = bn64(readU64LE(data, o));
   o += 8;
-  let cashback_fee_basis_points = 0n;
-  let cashback = 0n;
-  if (data.length >= 368) {
-    cashback_fee_basis_points = bn64(readU64LE(data, 352));
-    cashback = bn64(readU64LE(data, 360));
-  }
   const ev: PumpSwapSellEvent = {
     metadata,
     timestamp,
@@ -229,8 +300,13 @@ export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): De
     coin_creator,
     coin_creator_fee_basis_points,
     coin_creator_fee,
-    cashback_fee_basis_points,
-    cashback,
+    cashback_fee_basis_points: tail.cashback_fee_basis_points,
+    cashback: tail.cashback,
+    buyback_fee_basis_points: tail.buyback_fee_basis_points,
+    buyback_fee: tail.buyback_fee,
+    virtual_quote_reserves: tail.virtual_quote_reserves,
+    can_boost: tail.can_boost,
+    base_supply: tail.base_supply,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,

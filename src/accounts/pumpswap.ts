@@ -8,14 +8,15 @@ import type {
 } from "../core/dex_event.js";
 import type { AccountData } from "./types.js";
 import { hasDiscriminator } from "./utils.js";
-import { readPubkey, readU64LE, readU16LE, readU8 } from "../util/binary.js";
+import { readPubkey, readU128LE, readU64LE, readU16LE, readU8 } from "../util/binary.js";
 import { PUMPSWAP_PROGRAM_ID } from "../instr/program_ids.js";
 
 const GLOBAL_DISC = Uint8Array.from([149, 8, 156, 202, 160, 252, 176, 217]);
 const POOL_DISC = Uint8Array.from([241, 154, 109, 4, 17, 177, 109, 188]);
 
 const GLOBAL_BODY = 634;
-const POOL_BODY = 244;
+const POOL_LEGACY_BODY = 244;
+const POOL_BODY = 253;
 
 export function isGlobalConfigAccount(data: Uint8Array): boolean {
   return hasDiscriminator(data, GLOBAL_DISC);
@@ -98,7 +99,10 @@ export function parsePumpswapGlobalConfig(account: AccountData, metadata: EventM
 }
 
 export function parsePumpswapPool(account: AccountData, metadata: EventMetadata): DexEvent | null {
-  if (account.data.length < 8 + POOL_BODY) return null;
+  if (account.data.length < 8 + POOL_LEGACY_BODY) return null;
+  if (account.data.length !== 8 + POOL_LEGACY_BODY && account.data.length < 8 + POOL_BODY) {
+    return null;
+  }
   if (!isPoolAccount(account.data)) return null;
   const d = account.data.subarray(8);
   let o = 0;
@@ -137,6 +141,13 @@ export function parsePumpswapPool(account: AccountData, metadata: EventMetadata)
   o += 1;
   const cashback = readU8(d, o);
   if (cashback === null) return null;
+  o += 1;
+  let virtual_quote_reserves = 0n;
+  if (d.length >= POOL_BODY) {
+    const virtual = readU128LE(d, o);
+    if (virtual === null) return null;
+    virtual_quote_reserves = BigInt.asIntN(128, virtual);
+  }
   const pool: PumpSwapPool = {
     pool_bump,
     index,
@@ -150,6 +161,7 @@ export function parsePumpswapPool(account: AccountData, metadata: EventMetadata)
     coin_creator,
     is_mayhem_mode: mayhem !== 0,
     is_cashback_coin: cashback !== 0,
+    virtual_quote_reserves,
   };
   const ev: PumpSwapPoolAccountEvent = {
     metadata,

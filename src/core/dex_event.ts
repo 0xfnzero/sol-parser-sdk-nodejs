@@ -399,6 +399,11 @@ export interface PumpSwapBuyEvent {
   /** 与 `PumpSwapBuyEvent`：PUMP_CASHBACK / IDL */
   cashback_fee_basis_points: bigint;
   cashback: bigint;
+  buyback_fee_basis_points: bigint;
+  buyback_fee: bigint;
+  virtual_quote_reserves: bigint;
+  can_boost: boolean;
+  base_supply: bigint;
   /** 由 fees 指令数据填充（见 `fillDataRpc`） */
   is_pump_pool: boolean;
   /** 自指令账户填充（account_fillers/pumpswap） */
@@ -442,6 +447,11 @@ export interface PumpSwapSellEvent {
   coin_creator_fee: bigint;
   cashback_fee_basis_points: bigint;
   cashback: bigint;
+  buyback_fee_basis_points: bigint;
+  buyback_fee: bigint;
+  virtual_quote_reserves: bigint;
+  can_boost: boolean;
+  base_supply: bigint;
   is_pump_pool: boolean;
   base_mint: string;
   quote_mint: string;
@@ -1431,6 +1441,7 @@ export interface PumpSwapPool {
   coin_creator: string;
   is_mayhem_mode: boolean;
   is_cashback_coin: boolean;
+  virtual_quote_reserves: bigint;
 }
 
 export interface PumpSwapPoolAccountEvent {
