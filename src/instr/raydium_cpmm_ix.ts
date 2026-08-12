@@ -39,7 +39,7 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmSwap: {
         metadata: meta,
-        pool_id: Z,
+        pool_id: getAccount(accounts, 3) ?? Z,
         input_amount: 0n,
         output_amount: 0n,
         input_vault_before: 0n,
@@ -56,7 +56,7 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmSwap: {
         metadata: meta,
-        pool_id: Z,
+        pool_id: getAccount(accounts, 3) ?? Z,
         input_amount: 0n,
         output_amount: 0n,
         input_vault_before: 0n,

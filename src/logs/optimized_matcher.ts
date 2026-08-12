@@ -46,6 +46,7 @@ import {
 import {
   parseCreatePoolFromData as parseCpmmCreatePool,
   parseDepositFromData as parseCpmmDeposit,
+  parseSwapEventFromData as parseCpmmSwapEvent,
   parseSwapBaseInFromData as parseCpmmSwapIn,
   parseSwapBaseOutFromData as parseCpmmSwapOut,
   parseWithdrawFromData as parseCpmmWithdraw,
@@ -56,6 +57,7 @@ import {
   parseInitialize2FromData,
   parseSwapBaseInFromData as parseAmmSwapIn,
   parseSwapBaseOutFromData as parseAmmSwapOut,
+  parseRayLogSwap as parseAmmRayLogSwap,
   parseWithdrawFromData as parseAmmWithdraw,
   parseWithdrawPnlFromData as parseAmmWithdrawPnl,
 } from "./raydium_amm.js";
@@ -99,14 +101,16 @@ import {
 } from "../grpc/program_ids.js";
 
 const DLMM_DISC = {
-  SWAP: DISC.RAYDIUM_CPMM_SWAP_BASE_IN,
-  ADD_LIQUIDITY: u64leDiscriminator([181, 157, 89, 67, 143, 182, 52, 72]),
-  REMOVE_LIQUIDITY: u64leDiscriminator([80, 85, 209, 72, 24, 206, 35, 178]),
-  INITIALIZE_POOL: u64leDiscriminator([95, 180, 10, 172, 84, 174, 232, 40]),
+  SWAP: u64leDiscriminator([81, 108, 227, 190, 205, 208, 10, 196]),
+  SWAP2: u64leDiscriminator([46, 116, 82, 215, 148, 27, 84, 77]),
+  ADD_LIQUIDITY: u64leDiscriminator([31, 94, 125, 90, 227, 52, 61, 186]),
+  REMOVE_LIQUIDITY: u64leDiscriminator([116, 244, 97, 232, 103, 31, 152, 58]),
+  INITIALIZE_POOL: u64leDiscriminator([185, 74, 252, 125, 27, 215, 188, 111]),
   INITIALIZE_BIN_ARRAY: u64leDiscriminator([11, 18, 155, 194, 33, 115, 238, 119]),
-  CREATE_POSITION: u64leDiscriminator([123, 233, 11, 43, 146, 180, 97, 119]),
-  CLOSE_POSITION: u64leDiscriminator([94, 168, 102, 45, 59, 122, 137, 54]),
-  CLAIM_FEE: u64leDiscriminator([152, 70, 208, 111, 104, 91, 44, 1]),
+  CREATE_POSITION: u64leDiscriminator([144, 142, 252, 84, 157, 53, 37, 121]),
+  CLOSE_POSITION: u64leDiscriminator([255, 196, 16, 107, 28, 202, 53, 128]),
+  CLAIM_FEE: u64leDiscriminator([75, 122, 154, 48, 140, 74, 123, 163]),
+  CLAIM_FEE2: u64leDiscriminator([232, 171, 242, 97, 58, 77, 35, 45]),
 } as const;
 
 function discriminatorToEventType(disc: bigint): EventType | null {
@@ -229,7 +233,11 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     return null;
   }
   if (programId === RAYDIUM_CPMM_PROGRAM_ID) {
-    if (disc === DISC.RAYDIUM_CPMM_SWAP_BASE_IN || disc === DISC.RAYDIUM_CPMM_SWAP_BASE_OUT) return "RaydiumCpmmSwap";
+    if (
+      disc === DISC.RAYDIUM_CPMM_SWAP_EVENT ||
+      disc === DISC.RAYDIUM_CPMM_SWAP_BASE_IN ||
+      disc === DISC.RAYDIUM_CPMM_SWAP_BASE_OUT
+    ) return "RaydiumCpmmSwap";
     if (disc === DISC.RAYDIUM_CPMM_CREATE_POOL) return "RaydiumCpmmInitialize";
     if (disc === DISC.RAYDIUM_CPMM_DEPOSIT) return "RaydiumCpmmDeposit";
     if (disc === DISC.RAYDIUM_CPMM_WITHDRAW) return "RaydiumCpmmWithdraw";
@@ -275,14 +283,14 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     return null;
   }
   if (programId === METEORA_DLMM_PROGRAM_ID) {
-    if (disc === DLMM_DISC.SWAP) return "MeteoraDlmmSwap";
+    if (disc === DLMM_DISC.SWAP || disc === DLMM_DISC.SWAP2) return "MeteoraDlmmSwap";
     if (disc === DLMM_DISC.ADD_LIQUIDITY) return "MeteoraDlmmAddLiquidity";
     if (disc === DLMM_DISC.REMOVE_LIQUIDITY) return "MeteoraDlmmRemoveLiquidity";
     if (disc === DLMM_DISC.INITIALIZE_POOL) return "MeteoraDlmmInitializePool";
     if (disc === DLMM_DISC.INITIALIZE_BIN_ARRAY) return "MeteoraDlmmInitializeBinArray";
     if (disc === DLMM_DISC.CREATE_POSITION) return "MeteoraDlmmCreatePosition";
     if (disc === DLMM_DISC.CLOSE_POSITION) return "MeteoraDlmmClosePosition";
-    if (disc === DLMM_DISC.CLAIM_FEE) return "MeteoraDlmmClaimFee";
+    if (disc === DLMM_DISC.CLAIM_FEE || disc === DLMM_DISC.CLAIM_FEE2) return "MeteoraDlmmClaimFee";
     return null;
   }
   return discriminatorToEventType(disc);
@@ -535,6 +543,14 @@ export function parseLogOptimized(
   recentBlockhash?: Uint8Array,
   programId?: string
 ): DexEvent | null {
+  if (programId === RAYDIUM_AMM_V4_PROGRAM_ID && log.indexOf("ray_log: ") >= 0) {
+    if (eventTypeFilter && !eventTypeFilter.shouldInclude("RaydiumAmmV4Swap")) return null;
+    const rb = recentBlockhash && recentBlockhash.length > 0
+      ? bs58.encode(recentBlockhash)
+      : undefined;
+    const metadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
+    return parseAmmRayLogSwap(log, metadata);
+  }
   const buf = decodeProgramDataLine(log);
   if (!buf) return null;
   const disc = readDiscriminatorU64(buf);
@@ -601,6 +617,8 @@ export function parseLogOptimized(
   }
   if (programId === RAYDIUM_CPMM_PROGRAM_ID) {
     switch (disc) {
+      case DISC.RAYDIUM_CPMM_SWAP_EVENT:
+        return applyActualEventTypeFilter(parseCpmmSwapEvent(data, metadata), eventTypeFilter);
       case DISC.RAYDIUM_CPMM_SWAP_BASE_IN:
         return applyActualEventTypeFilter(parseCpmmSwapIn(data, metadata), eventTypeFilter);
       case DISC.RAYDIUM_CPMM_SWAP_BASE_OUT:

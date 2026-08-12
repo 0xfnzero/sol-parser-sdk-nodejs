@@ -81,9 +81,12 @@ export function fillRaydiumClmmDecreaseLiquidityAccounts(
 }
 
 export function fillRaydiumCpmmSwapAccounts(
-  _e: RaydiumCpmmSwapEvent,
-  _get: (i: number) => string
-): void {}
+  e: RaydiumCpmmSwapEvent,
+  get: (i: number) => string
+): void {
+  const zero = Z();
+  if (!e.pool_id || e.pool_id === zero) e.pool_id = get(3);
+}
 
 export function fillRaydiumCpmmDepositAccounts(
   e: RaydiumCpmmDepositEvent,

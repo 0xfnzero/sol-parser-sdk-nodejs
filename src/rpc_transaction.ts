@@ -30,6 +30,7 @@ import {
   parseInnerInstructionUnified,
 } from "./instr/inner.js";
 import { parseInstructionUnified } from "./instr/mod.js";
+import { METEORA_DLMM_PROGRAM_ID } from "./instr/program_ids.js";
 import {
   parseInvokeInfo,
   parseLogOptimizedWithProgramId,
@@ -37,7 +38,40 @@ import {
 } from "./logs/optimized_matcher.js";
 
 const DEFAULT_PK = PublicKey.default.toBase58();
-type IndexedInstructionEvent = { outerIdx: number; innerIdx: number | null; event: DexEvent };
+const PUMPFUN_TRADE_EVENT_NAMES = new Set([
+  "PumpFunTrade",
+  "PumpFunBuy",
+  "PumpFunSell",
+  "PumpFunBuyExactSolIn",
+]);
+type IndexedInstructionEvent = {
+  outerIdx: number;
+  innerIdx: number | null;
+  stackHeight?: number;
+  isDlmmEventCpi: boolean;
+  event: DexEvent;
+};
+
+const EVENT_CPI_PREFIX = Uint8Array.from([228, 69, 165, 46, 81, 203, 154, 29]);
+const LEGACY_EVENT_CPI_SUFFIX = Uint8Array.from([155, 167, 108, 32, 122, 76, 173, 64]);
+
+function bytesEqualAt(data: Uint8Array, expected: Uint8Array, offset: number): boolean {
+  for (let i = 0; i < expected.length; i++) {
+    if (data[offset + i] !== expected[i]) return false;
+  }
+  return true;
+}
+
+function isDlmmEventCpi(programId: string, data: Uint8Array): boolean {
+  return programId === METEORA_DLMM_PROGRAM_ID && data.length >= 16 && (
+    bytesEqualAt(data, EVENT_CPI_PREFIX, 0) ||
+    bytesEqualAt(data, LEGACY_EVENT_CPI_SUFFIX, 8)
+  );
+}
+
+function isDlmmEvent(event: DexEvent): boolean {
+  return eventName(event).startsWith("MeteoraDlmm");
+}
 
 function eventName(ev: DexEvent): string {
   return Object.keys(ev)[0] ?? "";
@@ -247,27 +281,33 @@ function mergePumpSwapBuySellInstruction(base: Record<string, any>, inner: Recor
   }
 }
 
-function mergeInstructionEvent(base: DexEvent, inner: DexEvent): void {
+function mergeDlmmInstruction(baseName: string, base: Record<string, any>, inner: Record<string, any>): void {
+  const context = baseName === "MeteoraDlmmInitializePool"
+    ? { creator: base.creator, active_bin_id: base.active_bin_id }
+    : baseName === "MeteoraDlmmCreatePosition"
+      ? { lower_bin_id: base.lower_bin_id, width: base.width }
+      : baseName === "MeteoraDlmmClosePosition"
+        ? { pool: base.pool }
+        : null;
+  Object.assign(base, inner);
+  if (context) Object.assign(base, context);
+}
+
+function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
   const baseName = eventName(base);
   const innerName = eventName(inner);
   const baseData = eventPayload(base);
   const innerData = eventPayload(inner);
-  if (!baseData || !innerData) return;
+  if (!baseData || !innerData) return false;
 
-  const pumpfunTradeNames = new Set([
-    "PumpFunTrade",
-    "PumpFunBuy",
-    "PumpFunSell",
-    "PumpFunBuyExactSolIn",
-  ]);
-  if (pumpfunTradeNames.has(baseName) && pumpfunTradeNames.has(innerName)) {
+  if (PUMPFUN_TRADE_EVENT_NAMES.has(baseName) && PUMPFUN_TRADE_EVENT_NAMES.has(innerName)) {
     mergePumpfunTradeInstruction(baseData, innerData);
-    return;
+    return true;
   }
 
   if (baseName === "PumpFunCreateV2" && innerName === "PumpFunCreateV2") {
     mergePumpfunCreateV2Instruction(baseData, innerData);
-    return;
+    return true;
   }
 
   if (
@@ -275,12 +315,18 @@ function mergeInstructionEvent(base: DexEvent, inner: DexEvent): void {
     (baseName === "PumpSwapSell" && innerName === "PumpSwapSell")
   ) {
     mergePumpSwapBuySellInstruction(baseData, innerData);
-    return;
+    return true;
   }
 
   if (baseName === innerName) {
-    Object.assign(baseData, innerData);
+    if (baseName.startsWith("MeteoraDlmm")) {
+      mergeDlmmInstruction(baseName, baseData, innerData);
+    } else {
+      Object.assign(baseData, innerData);
+    }
+    return true;
   }
+  return false;
 }
 
 function mergeInstructionEvents(events: IndexedInstructionEvent[]): DexEvent[] {
@@ -293,24 +339,74 @@ function mergeInstructionEvents(events: IndexedInstructionEvent[]): DexEvent[] {
   });
 
   const out: DexEvent[] = [];
-  let pending: { outerIdx: number; event: DexEvent } | null = null;
+  let outerTarget: { outerIdx: number; resultIdx: number } | null = null;
+  const dlmmTargets: Array<{
+    outerIdx: number;
+    stackHeight?: number;
+    resultIdx: number;
+  }> = [];
   for (const item of events) {
     if (item.innerIdx === null) {
-      if (pending) out.push(pending.event);
-      pending = { outerIdx: item.outerIdx, event: item.event };
+      out.push(item.event);
+      const resultIdx = out.length - 1;
+      outerTarget = { outerIdx: item.outerIdx, resultIdx };
+      dlmmTargets.length = 0;
+      if (isDlmmEvent(item.event)) {
+        dlmmTargets.push({
+          outerIdx: item.outerIdx,
+          stackHeight: item.stackHeight,
+          resultIdx,
+        });
+      }
       continue;
     }
-    if (pending && pending.outerIdx === item.outerIdx) {
-      mergeInstructionEvent(pending.event, item.event);
-    } else {
-      if (pending) {
-        out.push(pending.event);
-        pending = null;
+
+    if (item.isDlmmEventCpi) {
+      let merged = false;
+      for (let i = dlmmTargets.length - 1; i >= 0; i--) {
+        const target = dlmmTargets[i]!;
+        const directChild = target.stackHeight === undefined || item.stackHeight === undefined ||
+          item.stackHeight === target.stackHeight + 1;
+        if (target.outerIdx === item.outerIdx && directChild) {
+          dlmmTargets.length = i + 1;
+          merged = mergeInstructionEvent(out[target.resultIdx]!, item.event);
+          break;
+        }
       }
+      if (!merged) out.push(item.event);
+      continue;
+    }
+
+    let resultIdx = -1;
+    if (outerTarget && outerTarget.outerIdx === item.outerIdx &&
+        mergeInstructionEvent(out[outerTarget.resultIdx]!, item.event)) {
+      resultIdx = outerTarget.resultIdx;
+    } else {
       out.push(item.event);
+      resultIdx = out.length - 1;
+    }
+
+    if (isDlmmEvent(item.event)) {
+      if (item.stackHeight === undefined) {
+        dlmmTargets.length = 0;
+      } else {
+        while (dlmmTargets.length > 0) {
+          const last = dlmmTargets[dlmmTargets.length - 1]!;
+          if (last.outerIdx !== item.outerIdx ||
+              (last.stackHeight !== undefined && last.stackHeight >= item.stackHeight)) {
+            dlmmTargets.pop();
+          } else {
+            break;
+          }
+        }
+      }
+      dlmmTargets.push({
+        outerIdx: item.outerIdx,
+        stackHeight: item.stackHeight,
+        resultIdx,
+      });
     }
   }
-  if (pending) out.push(pending.event);
   return out;
 }
 
@@ -352,7 +448,13 @@ function parseOuterAndInnerInstructions(
       filter,
       programId
     );
-    if (ev) indexedEvents.push({ outerIdx, innerIdx: null, event: ev });
+    if (ev) indexedEvents.push({
+      outerIdx,
+      innerIdx: null,
+      stackHeight: 1,
+      isDlmmEventCpi: false,
+      event: ev,
+    });
   }
 
   const innerGroups = meta?.innerInstructions;
@@ -388,7 +490,13 @@ function parseOuterAndInnerInstructions(
           programId,
           isCreatedBuy
         );
-      if (ev) indexedEvents.push({ outerIdx: group.index, innerIdx, event: ev });
+      if (ev) indexedEvents.push({
+        outerIdx: group.index,
+        innerIdx,
+        stackHeight: (ix as CompiledInstruction & { stackHeight?: number }).stackHeight,
+        isDlmmEventCpi: isDlmmEventCpi(programId, data),
+        event: ev,
+      });
     }
   }
 

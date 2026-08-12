@@ -47,10 +47,11 @@ export function parseOrcaWhirlpoolInstruction(
     if (amount_specified_is_input === null || a_to_b === null) return null;
     const input_amount = amount_specified_is_input ? amount : 0n;
     const output_amount = amount_specified_is_input ? other_threshold : amount;
+    const whirlpoolIndex = discEq(instructionData, DISC.SWAP_V2) ? 4 : 2;
     return {
       OrcaWhirlpoolSwap: {
         metadata: meta,
-        whirlpool: getAccount(accounts, 1) ?? Z,
+        whirlpool: getAccount(accounts, whirlpoolIndex) ?? Z,
         a_to_b,
         pre_sqrt_price: sqrt_price_limit,
         post_sqrt_price: 0n,

@@ -71,7 +71,7 @@ describe("Orca Whirlpool instruction parity", () => {
     );
     expect(ev && "OrcaWhirlpoolSwap" in ev).toBe(true);
     const data = ev && "OrcaWhirlpoolSwap" in ev ? ev.OrcaWhirlpoolSwap : null;
-    expect(data?.whirlpool).toBe("account_1");
+    expect(data?.whirlpool).toBe("account_2");
     expect(data?.a_to_b).toBe(false);
     expect(data?.pre_sqrt_price).toBe(sqrtPriceLimit);
     expect(data?.post_sqrt_price).toBe(0n);
@@ -80,7 +80,7 @@ describe("Orca Whirlpool instruction parity", () => {
 
     const swapV2 = parseInstructionUnified(
       swapInstruction(SWAP_V2_DISC, 333n, 444n, sqrtPriceLimit + 1n, false, true),
-      accounts(4),
+      accounts(5),
       "sig",
       1,
       0,
@@ -91,7 +91,7 @@ describe("Orca Whirlpool instruction parity", () => {
     );
     expect(swapV2 && "OrcaWhirlpoolSwap" in swapV2).toBe(true);
     const swapV2Data = swapV2 && "OrcaWhirlpoolSwap" in swapV2 ? swapV2.OrcaWhirlpoolSwap : null;
-    expect(swapV2Data?.whirlpool).toBe("account_1");
+    expect(swapV2Data?.whirlpool).toBe("account_4");
     expect(swapV2Data?.a_to_b).toBe(true);
     expect(swapV2Data?.pre_sqrt_price).toBe(sqrtPriceLimit + 1n);
     expect(swapV2Data?.input_amount).toBe(0n);
