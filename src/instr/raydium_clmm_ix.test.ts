@@ -214,7 +214,7 @@ describe("Raydium CPMM instruction parity", () => {
     );
     expect(swap && "RaydiumCpmmSwap" in swap).toBe(true);
     const swapData = swap && "RaydiumCpmmSwap" in swap ? swap.RaydiumCpmmSwap : null;
-    expect(swapData?.pool_id).toBe("11111111111111111111111111111111");
+    expect(swapData?.pool_id).toBe("account_3");
     expect(swapData?.input_amount).toBe(0n);
     expect(swapData?.output_amount).toBe(0n);
     expect(swapData?.base_input).toBe(true);

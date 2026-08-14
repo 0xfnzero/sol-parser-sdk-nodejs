@@ -41,6 +41,39 @@ function emptySwap(metadata: EventMetadata, amm: string, user: string): RaydiumA
   };
 }
 
+const RAY_LOG_PREFIX = "Program log: ray_log: ";
+
+/** Decode Raydium AMM V4's official bincode `SwapBaseInLog` / `SwapBaseOutLog`. */
+export function parseRayLogSwap(log: string, metadata: EventMetadata): DexEvent | null {
+  const prefix = log.indexOf(RAY_LOG_PREFIX);
+  if (prefix < 0) return null;
+  const encoded = log.slice(prefix + RAY_LOG_PREFIX.length).trim();
+  let data: Uint8Array;
+  try {
+    data = Buffer.from(encoded, "base64");
+  } catch {
+    return null;
+  }
+  // Both swap bincode structs are one u8 followed by seven u64 values.
+  if (data.length !== 57 || (data[0] !== 3 && data[0] !== 4)) return null;
+  const input = readU64LE(data, 1);
+  const output = readU64LE(data, 9);
+  const actual = readU64LE(data, 49);
+  if (input == null || output == null || actual == null) return null;
+
+  const ev = emptySwap(metadata, defaultPubkey(), defaultPubkey());
+  if (data[0] === 3) {
+    ev.amount_in = input;
+    ev.minimum_amount_out = output;
+    ev.amount_out = actual;
+  } else {
+    ev.max_amount_in = input;
+    ev.amount_out = output;
+    ev.amount_in = actual;
+  }
+  return { RaydiumAmmV4Swap: ev };
+}
+
 export function parseSwapBaseInFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
   let o = 0;
   const amm = readPubkey(data, o);

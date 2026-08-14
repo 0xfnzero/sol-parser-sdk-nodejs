@@ -12,6 +12,49 @@ function bn64(v: ReturnType<typeof readU64LE>): bigint {
   return v ?? 0n;
 }
 
+/** Current Anchor `SwapEvent` payload (the 8-byte event discriminator is removed by the caller). */
+export function parseSwapEventFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
+  // pool_id + six u64 fields + base_input. Newer IDLs append mint/fee fields,
+  // which remain wire-compatible with this stable prefix.
+  if (data.length < 32 + (6 * 8) + 1) return null;
+  let o = 0;
+  const pool_id = readPubkey(data, o);
+  if (!pool_id) return null;
+  o += 32;
+  const input_vault_before = readU64LE(data, o);
+  o += 8;
+  const output_vault_before = readU64LE(data, o);
+  o += 8;
+  const input_amount = readU64LE(data, o);
+  o += 8;
+  const output_amount = readU64LE(data, o);
+  o += 8;
+  const input_transfer_fee = readU64LE(data, o);
+  o += 8;
+  const output_transfer_fee = readU64LE(data, o);
+  o += 8;
+  const base_input = readBool(data, o);
+  if (
+    input_vault_before == null || output_vault_before == null ||
+    input_amount == null || output_amount == null ||
+    input_transfer_fee == null || output_transfer_fee == null ||
+    base_input == null
+  ) return null;
+
+  const ev: RaydiumCpmmSwapEvent = {
+    metadata,
+    pool_id,
+    input_vault_before,
+    output_vault_before,
+    input_amount,
+    output_amount,
+    input_transfer_fee,
+    output_transfer_fee,
+    base_input,
+  };
+  return { RaydiumCpmmSwap: ev };
+}
+
 export function parseSwapBaseInFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
   let o = 0;
   const pool_state = readPubkey(data, o)!;

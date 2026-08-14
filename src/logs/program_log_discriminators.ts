@@ -54,6 +54,8 @@ export const PROGRAM_LOG_DISC = {
   RAYDIUM_CLMM_CREATE_POOL: u64leDiscriminator([25, 94, 75, 47, 112, 99, 53, 63]),
   RAYDIUM_CLMM_COLLECT_PERSONAL_FEE: u64leDiscriminator([166, 174, 105, 192, 81, 161, 83, 105]),
   RAYDIUM_CLMM_COLLECT_PROTOCOL_FEE: u64leDiscriminator([206, 87, 17, 79, 45, 41, 213, 61]),
+  // Anchor event: `event:SwapEvent` (shared with CLMM; program context disambiguates it).
+  RAYDIUM_CPMM_SWAP_EVENT: u64leDiscriminator([64, 198, 205, 232, 38, 8, 113, 226]),
   RAYDIUM_CPMM_SWAP_BASE_IN: u64leDiscriminator([143, 190, 90, 218, 196, 30, 51, 222]),
   RAYDIUM_CPMM_SWAP_BASE_OUT: u64leDiscriminator([55, 217, 98, 86, 163, 74, 180, 173]),
   RAYDIUM_CPMM_CREATE_POOL: u64leDiscriminator([233, 146, 209, 142, 207, 104, 64, 188]),

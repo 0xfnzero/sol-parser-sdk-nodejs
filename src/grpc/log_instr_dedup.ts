@@ -78,7 +78,10 @@ function nextOccurrence(base: string, counts: Map<string, number>): number {
   return current;
 }
 
-function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string | null {
+function dedupeKey(
+  ev: DexEvent,
+  occurrenceCounts: Map<string, number>
+): string | null {
   const name = eventName(ev);
   const data = payload(ev);
   if (!data) return null;
@@ -86,7 +89,7 @@ function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string
   if (PUMPFUN_TRADE_NAMES.has(name)) {
     const lane = ixLane(data.ix_name);
     const base = `${data.mint}|${data.user}|${Boolean(data.is_buy)}|${lane}`;
-    const occurrence = nextOccurrence(base, pumpfunLaneCounts);
+    const occurrence = nextOccurrence(`PumpFun|${base}`, occurrenceCounts);
     return `PumpFunTrade|${base}|${occurrence}`;
   }
 
@@ -115,12 +118,28 @@ function dedupeKey(ev: DexEvent, pumpfunLaneCounts: Map<string, number>): string
       return `PumpSwapLiquidityAdded|${data.pool}|${data.user}`;
     case "PumpSwapLiquidityRemoved":
       return `PumpSwapLiquidityRemoved|${data.pool}|${data.user}`;
-    case "RaydiumClmmSwap":
-      return `RaydiumClmmSwap|${data.pool_state}|${Boolean(data.zero_for_one)}`;
-    case "RaydiumAmmV4Swap":
-      return `RaydiumAmmV4Swap|${data.amm}`;
-    case "MeteoraDlmmSwap":
-      return `MeteoraDlmmSwap|${data.pool}|${data.from}|${Boolean(data.swap_for_y)}`;
+    case "RaydiumClmmSwap": {
+      const base = String(data.pool_state);
+      return `RaydiumClmmSwap|${base}|${nextOccurrence(`RaydiumClmm|${base}`, occurrenceCounts)}`;
+    }
+    case "RaydiumCpmmSwap": {
+      const base = String(data.pool_id);
+      return `RaydiumCpmmSwap|${base}|${nextOccurrence(`RaydiumCpmm|${base}`, occurrenceCounts)}`;
+    }
+    case "RaydiumAmmV4Swap": {
+      const base = data.max_amount_in !== 0n && data.max_amount_in !== 0
+        ? `out|${data.amount_out}`
+        : `in|${data.amount_in}`;
+      return `RaydiumAmmV4Swap|${base}|${nextOccurrence(`RaydiumAmmV4|${base}`, occurrenceCounts)}`;
+    }
+    case "OrcaWhirlpoolSwap": {
+      const base = String(data.whirlpool);
+      return `OrcaWhirlpoolSwap|${base}|${nextOccurrence(`OrcaWhirlpool|${base}`, occurrenceCounts)}`;
+    }
+    case "MeteoraDlmmSwap": {
+      const base = `${data.pool}|${data.from}|${Boolean(data.swap_for_y)}`;
+      return `MeteoraDlmmSwap|${base}|${nextOccurrence(`MeteoraDlmm|${base}`, occurrenceCounts)}`;
+    }
     default:
       return null;
   }
@@ -306,6 +325,8 @@ function mergeRaydiumAmmV4Swap(log: EventPayload, ix: EventPayload): void {
     "serum_vault_signer",
     "user_source_token_account",
     "user_destination_token_account",
+    "user_source_owner",
+    "amm",
   ]) {
     fillString(log, key, ix);
   }
@@ -396,17 +417,17 @@ export function dedupeLogInstructionEvents(
 ): DexEvent[] {
   const out: DexEvent[] = [];
   const indexByKey = new Map<string, number>();
-  const logPumpfunLaneCounts = new Map<string, number>();
-  const ixPumpfunLaneCounts = new Map<string, number>();
+  const logOccurrenceCounts = new Map<string, number>();
+  const ixOccurrenceCounts = new Map<string, number>();
 
   for (const ev of logEvents) {
-    const key = dedupeKey(ev, logPumpfunLaneCounts);
+    const key = dedupeKey(ev, logOccurrenceCounts);
     if (key) indexByKey.set(key, out.length);
     out.push(ev);
   }
 
   for (const ev of instructionEvents) {
-    const key = dedupeKey(ev, ixPumpfunLaneCounts);
+    const key = dedupeKey(ev, ixOccurrenceCounts);
     if (!key) {
       out.push(ev);
       continue;

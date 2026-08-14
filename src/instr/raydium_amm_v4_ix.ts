@@ -35,6 +35,27 @@ const SWAP = {
   USER_OWNER: 17,
 } as const;
 
+function swapAccountIndexes(accountCount: number): Record<keyof typeof SWAP, number> {
+  if (accountCount !== 17) return SWAP;
+  return {
+    ...SWAP,
+    AMM_TARGET_ORDERS: -1,
+    POOL_COIN_TOKEN: 4,
+    POOL_PC_TOKEN: 5,
+    SERUM_PROGRAM: 6,
+    SERUM_MARKET: 7,
+    SERUM_BIDS: 8,
+    SERUM_ASKS: 9,
+    SERUM_EVENT_QUEUE: 10,
+    SERUM_COIN_VAULT: 11,
+    SERUM_PC_VAULT: 12,
+    SERUM_VAULT_SIGNER: 13,
+    USER_SOURCE_TOKEN: 14,
+    USER_DEST_TOKEN: 15,
+    USER_OWNER: 16,
+  };
+}
+
 function swapBaseInFromIx(
   instructionData: Uint8Array,
   accounts: string[],
@@ -44,6 +65,7 @@ function swapBaseInFromIx(
   const amount_in = readU64LE(instructionData, 1) ?? 0n;
   const minimum_amount_out = readU64LE(instructionData, 9) ?? 0n;
   const g = (i: number) => getAccount(accounts, i) ?? Z;
+  const indexes = swapAccountIndexes(accounts.length);
   return {
     RaydiumAmmV4Swap: {
       metadata: meta,
@@ -51,24 +73,24 @@ function swapBaseInFromIx(
       minimum_amount_out,
       max_amount_in: 0n,
       amount_out: 0n,
-      token_program: g(SWAP.TOKEN_PROGRAM),
-      amm: g(SWAP.AMM),
-      amm_authority: g(SWAP.AMM_AUTHORITY),
-      amm_open_orders: g(SWAP.AMM_OPEN_ORDERS),
-      amm_target_orders: g(SWAP.AMM_TARGET_ORDERS),
-      pool_coin_token_account: g(SWAP.POOL_COIN_TOKEN),
-      pool_pc_token_account: g(SWAP.POOL_PC_TOKEN),
-      serum_program: g(SWAP.SERUM_PROGRAM),
-      serum_market: g(SWAP.SERUM_MARKET),
-      serum_bids: g(SWAP.SERUM_BIDS),
-      serum_asks: g(SWAP.SERUM_ASKS),
-      serum_event_queue: g(SWAP.SERUM_EVENT_QUEUE),
-      serum_coin_vault_account: g(SWAP.SERUM_COIN_VAULT),
-      serum_pc_vault_account: g(SWAP.SERUM_PC_VAULT),
-      serum_vault_signer: g(SWAP.SERUM_VAULT_SIGNER),
-      user_source_token_account: g(SWAP.USER_SOURCE_TOKEN),
-      user_destination_token_account: g(SWAP.USER_DEST_TOKEN),
-      user_source_owner: g(SWAP.USER_OWNER),
+      token_program: g(indexes.TOKEN_PROGRAM),
+      amm: g(indexes.AMM),
+      amm_authority: g(indexes.AMM_AUTHORITY),
+      amm_open_orders: g(indexes.AMM_OPEN_ORDERS),
+      amm_target_orders: g(indexes.AMM_TARGET_ORDERS),
+      pool_coin_token_account: g(indexes.POOL_COIN_TOKEN),
+      pool_pc_token_account: g(indexes.POOL_PC_TOKEN),
+      serum_program: g(indexes.SERUM_PROGRAM),
+      serum_market: g(indexes.SERUM_MARKET),
+      serum_bids: g(indexes.SERUM_BIDS),
+      serum_asks: g(indexes.SERUM_ASKS),
+      serum_event_queue: g(indexes.SERUM_EVENT_QUEUE),
+      serum_coin_vault_account: g(indexes.SERUM_COIN_VAULT),
+      serum_pc_vault_account: g(indexes.SERUM_PC_VAULT),
+      serum_vault_signer: g(indexes.SERUM_VAULT_SIGNER),
+      user_source_token_account: g(indexes.USER_SOURCE_TOKEN),
+      user_destination_token_account: g(indexes.USER_DEST_TOKEN),
+      user_source_owner: g(indexes.USER_OWNER),
     },
   };
 }
@@ -82,6 +104,7 @@ function swapBaseOutFromIx(
   const max_amount_in = readU64LE(instructionData, 1) ?? 0n;
   const amount_out = readU64LE(instructionData, 9) ?? 0n;
   const g = (i: number) => getAccount(accounts, i) ?? Z;
+  const indexes = swapAccountIndexes(accounts.length);
   return {
     RaydiumAmmV4Swap: {
       metadata: meta,
@@ -89,24 +112,24 @@ function swapBaseOutFromIx(
       minimum_amount_out: 0n,
       max_amount_in,
       amount_out,
-      token_program: g(SWAP.TOKEN_PROGRAM),
-      amm: g(SWAP.AMM),
-      amm_authority: g(SWAP.AMM_AUTHORITY),
-      amm_open_orders: g(SWAP.AMM_OPEN_ORDERS),
-      amm_target_orders: g(SWAP.AMM_TARGET_ORDERS),
-      pool_coin_token_account: g(SWAP.POOL_COIN_TOKEN),
-      pool_pc_token_account: g(SWAP.POOL_PC_TOKEN),
-      serum_program: g(SWAP.SERUM_PROGRAM),
-      serum_market: g(SWAP.SERUM_MARKET),
-      serum_bids: g(SWAP.SERUM_BIDS),
-      serum_asks: g(SWAP.SERUM_ASKS),
-      serum_event_queue: g(SWAP.SERUM_EVENT_QUEUE),
-      serum_coin_vault_account: g(SWAP.SERUM_COIN_VAULT),
-      serum_pc_vault_account: g(SWAP.SERUM_PC_VAULT),
-      serum_vault_signer: g(SWAP.SERUM_VAULT_SIGNER),
-      user_source_token_account: g(SWAP.USER_SOURCE_TOKEN),
-      user_destination_token_account: g(SWAP.USER_DEST_TOKEN),
-      user_source_owner: g(SWAP.USER_OWNER),
+      token_program: g(indexes.TOKEN_PROGRAM),
+      amm: g(indexes.AMM),
+      amm_authority: g(indexes.AMM_AUTHORITY),
+      amm_open_orders: g(indexes.AMM_OPEN_ORDERS),
+      amm_target_orders: g(indexes.AMM_TARGET_ORDERS),
+      pool_coin_token_account: g(indexes.POOL_COIN_TOKEN),
+      pool_pc_token_account: g(indexes.POOL_PC_TOKEN),
+      serum_program: g(indexes.SERUM_PROGRAM),
+      serum_market: g(indexes.SERUM_MARKET),
+      serum_bids: g(indexes.SERUM_BIDS),
+      serum_asks: g(indexes.SERUM_ASKS),
+      serum_event_queue: g(indexes.SERUM_EVENT_QUEUE),
+      serum_coin_vault_account: g(indexes.SERUM_COIN_VAULT),
+      serum_pc_vault_account: g(indexes.SERUM_PC_VAULT),
+      serum_vault_signer: g(indexes.SERUM_VAULT_SIGNER),
+      user_source_token_account: g(indexes.USER_SOURCE_TOKEN),
+      user_destination_token_account: g(indexes.USER_DEST_TOKEN),
+      user_source_owner: g(indexes.USER_OWNER),
     },
   };
 }

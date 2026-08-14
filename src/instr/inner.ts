@@ -94,7 +94,7 @@ import {
   parseSetPoolFeesFromData as parseMeteoraPoolsSetPoolFees,
   parseSwapFromData as parseMeteoraPoolsSwap,
 } from "../logs/meteora_amm.js";
-import { parseDlmmFromDecoded } from "../logs/meteora_dlmm.js";
+import { parseDlmmEventFromData } from "../logs/meteora_dlmm.js";
 import {
   parseRaydiumLaunchlabPoolCreateFromData,
   parseRaydiumLaunchlabTradeFromData,
@@ -135,7 +135,7 @@ function filterDexEvent(ev: DexEvent | null, filter?: EventTypeFilter): DexEvent
     : null;
 }
 
-function pumpFeesEventDisc(disc: Uint8Array): bigint | null {
+function eventCpiDiscriminator(disc: Uint8Array): bigint | null {
   if (bytesEq(disc, 0, EVENT_CPI_PREFIX)) return readU64LE(disc, 8);
   if (bytesEq(disc, 8, EVENT_CPI_SUFFIX)) return readU64LE(disc, 0);
   return null;
@@ -202,14 +202,16 @@ const LOG = {
   METEORA_DAMM_INITIALIZE_POOL: [228, 50, 246, 85, 203, 66, 134, 37],
   METEORA_DAMM_CREATE_POSITION: [156, 15, 119, 198, 29, 181, 221, 55],
   METEORA_DAMM_CLOSE_POSITION: [20, 145, 144, 68, 143, 142, 214, 178],
-  METEORA_DLMM_SWAP: [143, 190, 90, 218, 196, 30, 51, 222],
-  METEORA_DLMM_ADD_LIQUIDITY: [181, 157, 89, 67, 143, 182, 52, 72],
-  METEORA_DLMM_REMOVE_LIQUIDITY: [80, 85, 209, 72, 24, 206, 35, 178],
-  METEORA_DLMM_INITIALIZE_POOL: [95, 180, 10, 172, 84, 174, 232, 40],
+  METEORA_DLMM_SWAP: [81, 108, 227, 190, 205, 208, 10, 196],
+  METEORA_DLMM_SWAP2: [46, 116, 82, 215, 148, 27, 84, 77],
+  METEORA_DLMM_ADD_LIQUIDITY: [31, 94, 125, 90, 227, 52, 61, 186],
+  METEORA_DLMM_REMOVE_LIQUIDITY: [116, 244, 97, 232, 103, 31, 152, 58],
+  METEORA_DLMM_INITIALIZE_POOL: [185, 74, 252, 125, 27, 215, 188, 111],
   METEORA_DLMM_INITIALIZE_BIN_ARRAY: [11, 18, 155, 194, 33, 115, 238, 119],
-  METEORA_DLMM_CREATE_POSITION: [123, 233, 11, 43, 146, 180, 97, 119],
-  METEORA_DLMM_CLOSE_POSITION: [94, 168, 102, 45, 59, 122, 137, 54],
-  METEORA_DLMM_CLAIM_FEE: [152, 70, 208, 111, 104, 91, 44, 1],
+  METEORA_DLMM_CREATE_POSITION: [144, 142, 252, 84, 157, 53, 37, 121],
+  METEORA_DLMM_CLOSE_POSITION: [255, 196, 16, 107, 28, 202, 53, 128],
+  METEORA_DLMM_CLAIM_FEE: [75, 122, 154, 48, 140, 74, 123, 163],
+  METEORA_DLMM_CLAIM_FEE2: [232, 171, 242, 97, 58, 77, 35, 45],
   RAYDIUM_LAUNCHLAB_POOL_CREATE: [151, 215, 226, 9, 118, 161, 115, 174],
   RAYDIUM_LAUNCHLAB_TRADE: [189, 219, 127, 211, 78, 230, 97, 238],
 } as const;
@@ -287,6 +289,28 @@ const IX = {
     [80, 85, 209, 72, 24, 206, 177, 108],
     [95, 180, 10, 172, 84, 174, 232, 40],
   ],
+  METEORA_DLMM: [
+    [181, 157, 89, 67, 143, 182, 52, 72],
+    [228, 162, 78, 28, 70, 219, 116, 115],
+    [169, 32, 79, 137, 136, 232, 70, 137],
+    [112, 191, 101, 171, 28, 144, 127, 187],
+    [123, 134, 81, 0, 49, 68, 98, 98],
+    [174, 90, 35, 115, 186, 40, 147, 226],
+    [35, 86, 19, 185, 78, 212, 75, 211],
+    [45, 154, 237, 210, 221, 15, 166, 92],
+    [73, 59, 36, 120, 237, 83, 108, 198],
+    [219, 192, 234, 71, 190, 191, 102, 80],
+    [143, 19, 242, 145, 213, 15, 104, 115],
+    [46, 82, 125, 146, 85, 141, 228, 153],
+    [80, 85, 209, 72, 24, 206, 177, 108],
+    [230, 215, 82, 127, 241, 101, 227, 146],
+    [248, 198, 158, 145, 225, 117, 135, 200],
+    [65, 75, 63, 76, 235, 91, 91, 136],
+    [250, 73, 101, 33, 38, 207, 75, 184],
+    [43, 215, 247, 132, 137, 60, 243, 81],
+    [56, 173, 230, 208, 173, 228, 156, 205],
+    [74, 98, 192, 214, 177, 51, 75, 51],
+  ],
 } as const;
 
 function firstByteIn(data: Uint8Array, allowed: readonly number[]): boolean {
@@ -300,7 +324,7 @@ function headIn(data: Uint8Array, discs: readonly (readonly number[])[]): boolea
 function normalInstructionDataMayParse(programId: string, data: Uint8Array): boolean {
   if (data.length === 0) return false;
   if (programId === RAYDIUM_AMM_V4_PROGRAM_ID) return firstByteIn(data, [1, 3, 4, 7, 9, 11]);
-  if (programId === METEORA_DLMM_PROGRAM_ID) return firstByteIn(data, [0, 1, 2, 7, 8, 11, 13, 14]);
+  if (programId === METEORA_DLMM_PROGRAM_ID) return headIn(data, IX.METEORA_DLMM);
   if (programId === METEORA_DAMM_V2_PROGRAM_ID) {
     return discEq(data, LOG.METEORA_DAMM_INITIALIZE_POOL);
   }
@@ -342,7 +366,7 @@ export function parseInnerCompiledInstructionIfSupported(
 }
 
 function parsePumpFeesInner(disc: Uint8Array, data: Uint8Array, metadata: ReturnType<typeof makeMetadata>): DexEvent | null {
-  const eventDisc = pumpFeesEventDisc(disc);
+  const eventDisc = eventCpiDiscriminator(disc);
   if (eventDisc === null) return null;
   if (eventDisc === disc8(LOG.PUMP_FEES_CREATE_FEE_SHARING_CONFIG)) {
     return parseCreateFeeSharingConfigFromData(data, metadata);
@@ -483,11 +507,9 @@ export function parseInnerInstructionUnified(
     );
   } else if (programId === METEORA_DLMM_PROGRAM_ID) {
     if (filter && !eventTypeFilterIncludesMeteoraDlmm(filter)) return null;
-    if (!discTailEq(disc, EVENT_CPI_SUFFIX)) return null;
-    const decoded = new Uint8Array(8 + data.length);
-    decoded.set(disc.subarray(0, 8), 0);
-    decoded.set(data, 8);
-    ev = parseDlmmFromDecoded(decoded, metadata);
+    const eventDisc = eventCpiDiscriminator(disc);
+    if (eventDisc === null) return null;
+    ev = parseDlmmEventFromData(eventDisc, data, metadata);
   } else if (programId === RAYDIUM_LAUNCHLAB_PROGRAM_ID) {
     if (filter && !eventTypeFilterIncludesRaydiumLaunchlab(filter)) return null;
     if (!discTailEq(disc, EVENT_CPI_SUFFIX)) return null;

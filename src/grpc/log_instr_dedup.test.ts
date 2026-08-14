@@ -4,6 +4,47 @@ import { defaultPubkey } from "../core/dex_event.js";
 import { dedupeLogInstructionEvents } from "./log_instr_dedup.js";
 
 describe("dedupeLogInstructionEvents", () => {
+  function clmmSwap(zeroForOne: boolean, amount0: bigint): DexEvent {
+    return {
+      RaydiumClmmSwap: {
+        metadata: {},
+        pool_state: "ClmmPool111111111111111111111111111111111",
+        sender: defaultPubkey(),
+        token_account_0: defaultPubkey(),
+        token_account_1: defaultPubkey(),
+        amount_0: amount0,
+        amount_1: 0n,
+        zero_for_one: zeroForOne,
+        sqrt_price_x64: 0n,
+        liquidity: 0n,
+        transfer_fee_0: 0n,
+        transfer_fee_1: 0n,
+        tick: 0,
+      },
+    } as DexEvent;
+  }
+
+  it("dedupes CLMM instruction placeholders even when their direction is not authoritative", () => {
+    const out = dedupeLogInstructionEvents(
+      [clmmSwap(false, 123n)],
+      [clmmSwap(true, 0n)]
+    );
+
+    expect(out).toHaveLength(1);
+    const swap = (out[0] as any).RaydiumClmmSwap;
+    expect(swap.amount_0).toBe(123n);
+    expect(swap.zero_for_one).toBe(false);
+  });
+
+  it("retains multiple CLMM swaps for the same pool", () => {
+    const out = dedupeLogInstructionEvents(
+      [clmmSwap(false, 1n), clmmSwap(true, 2n)],
+      [clmmSwap(true, 0n), clmmSwap(false, 0n)]
+    );
+
+    expect(out).toHaveLength(2);
+  });
+
   it("keeps log trade values and fills instruction account fields", () => {
     const logEvent = {
       PumpFunTrade: {

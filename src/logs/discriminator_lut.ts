@@ -33,8 +33,12 @@ const NAME_BY_DISC = new Map<bigint, string>();
 const PROTOCOL_BY_DISC = new Map<bigint, LogProtocol>();
 
 for (const [name, disc] of Object.entries(PROGRAM_LOG_DISC)) {
-  NAME_BY_DISC.set(disc, name);
-  PROTOCOL_BY_DISC.set(disc, protocolForProgramLogKey(name));
+  // Some Anchor event names intentionally share a discriminator across programs.
+  // Keep the first canonical unscoped entry; program-aware parsing disambiguates them.
+  if (!NAME_BY_DISC.has(disc)) {
+    NAME_BY_DISC.set(disc, name);
+    PROTOCOL_BY_DISC.set(disc, protocolForProgramLogKey(name));
+  }
 }
 
 /** Rust `discriminator_to_name` */
