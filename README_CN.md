@@ -147,6 +147,35 @@ const sub = await client.subscribeTransactions(filter, {
 console.log("subscribed", sub.id);
 ```
 
+### 长时间运行的低延迟 DEX 订阅
+
+公开 API 保持队列式调用，与 Rust SDK 的 `subscribe_dex_events` 形态一致。Node 使用异步
+迭代器代替 Rust 的 `ArrayQueue`；环形队列出队、Yellowstone update 解析、HTTP/2 接收窗口
+和重连优化全部由 SDK 内部完成：
+
+```typescript
+import { YellowstoneGrpc, lowLatencyClientConfig } from "sol-parser-sdk";
+
+const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN, lowLatencyClientConfig());
+const sub = await client.subscribeDexEvents(txFilters, accountFilters, eventTypeFilter);
+
+void (async () => {
+  for await (const error of sub.errors) console.error("subscription error", error);
+})();
+
+for await (const event of sub) {
+  handleEvent(event);
+}
+```
+
+若使用 `for await`，默认溢出策略仍是 `drop-newest`，以保持兼容。更重视贴近链尖的消费者
+可以设置 `queueOverflowStrategy: "drop-oldest"`，并监控 `sub.len()` 和 `sub.dropped()`。
+每次溢出都会计数，并定期通过 `sub.errors` 报告。
+
+当消费者平均处理速度低于过滤后的入流速度时，任何有界内存流都无法同时保证零丢失和
+有界延迟。消费循环应保持轻量，避免逐事件同步日志，在服务端尽量缩小过滤范围，并把
+慢 I/O 的持久化或分发移出消费循环。
+
 更轻量：仅用日志用 `parseLogsOnly`；要补账户可再配合 `applyAccountFillsToLogEvents`。
 
 ### 5. ShredStream（HTTP，不是 Yellowstone gRPC）
@@ -173,6 +202,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 `DexEvent`） | `npx tsx scripts/test-grpc-ts.ts` | [test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) |
 | 调试：打印 `metaRaw` / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
+| CREATE + dev BUY/SELL 长时间低延迟订阅 | `npx tsx examples/devtrades_low_latency.ts` | [devtrades_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_low_latency.ts) |
 | gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
 | PumpFun 事件 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
 | PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
@@ -198,7 +228,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 - `npm run example:shredstream:subscribe` → [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts)
 - `npm run example:shredstream:pumpfun-json` → [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts)
 
-**环境变量：** gRPC 示例需要 **`GRPC_URL`**、**`GRPC_TOKEN`**。ShredStream 使用 **`SHREDSTREAM_URL`** / **`SHRED_URL`** 或 **`--url`**；**`shredstream_pumpfun_json`** 另需 **`RPC_URL`** / **`--rpc`**。详见 **`.env.example`**。
+**环境变量：** gRPC 示例需要 **`GRPC_URL`**、**`GRPC_TOKEN`**。已 export 的 shell 环境变量优先，`.env` 只补充尚未设置的值。ShredStream 使用 **`SHREDSTREAM_URL`** / **`SHRED_URL`** 或 **`--url`**；**`shredstream_pumpfun_json`** 另需 **`RPC_URL`** / **`--rpc`**。详见 **`.env.example`**。
 
 ---
 

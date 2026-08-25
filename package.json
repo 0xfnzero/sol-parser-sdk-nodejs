@@ -1,6 +1,6 @@
 {
   "name": "sol-parser-sdk",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,6 +31,7 @@
     "check:discriminator-lut": "tsx scripts/check-discriminator-lut.ts",
     "test": "vitest run",
     "check:migration": "npm run check:dex-events && npm run verify:discriminators && npm run check:discriminator-lut && npm run check:json-utils && npm run build",
+    "example:grpc:devtrades": "tsx examples/devtrades_low_latency.ts",
     "example:shredstream:subscribe": "tsx examples/shredstream_example.ts",
     "example:shredstream:pumpfun-json": "tsx examples/shredstream_pumpfun_json.ts",
     "example:shredstream": "tsx examples/shredstream_example.ts",

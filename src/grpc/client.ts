@@ -7,6 +7,7 @@ import type { DexEvent } from "../core/dex_event.js";
 import { makeMetadata } from "../core/metadata.js";
 import { parseAccountUnified, type AccountData } from "../accounts/mod.js";
 import { defaultGeyserConnectConfig, geyserGrpcChannelOptions } from "./geyser_connect.js";
+import { AsyncEventQueue, type EventQueueOverflowStrategy } from "./async_event_queue.js";
 import { OrderDispatcher } from "./order_buffer.js";
 import { buildSubscribeRequest } from "./subscribe_builder.js";
 import { parseDexEventsFromGrpcTransactionInfo } from "./yellowstone_parse.js";
@@ -41,55 +42,35 @@ import {
 } from "./types.js";
 
 export { SubscribeCallbacks };
+export type { EventQueueOverflowStrategy } from "./async_event_queue.js";
 
-class AsyncEventQueue<T> implements AsyncIterable<T>, AsyncIterator<T> {
-  private readonly items: T[] = [];
-  private readonly waiters: Array<(result: IteratorResult<T>) => void> = [];
-  private closed = false;
+type YellowstoneSubscribeStream = Awaited<ReturnType<Client["subscribe"]>>;
 
-  constructor(private readonly maxSize: number) {}
-
-  push(item: T): void {
-    if (this.closed) return;
-    const waiter = this.waiters.shift();
-    if (waiter) {
-      waiter({ value: item, done: false });
-      return;
-    }
-    if (this.items.length < this.maxSize) {
-      this.items.push(item);
-    }
-  }
-
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    for (const waiter of this.waiters.splice(0)) {
-      waiter({ value: undefined, done: true });
-    }
-  }
-
-  next(): Promise<IteratorResult<T>> {
-    const item = this.items.shift();
-    if (item !== undefined) {
-      return Promise.resolve({ value: item, done: false });
-    }
-    if (this.closed) {
-      return Promise.resolve({ value: undefined, done: true });
-    }
-    return new Promise((resolve) => this.waiters.push(resolve));
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<T> {
-    return this;
-  }
+function cancelSubscribeStream(stream: YellowstoneSubscribeStream | null): void {
+  if (!stream) return;
+  // grpc-js emits CANCELLED through `error`; guard the short setup window before
+  // the normal lifecycle listeners have been installed.
+  stream.once("error", () => {});
+  stream.cancel();
 }
+
 
 export interface DexEventSubscription extends AsyncIterable<DexEvent> {
   id: string;
   errors: AsyncIterable<Error>;
   cancel(): void;
   next(): Promise<IteratorResult<DexEvent>>;
+  len(): number;
+  dropped(): number;
+}
+
+export interface SubscribeDexEventsOptions {
+  autoReconnect?: boolean;
+  /**
+   * Queue behavior when an async-iterator consumer cannot keep up. The default
+   * preserves the existing behavior; `drop-oldest` favors staying near chain tip.
+   */
+  queueOverflowStrategy?: EventQueueOverflowStrategy;
 }
 
 /** Yellowstone gRPC 客户端包装器 */
@@ -127,6 +108,9 @@ export class YellowstoneGrpc {
         ...gc,
         keepAliveIntervalMs: config.keep_alive_interval_ms,
         keepAliveTimeoutMs: config.keep_alive_timeout_ms,
+        initialReconnectBackoffMs: config.retry_delay_ms,
+        maxReconnectBackoffMs: 60_000,
+        flowControlWindowBytes: config.flow_control_window_bytes,
       })
     );
   }
@@ -353,6 +337,34 @@ export class YellowstoneGrpc {
     return parseAccountUnified(account, metadata, eventTypeFilter);
   }
 
+  private parseAccountEventRaw(
+    update: SubscribeUpdateAccount,
+    grpcRecvUs: number,
+    eventTypeFilter?: EventTypeFilter,
+    blockTimeUs?: number
+  ): DexEvent | null {
+    const acc = update.account;
+    if (!acc) return null;
+
+    const signatureBytes = YellowstoneGrpc.toBytes(acc.txnSignature);
+    const account: AccountData = {
+      pubkey: bs58.encode(YellowstoneGrpc.toBytes(acc.pubkey)),
+      executable: acc.executable,
+      lamports: YellowstoneGrpc.toBigInt(acc.lamports),
+      owner: bs58.encode(YellowstoneGrpc.toBytes(acc.owner)),
+      rent_epoch: YellowstoneGrpc.toBigInt(acc.rentEpoch),
+      data: YellowstoneGrpc.toBytes(acc.data),
+    };
+    const metadata = makeMetadata(
+      signatureBytes.length > 0 ? bs58.encode(signatureBytes) : "",
+      YellowstoneGrpc.protobufNumber(update.slot),
+      0,
+      blockTimeUs,
+      grpcRecvUs
+    );
+    return parseAccountUnified(account, metadata, eventTypeFilter);
+  }
+
   private initialSubscribeRequest(filter: TransactionFilter): SubscribeRequest {
     return {
       transactions: {
@@ -386,11 +398,11 @@ export class YellowstoneGrpc {
 
     let isCancelled = false;
     const streamHolder: {
-      current: Awaited<ReturnType<Client["subscribe"]>> | null;
+      current: YellowstoneSubscribeStream | null;
     } = { current: null };
     const cancel = () => {
       isCancelled = true;
-      streamHolder.current?.end();
+      cancelSubscribeStream(streamHolder.current);
       streamHolder.current = null;
     };
 
@@ -405,6 +417,10 @@ export class YellowstoneGrpc {
         while (!isCancelled) {
           try {
             const stream = await this.client.subscribe();
+            if (isCancelled) {
+              cancelSubscribeStream(stream);
+              break;
+            }
             streamHolder.current = stream;
 
             await new Promise<void>((resolve, reject) => {
@@ -413,8 +429,6 @@ export class YellowstoneGrpc {
                 else resolve();
               });
             });
-
-            backoffMs = this.config.retry_delay_ms;
 
             await new Promise<void>((resolve, reject) => {
               const cleanup = () => {
@@ -426,6 +440,7 @@ export class YellowstoneGrpc {
 
               stream.on("data", (update: SubscribeUpdate) => {
                 if (isCancelled) return;
+                backoffMs = this.config.retry_delay_ms;
 
                 if (update.ping) {
                   stream.write(this.subscribePingPongRequest(), (werr: Error | null | undefined) => {
@@ -460,6 +475,8 @@ export class YellowstoneGrpc {
             });
           } catch (err) {
             if (isCancelled) break;
+            cancelSubscribeStream(streamHolder.current);
+            streamHolder.current = null;
             const e = err instanceof Error ? err : new Error(String(err));
             callbacks.onError?.(e);
             if (!autoReconnect) break;
@@ -480,7 +497,7 @@ export class YellowstoneGrpc {
           backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         }
       } finally {
-        streamHolder.current?.end();
+        cancelSubscribeStream(streamHolder.current);
         streamHolder.current = null;
         this.subscribers.delete(id);
       }
@@ -499,21 +516,37 @@ export class YellowstoneGrpc {
    * 订阅并直接产出 `DexEvent`。
    *
    * 交易更新走统一交易解析（外层/内层指令 + 日志 + 数据填充）；账户更新走 `parseAccountUnified`。
-   * 事件队列满时丢弃新事件，避免回调阻塞 gRPC 读循环，保持低延迟。
+   * 事件队列满时按配置丢弃事件，避免回调阻塞 gRPC 读循环并让丢弃可观测。
    */
   async subscribeDexEvents(
     transactionFilters: TransactionFilter[] = [],
     accountFilters: AccountFilter[] = [],
     eventTypeFilter?: EventTypeFilter,
-    options?: { autoReconnect?: boolean }
+    options?: SubscribeDexEventsOptions
   ): Promise<DexEventSubscription> {
     await this.connect();
 
     const id = `dex_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const events = new AsyncEventQueue<DexEvent>(Math.max(1, this.config.buffer_size));
+    const events = new AsyncEventQueue<DexEvent>(
+      Math.max(1, this.config.buffer_size),
+      options?.queueOverflowStrategy
+    );
     const errors = new AsyncEventQueue<Error>(Math.max(1, this.config.buffer_size));
     const order = new OrderDispatcher(this.config);
-    const emitEvent = (event: DexEvent) => events.push(event);
+    let nextDropWarningAt = 0;
+    const reportError = (error: Error) => errors.push(error);
+    const emitEvent = (event: DexEvent) => {
+      if (events.push(event)) return;
+      const now = Date.now();
+      if (now < nextDropWarningAt) return;
+      nextDropWarningAt = now + 10_000;
+      reportError(
+        new Error(
+          `Dex event queue full; dropped=${events.dropped()} buffer_size=${this.config.buffer_size} ` +
+            `strategy=${options?.queueOverflowStrategy ?? "drop-newest"}`
+        )
+      );
+    };
     let flushTimer: ReturnType<typeof setInterval> | undefined;
     if (order.needsTimer) {
       const intervalMs =
@@ -526,11 +559,27 @@ export class YellowstoneGrpc {
     let currentTransactionFilters = transactionFilters;
     let currentAccountFilters = accountFilters;
     const streamHolder: {
-      current: Awaited<ReturnType<Client["subscribe"]>> | null;
+      current: YellowstoneSubscribeStream | null;
     } = { current: null };
+    let cancelReconnectDelay: (() => void) | undefined;
+    const waitBeforeReconnect = (delayMs: number) =>
+      new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (cancelReconnectDelay === finish) cancelReconnectDelay = undefined;
+          resolve();
+        };
+        const timer = setTimeout(finish, delayMs);
+        cancelReconnectDelay = finish;
+        if (isCancelled) finish();
+      });
     const cancel = () => {
       isCancelled = true;
-      streamHolder.current?.end();
+      cancelReconnectDelay?.();
+      cancelSubscribeStream(streamHolder.current);
       streamHolder.current = null;
       if (flushTimer) clearInterval(flushTimer);
       events.close();
@@ -564,6 +613,10 @@ export class YellowstoneGrpc {
         while (!isCancelled) {
           try {
             const stream = await this.client.subscribe();
+            if (isCancelled) {
+              cancelSubscribeStream(stream);
+              break;
+            }
             streamHolder.current = stream;
 
             await new Promise<void>((resolve, reject) => {
@@ -576,8 +629,6 @@ export class YellowstoneGrpc {
               );
             });
 
-            backoffMs = this.config.retry_delay_ms;
-
             await new Promise<void>((resolve, reject) => {
               const cleanup = () => {
                 stream.removeAllListeners();
@@ -588,12 +639,13 @@ export class YellowstoneGrpc {
 
               stream.on("data", (update: SubscribeUpdate) => {
                 if (isCancelled) return;
-                order.flushDue(emitEvent);
+                backoffMs = this.config.retry_delay_ms;
+                if (order.needsTimer) order.flushDue(emitEvent);
 
                 if (update.ping) {
                   stream.write(this.subscribePingPongRequest(), (werr: Error | null | undefined) => {
                     if (werr && !isCancelled) {
-                      errors.push(werr instanceof Error ? werr : new Error(String(werr)));
+                      reportError(werr instanceof Error ? werr : new Error(String(werr)));
                     }
                   });
                   return;
@@ -601,32 +653,41 @@ export class YellowstoneGrpc {
 
                 try {
                   const grpcRecvUs = Math.floor(Date.now() * 1000);
-                  const converted = this.convertUpdate(update);
-                  const tx = converted.transaction?.transaction;
+                  const blockTimeUs = YellowstoneGrpc.timestampToMicros(
+                    (update as any).createdAt ?? (update as any).created_at
+                  );
+                  const txUpdate = update.transaction;
+                  const tx = txUpdate?.transaction;
                   if (tx) {
-                    const fallbackSlot = YellowstoneGrpc.protobufNumber(
-                      converted.transaction?.slot ?? 0
-                    );
+                    const slot = txUpdate?.slot ?? 0n;
+                    const fallbackSlot = YellowstoneGrpc.protobufNumber(slot);
                     const fallbackTxIndex = YellowstoneGrpc.protobufNumber(tx.index ?? 0);
+                    const txInfo: SubscribeUpdateTransactionInfo = {
+                      signature: tx.signature,
+                      isVote: tx.isVote,
+                      transactionRaw: tx.transaction,
+                      metaRaw: tx.meta as SubscribeUpdateTransactionInfo["metaRaw"],
+                      index: (tx.index ?? 0n) as string | bigint,
+                    };
                     const txEvents = parseDexEventsFromGrpcTransactionInfo(
-                      tx,
-                      converted.transaction?.slot ?? 0n,
-                      { blockTimeUs: converted.createdAtUs, grpcRecvUs, eventTypeFilter }
+                      txInfo,
+                      slot,
+                      { blockTimeUs, grpcRecvUs, eventTypeFilter }
                     );
                     order.pushTransactionEvents(txEvents, fallbackSlot, fallbackTxIndex, emitEvent);
                   }
 
-                  if (converted.account) {
-                    const ev = this.parseAccountEvent(
-                      converted.account,
+                  if (update.account) {
+                    const ev = this.parseAccountEventRaw(
+                      update.account,
                       grpcRecvUs,
                       eventTypeFilter,
-                      converted.createdAtUs
+                      blockTimeUs
                     );
                     if (ev) emitEvent(ev);
                   }
                 } catch (err) {
-                  errors.push(err instanceof Error ? err : new Error(String(err)));
+                  reportError(err instanceof Error ? err : new Error(String(err)));
                 }
               });
 
@@ -642,24 +703,26 @@ export class YellowstoneGrpc {
             });
           } catch (err) {
             if (isCancelled) break;
-            errors.push(err instanceof Error ? err : new Error(String(err)));
+            cancelSubscribeStream(streamHolder.current);
+            streamHolder.current = null;
+            reportError(err instanceof Error ? err : new Error(String(err)));
             if (!autoReconnect) break;
 
-            await new Promise((r) => setTimeout(r, backoffMs));
+            await waitBeforeReconnect(backoffMs);
             backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
             continue;
           }
 
           if (isCancelled || !autoReconnect) break;
 
-          await new Promise((r) => setTimeout(r, backoffMs));
+          await waitBeforeReconnect(backoffMs);
           backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         }
       } finally {
-        streamHolder.current?.end();
+        cancelSubscribeStream(streamHolder.current);
         streamHolder.current = null;
         if (flushTimer) clearInterval(flushTimer);
-        order.flushAll(emitEvent);
+        if (!isCancelled) order.flushAll(emitEvent);
         events.close();
         errors.close();
         this.dexSubscribers.delete(id);
