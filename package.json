@@ -31,6 +31,7 @@
     "check:discriminator-lut": "tsx scripts/check-discriminator-lut.ts",
     "test": "vitest run",
     "check:migration": "npm run check:dex-events && npm run verify:discriminators && npm run check:discriminator-lut && npm run check:json-utils && npm run build",
+    "example:grpc:devtrades": "tsx examples/devtrades_low_latency.ts",
     "example:shredstream:subscribe": "tsx examples/shredstream_example.ts",
     "example:shredstream:pumpfun-json": "tsx examples/shredstream_pumpfun_json.ts",
     "example:shredstream": "tsx examples/shredstream_example.ts",
