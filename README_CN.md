@@ -147,6 +147,35 @@ const sub = await client.subscribeTransactions(filter, {
 console.log("subscribed", sub.id);
 ```
 
+### 长时间运行的低延迟 DEX 订阅
+
+公开 API 保持队列式调用，与 Rust SDK 的 `subscribe_dex_events` 形态一致。Node 使用异步
+迭代器代替 Rust 的 `ArrayQueue`；环形队列出队、Yellowstone update 解析、HTTP/2 接收窗口
+和重连优化全部由 SDK 内部完成：
+
+```typescript
+import { YellowstoneGrpc, lowLatencyClientConfig } from "sol-parser-sdk";
+
+const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN, lowLatencyClientConfig());
+const sub = await client.subscribeDexEvents(txFilters, accountFilters, eventTypeFilter);
+
+void (async () => {
+  for await (const error of sub.errors) console.error("subscription error", error);
+})();
+
+for await (const event of sub) {
+  handleEvent(event);
+}
+```
+
+若使用 `for await`，默认溢出策略仍是 `drop-newest`，以保持兼容。更重视贴近链尖的消费者
+可以设置 `queueOverflowStrategy: "drop-oldest"`，并监控 `sub.len()` 和 `sub.dropped()`。
+每次溢出都会计数，并定期通过 `sub.errors` 报告。
+
+当消费者平均处理速度低于过滤后的入流速度时，任何有界内存流都无法同时保证零丢失和
+有界延迟。消费循环应保持轻量，避免逐事件同步日志，在服务端尽量缩小过滤范围，并把
+慢 I/O 的持久化或分发移出消费循环。
+
 更轻量：仅用日志用 `parseLogsOnly`；要补账户可再配合 `applyAccountFillsToLogEvents`。
 
 ### 5. ShredStream（HTTP，不是 Yellowstone gRPC）

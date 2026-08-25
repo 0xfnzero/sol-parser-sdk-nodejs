@@ -19,9 +19,15 @@ export interface GeyserConnectConfig {
   keepAliveIntervalMs?: number;
   /** gRPC keepalive 应答超时（毫秒） */
   keepAliveTimeoutMs?: number;
+  /** gRPC 连接初始重试退避（毫秒） */
+  initialReconnectBackoffMs?: number;
+  /** gRPC 连接最大重试退避（毫秒） */
+  maxReconnectBackoffMs?: number;
+  /** HTTP/2 本地接收窗口（字节） */
+  flowControlWindowBytes?: number;
 }
 
-/** 与 Rust `GeyserConnectConfig::default` 一致 */
+/** 公共字段与 Rust `GeyserConnectConfig::default` 一致，并包含 Node gRPC 通道默认值。 */
 export function defaultGeyserConnectConfig(): GeyserConnectConfig {
   return {
     connectTimeoutMs: 8000,
@@ -29,6 +35,9 @@ export function defaultGeyserConnectConfig(): GeyserConnectConfig {
     xToken: undefined,
     keepAliveIntervalMs: 30_000,
     keepAliveTimeoutMs: 5000,
+    initialReconnectBackoffMs: 1000,
+    maxReconnectBackoffMs: 60_000,
+    flowControlWindowBytes: 1024 * 1024,
   };
 }
 
@@ -46,6 +55,9 @@ export function geyserGrpcChannelOptions(
     "grpc.keepalive_timeout_ms": timeout,
     /** 无活跃 RPC 时仍发 keepalive，避免长时间仅订阅时被中间设备掐断 */
     "grpc.keepalive_permit_without_calls": 1,
+    "grpc.initial_reconnect_backoff_ms": config.initialReconnectBackoffMs,
+    "grpc.max_reconnect_backoff_ms": config.maxReconnectBackoffMs,
+    "grpc-node.flow_control_window": config.flowControlWindowBytes,
   };
 }
 

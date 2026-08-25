@@ -132,12 +132,14 @@ export interface ClientConfig {
   keep_alive_interval_ms: number;
   keep_alive_timeout_ms: number;
   buffer_size: number;
+  /** Node gRPC HTTP/2 receive window. Larger values reduce stalls on bursty streams. */
+  flow_control_window_bytes?: number;
   order_mode: OrderMode;
   order_timeout_ms: number;
   micro_batch_us: number;
 }
 
-/** 与 Rust `grpc::config` 中 `StreamingConfig` 别名（即 `ClientConfig`）一致 */
+/** 与 Rust `grpc::config` 中 `StreamingConfig` 别名一致，并包含可选 Node gRPC 参数。 */
 export type StreamingConfig = ClientConfig;
 
 export function defaultClientConfig(): ClientConfig {
@@ -152,13 +154,14 @@ export function defaultClientConfig(): ClientConfig {
     keep_alive_interval_ms: 30000,
     keep_alive_timeout_ms: 5000,
     buffer_size: 8192,
+    flow_control_window_bytes: 1024 * 1024,
     order_mode: "Unordered",
     order_timeout_ms: 100,
     micro_batch_us: 100,
   };
 }
 
-/** 与 Rust `ClientConfig::low_latency` 一致 */
+/** Rust `ClientConfig::low_latency` 的 Node 调优版本，使用更小的 JS 对象队列。 */
 export function lowLatencyClientConfig(): ClientConfig {
   return {
     enable_metrics: false,
@@ -171,13 +174,14 @@ export function lowLatencyClientConfig(): ClientConfig {
     keep_alive_interval_ms: 10_000,
     keep_alive_timeout_ms: 2000,
     buffer_size: 16384,
+    flow_control_window_bytes: 16 * 1024 * 1024,
     order_mode: "Unordered",
     order_timeout_ms: 50,
     micro_batch_us: 50,
   };
 }
 
-/** 与 Rust `ClientConfig::high_throughput` 一致 */
+/** Rust `ClientConfig::high_throughput` 的 Node 调优版本，使用更小的 JS 对象队列。 */
 export function highThroughputClientConfig(): ClientConfig {
   return {
     enable_metrics: true,
@@ -190,6 +194,7 @@ export function highThroughputClientConfig(): ClientConfig {
     keep_alive_interval_ms: 60_000,
     keep_alive_timeout_ms: 10_000,
     buffer_size: 32768,
+    flow_control_window_bytes: 16 * 1024 * 1024,
     order_mode: "Unordered",
     order_timeout_ms: 200,
     micro_batch_us: 200,

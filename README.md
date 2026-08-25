@@ -147,6 +147,37 @@ const sub = await client.subscribeTransactions(filter, {
 console.log("subscribed", sub.id);
 ```
 
+### Long-running low-latency DEX subscriptions
+
+The public API remains queue-based, matching the Rust SDK's `subscribe_dex_events` shape. The Node
+subscription is an async iterable instead of Rust's `ArrayQueue`, while ring-buffer dequeue,
+Yellowstone update parsing, HTTP/2 receive-window tuning, and reconnect behavior are handled inside
+the SDK:
+
+```typescript
+import { YellowstoneGrpc, lowLatencyClientConfig } from "sol-parser-sdk";
+
+const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN, lowLatencyClientConfig());
+const sub = await client.subscribeDexEvents(txFilters, accountFilters, eventTypeFilter);
+
+void (async () => {
+  for await (const error of sub.errors) console.error("subscription error", error);
+})();
+
+for await (const event of sub) {
+  handleEvent(event);
+}
+```
+
+If using `for await`, the default overflow behavior remains `drop-newest` for compatibility. A
+tip-oriented consumer can choose `queueOverflowStrategy: "drop-oldest"` and monitor `sub.len()` and
+`sub.dropped()`. Every overflow is counted and periodically reported through `sub.errors`.
+
+No bounded in-memory stream can guarantee both zero loss and bounded latency when the consumer's
+average processing rate is below the filtered input rate. Keep the loop body CPU-light, avoid
+per-event synchronous logging, filter at the server, and persist or dispatch slow work outside the
+consumer loop.
+
 **Lighter path:** `parseLogsOnly(logs, signature, slot, …)` — no `transactionRaw`; use `applyAccountFillsToLogEvents` if you need filled accounts without full gRPC meta.
 
 ### 5. ShredStream (HTTP — not Yellowstone gRPC)

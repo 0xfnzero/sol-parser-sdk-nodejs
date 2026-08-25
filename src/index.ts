@@ -287,7 +287,13 @@ export {
 
 export * as programIds from "./instr/program_ids.js";
 
-export { YellowstoneGrpc, type SubscribeCallbacks, type DexEventSubscription } from "./grpc/client.js";
+export {
+  YellowstoneGrpc,
+  type SubscribeCallbacks,
+  type DexEventSubscription,
+  type SubscribeDexEventsOptions,
+  type EventQueueOverflowStrategy,
+} from "./grpc/client.js";
 
 export {
   connectYellowstoneGeyser,
