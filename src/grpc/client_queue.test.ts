@@ -22,6 +22,32 @@ describe("AsyncEventQueue", () => {
     expect(await drain(queue)).toEqual([2, 3, 4]);
   });
 
+  it("supports synchronous dequeue across ring wraparound", () => {
+    const queue = new AsyncEventQueue<number>(3);
+    queue.push(1);
+    queue.push(2);
+    queue.push(3);
+
+    expect(queue.shift()).toBe(1);
+    queue.push(4);
+
+    expect(queue.shift()).toBe(2);
+    expect(queue.shift()).toBe(3);
+    expect(queue.shift()).toBe(4);
+    expect(queue.shift()).toBeUndefined();
+  });
+
+  it("clears buffered values without closing the queue", async () => {
+    const queue = new AsyncEventQueue<number>(2);
+    queue.push(1);
+    queue.push(2);
+
+    queue.clear();
+    expect(queue.len()).toBe(0);
+    expect(queue.push(3)).toBe(true);
+    expect((await queue.next()).value).toBe(3);
+  });
+
   it("keeps existing events with the compatible drop-newest strategy", async () => {
     const queue = new AsyncEventQueue<number>(2, "drop-newest");
 

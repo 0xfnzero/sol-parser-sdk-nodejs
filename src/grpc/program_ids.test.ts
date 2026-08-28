@@ -3,8 +3,10 @@ import {
   RAYDIUM_LAUNCHLAB_PROGRAM_ID,
   METEORA_DBC_PROGRAM_ID,
   PUMP_FEES_PROGRAM_ID,
+  PUMPSWAP_PROGRAM_ID,
   RAYDIUM_CLMM_PROGRAM_ID,
   getProgramIdsForProtocols,
+  transactionFilterForProtocolAccounts,
 } from "./program_ids.js";
 
 describe("protocol program ids", () => {
@@ -19,5 +21,24 @@ describe("protocol program ids", () => {
       "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
     ]);
     expect(getProgramIdsForProtocols(["PumpFees"])).toEqual([PUMP_FEES_PROGRAM_ID]);
+  });
+
+  it("restricts a protocol subscription to known accounts at the server", () => {
+    expect(
+      transactionFilterForProtocolAccounts("PumpSwap", [
+        "mint-b",
+        "mint-a",
+        "mint-b",
+        "  ",
+      ])
+    ).toEqual({
+      account_include: ["mint-a", "mint-b"],
+      account_exclude: [],
+      account_required: [PUMPSWAP_PROGRAM_ID],
+    });
+  });
+
+  it("rejects an empty tracked-account filter", () => {
+    expect(() => transactionFilterForProtocolAccounts("PumpSwap", [])).toThrow(RangeError);
   });
 });

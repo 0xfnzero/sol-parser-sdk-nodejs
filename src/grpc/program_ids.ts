@@ -54,6 +54,31 @@ export function transactionFilterForProtocols(protocols: readonly Protocol[]): T
   };
 }
 
+/**
+ * Server-side transaction filter for one protocol restricted to known accounts.
+ *
+ * Yellowstone applies `account_include` as ANY and `account_required` as ALL,
+ * so matching transactions must contain the protocol program and at least one
+ * tracked mint, pool, or other account.
+ */
+export function transactionFilterForProtocolAccounts(
+  protocol: Protocol,
+  accounts: readonly string[]
+): TransactionFilter {
+  const trackedAccounts = [
+    ...new Set(accounts.map((account) => account.trim()).filter((account) => account.length > 0)),
+  ].sort();
+  if (trackedAccounts.length === 0) {
+    throw new RangeError("At least one tracked account is required");
+  }
+
+  return {
+    account_include: trackedAccounts,
+    account_exclude: [],
+    account_required: [...PROTOCOL_PROGRAM_IDS[protocol]],
+  };
+}
+
 /** 与 Rust `AccountFilter::for_protocols` 一致 */
 export function accountFilterForProtocols(protocols: readonly Protocol[]): AccountFilter {
   return {

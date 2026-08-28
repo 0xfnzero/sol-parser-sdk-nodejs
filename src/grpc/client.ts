@@ -3,7 +3,7 @@
  */
 import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
 import bs58 from "bs58";
-import type { DexEvent } from "../core/dex_event.js";
+import { metadataForDexEvent, type DexEvent } from "../core/dex_event.js";
 import { makeMetadata } from "../core/metadata.js";
 import { parseAccountUnified, type AccountData } from "../accounts/mod.js";
 import { defaultGeyserConnectConfig, geyserGrpcChannelOptions } from "./geyser_connect.js";
@@ -46,6 +46,13 @@ export type { EventQueueOverflowStrategy } from "./async_event_queue.js";
 
 type YellowstoneSubscribeStream = Awaited<ReturnType<Client["subscribe"]>>;
 
+type PendingDexUpdate = {
+  update: SubscribeUpdate;
+  grpcRecvUs: number;
+  grpcRecvNs?: bigint;
+  blockTimeUs?: number;
+};
+
 function cancelSubscribeStream(stream: YellowstoneSubscribeStream | null): void {
   if (!stream) return;
   // grpc-js emits CANCELLED through `error`; guard the short setup window before
@@ -54,6 +61,13 @@ function cancelSubscribeStream(stream: YellowstoneSubscribeStream | null): void 
   stream.cancel();
 }
 
+function positiveIntegerOption(value: number | undefined, fallback: number, name: string): number {
+  const normalized = value ?? fallback;
+  if (!Number.isInteger(normalized) || normalized < 1) {
+    throw new RangeError(`${name} must be a positive integer`);
+  }
+  return normalized;
+}
 
 export interface DexEventSubscription extends AsyncIterable<DexEvent> {
   id: string;
@@ -61,16 +75,24 @@ export interface DexEventSubscription extends AsyncIterable<DexEvent> {
   cancel(): void;
   next(): Promise<IteratorResult<DexEvent>>;
   len(): number;
+  /** Total drops across ingress and the public event queue. */
   dropped(): number;
+  eventDropped(): number;
+  ingressLen(): number;
+  ingressDropped(): number;
 }
 
 export interface SubscribeDexEventsOptions {
   autoReconnect?: boolean;
   /**
-   * Queue behavior when an async-iterator consumer cannot keep up. The default
-   * preserves the existing behavior; `drop-oldest` favors staying near chain tip.
+   * Queue behavior when parsing or the async-iterator consumer cannot keep up.
+   * The default preserves existing behavior; `drop-oldest` favors chain-tip latency.
    */
   queueOverflowStrategy?: EventQueueOverflowStrategy;
+  /** Raw Yellowstone updates retained before CPU-heavy parsing. Defaults to min(buffer_size, 1024). */
+  ingressBufferSize?: number;
+  /** Maximum raw updates parsed before yielding back to Node's event loop. Defaults to 8. */
+  parserBatchSize?: number;
 }
 
 /** Yellowstone gRPC 客户端包装器 */
@@ -531,18 +553,30 @@ export class YellowstoneGrpc {
       Math.max(1, this.config.buffer_size),
       options?.queueOverflowStrategy
     );
+    const ingressBufferSize = positiveIntegerOption(
+      options?.ingressBufferSize,
+      Math.min(this.config.buffer_size, 1024),
+      "ingressBufferSize"
+    );
+    const parserBatchSize = positiveIntegerOption(options?.parserBatchSize, 8, "parserBatchSize");
+    const ingress = new AsyncEventQueue<PendingDexUpdate>(
+      ingressBufferSize,
+      options?.queueOverflowStrategy
+    );
     const errors = new AsyncEventQueue<Error>(Math.max(1, this.config.buffer_size));
     const order = new OrderDispatcher(this.config);
-    let nextDropWarningAt = 0;
+    const eventDropped = events.dropped.bind(events);
+    let nextEventDropWarningAt = 0;
+    let nextIngressDropWarningAt = 0;
     const reportError = (error: Error) => errors.push(error);
     const emitEvent = (event: DexEvent) => {
       if (events.push(event)) return;
       const now = Date.now();
-      if (now < nextDropWarningAt) return;
-      nextDropWarningAt = now + 10_000;
+      if (now < nextEventDropWarningAt) return;
+      nextEventDropWarningAt = now + 10_000;
       reportError(
         new Error(
-          `Dex event queue full; dropped=${events.dropped()} buffer_size=${this.config.buffer_size} ` +
+          `Dex event queue full; dropped=${eventDropped()} buffer_size=${this.config.buffer_size} ` +
             `strategy=${options?.queueOverflowStrategy ?? "drop-newest"}`
         )
       );
@@ -556,6 +590,109 @@ export class YellowstoneGrpc {
       flushTimer = setInterval(() => order.flushDue(emitEvent), intervalMs);
     }
     let isCancelled = false;
+    let ingressDrainScheduled = false;
+    let ingressDrainHandle: ReturnType<typeof setImmediate> | undefined;
+    const ingressIdleWaiters: Array<() => void> = [];
+
+    const resolveIngressIdle = () => {
+      if (ingress.len() > 0 || ingressDrainScheduled) return;
+      for (const resolve of ingressIdleWaiters.splice(0)) resolve();
+    };
+
+    const annotateLocalMetrics = (
+      events: readonly DexEvent[],
+      grpcRecvNs: bigint | undefined,
+      parseStartedNs: bigint | undefined,
+      parseFinishedNs: bigint | undefined
+    ) => {
+      if (grpcRecvNs === undefined || parseStartedNs === undefined || parseFinishedNs === undefined) {
+        return;
+      }
+      const queueUs = Number(parseStartedNs - grpcRecvNs) / 1_000;
+      const parseUs = Number(parseFinishedNs - parseStartedNs) / 1_000;
+      const processingUs = Number(parseFinishedNs - grpcRecvNs) / 1_000;
+      for (const event of events) {
+        const metadata = metadataForDexEvent(event);
+        if (!metadata) continue;
+        metadata.local_queue_latency_us = queueUs;
+        metadata.parse_duration_us = parseUs;
+        metadata.local_processing_latency_us = processingUs;
+      }
+    };
+
+    const processUpdate = ({ update, grpcRecvUs, grpcRecvNs, blockTimeUs }: PendingDexUpdate) => {
+      if (order.needsTimer) order.flushDue(emitEvent);
+      const txUpdate = update.transaction;
+      const tx = txUpdate?.transaction;
+      if (tx) {
+        const parseStartedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
+        const slot = txUpdate?.slot ?? 0n;
+        const fallbackSlot = YellowstoneGrpc.protobufNumber(slot);
+        const fallbackTxIndex = YellowstoneGrpc.protobufNumber(tx.index ?? 0);
+        const txInfo: SubscribeUpdateTransactionInfo = {
+          signature: tx.signature,
+          isVote: tx.isVote,
+          transactionRaw: tx.transaction,
+          metaRaw: tx.meta as SubscribeUpdateTransactionInfo["metaRaw"],
+          index: (tx.index ?? 0n) as string | bigint,
+        };
+        const txEvents = parseDexEventsFromGrpcTransactionInfo(txInfo, slot, {
+          blockTimeUs,
+          grpcRecvUs,
+          eventTypeFilter,
+        });
+        const parseFinishedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
+        annotateLocalMetrics(txEvents, grpcRecvNs, parseStartedNs, parseFinishedNs);
+        order.pushTransactionEvents(txEvents, fallbackSlot, fallbackTxIndex, emitEvent);
+      }
+
+      if (update.account) {
+        const parseStartedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
+        const ev = this.parseAccountEventRaw(
+          update.account,
+          grpcRecvUs,
+          eventTypeFilter,
+          blockTimeUs
+        );
+        const parseFinishedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
+        if (ev) annotateLocalMetrics([ev], grpcRecvNs, parseStartedNs, parseFinishedNs);
+        if (ev) emitEvent(ev);
+      }
+    };
+
+    const scheduleIngressDrain = () => {
+      if (isCancelled || ingressDrainScheduled || ingress.len() === 0) return;
+      ingressDrainScheduled = true;
+      ingressDrainHandle = setImmediate(() => {
+        ingressDrainHandle = undefined;
+        ingressDrainScheduled = false;
+        if (isCancelled) {
+          resolveIngressIdle();
+          return;
+        }
+
+        let processed = 0;
+        while (processed < parserBatchSize) {
+          const pending = ingress.shift();
+          if (!pending) break;
+          try {
+            processUpdate(pending);
+          } catch (err) {
+            reportError(err instanceof Error ? err : new Error(String(err)));
+          }
+          processed++;
+        }
+
+        if (ingress.len() > 0) scheduleIngressDrain();
+        else resolveIngressIdle();
+      });
+    };
+
+    const waitForIngressIdle = () => {
+      if (ingress.len() === 0 && !ingressDrainScheduled) return Promise.resolve();
+      return new Promise<void>((resolve) => ingressIdleWaiters.push(resolve));
+    };
+
     let currentTransactionFilters = transactionFilters;
     let currentAccountFilters = accountFilters;
     const streamHolder: {
@@ -581,6 +718,12 @@ export class YellowstoneGrpc {
       cancelReconnectDelay?.();
       cancelSubscribeStream(streamHolder.current);
       streamHolder.current = null;
+      if (ingressDrainHandle) clearImmediate(ingressDrainHandle);
+      ingressDrainHandle = undefined;
+      ingressDrainScheduled = false;
+      ingress.clear();
+      ingress.close();
+      resolveIngressIdle();
       if (flushTimer) clearInterval(flushTimer);
       events.close();
       errors.close();
@@ -639,8 +782,11 @@ export class YellowstoneGrpc {
 
               stream.on("data", (update: SubscribeUpdate) => {
                 if (isCancelled) return;
+                const grpcRecvNs = this.config.enable_metrics
+                  ? process.hrtime.bigint()
+                  : undefined;
+                const grpcRecvUs = Math.floor(Date.now() * 1000);
                 backoffMs = this.config.retry_delay_ms;
-                if (order.needsTimer) order.flushDue(emitEvent);
 
                 if (update.ping) {
                   stream.write(this.subscribePingPongRequest(), (werr: Error | null | undefined) => {
@@ -651,44 +797,28 @@ export class YellowstoneGrpc {
                   return;
                 }
 
-                try {
-                  const grpcRecvUs = Math.floor(Date.now() * 1000);
-                  const blockTimeUs = YellowstoneGrpc.timestampToMicros(
+                const accepted = ingress.push({
+                  update,
+                  grpcRecvUs,
+                  grpcRecvNs,
+                  blockTimeUs: YellowstoneGrpc.timestampToMicros(
                     (update as any).createdAt ?? (update as any).created_at
-                  );
-                  const txUpdate = update.transaction;
-                  const tx = txUpdate?.transaction;
-                  if (tx) {
-                    const slot = txUpdate?.slot ?? 0n;
-                    const fallbackSlot = YellowstoneGrpc.protobufNumber(slot);
-                    const fallbackTxIndex = YellowstoneGrpc.protobufNumber(tx.index ?? 0);
-                    const txInfo: SubscribeUpdateTransactionInfo = {
-                      signature: tx.signature,
-                      isVote: tx.isVote,
-                      transactionRaw: tx.transaction,
-                      metaRaw: tx.meta as SubscribeUpdateTransactionInfo["metaRaw"],
-                      index: (tx.index ?? 0n) as string | bigint,
-                    };
-                    const txEvents = parseDexEventsFromGrpcTransactionInfo(
-                      txInfo,
-                      slot,
-                      { blockTimeUs, grpcRecvUs, eventTypeFilter }
+                  ),
+                });
+                if (!accepted) {
+                  const now = Date.now();
+                  if (now >= nextIngressDropWarningAt) {
+                    nextIngressDropWarningAt = now + 10_000;
+                    reportError(
+                      new Error(
+                        `Yellowstone ingress queue full; dropped=${ingress.dropped()} ` +
+                          `buffer_size=${ingressBufferSize} ` +
+                          `strategy=${options?.queueOverflowStrategy ?? "drop-newest"}`
+                      )
                     );
-                    order.pushTransactionEvents(txEvents, fallbackSlot, fallbackTxIndex, emitEvent);
                   }
-
-                  if (update.account) {
-                    const ev = this.parseAccountEventRaw(
-                      update.account,
-                      grpcRecvUs,
-                      eventTypeFilter,
-                      blockTimeUs
-                    );
-                    if (ev) emitEvent(ev);
-                  }
-                } catch (err) {
-                  reportError(err instanceof Error ? err : new Error(String(err)));
                 }
+                scheduleIngressDrain();
               });
 
               stream.on("error", (err: Error) => {
@@ -722,7 +852,11 @@ export class YellowstoneGrpc {
         cancelSubscribeStream(streamHolder.current);
         streamHolder.current = null;
         if (flushTimer) clearInterval(flushTimer);
-        if (!isCancelled) order.flushAll(emitEvent);
+        if (!isCancelled) {
+          await waitForIngressIdle();
+          order.flushAll(emitEvent);
+        }
+        ingress.close();
         events.close();
         errors.close();
         this.dexSubscribers.delete(id);
@@ -732,6 +866,10 @@ export class YellowstoneGrpc {
     return Object.assign(events, {
       id,
       errors,
+      dropped: () => eventDropped() + ingress.dropped(),
+      eventDropped,
+      ingressLen: () => ingress.len(),
+      ingressDropped: () => ingress.dropped(),
       cancel: () => {
         cancel();
         this.dexSubscribers.delete(id);

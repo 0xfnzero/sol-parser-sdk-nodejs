@@ -2,7 +2,7 @@
  * PumpSwap Low-Latency Example
  *
  * Demonstrates how to:
- * - Subscribe to PumpSwap protocol events
+ * - Subscribe to PumpSwap swaps, pool creation, and liquidity events
  * - Measure end-to-end latency
  * - Display per-event and periodic statistics
  *
@@ -74,6 +74,8 @@ async function main() {
     "PumpSwapBuy",
     "PumpSwapSell",
     "PumpSwapCreatePool",
+    "PumpSwapLiquidityAdded",
+    "PumpSwapLiquidityRemoved",
   ]);
 
   const sub = await client.subscribeDexEvents([txFilter], [], eventFilter);
@@ -85,6 +87,7 @@ async function main() {
   })().catch((err) => console.error("Error stream failed:", err));
 
   console.log(`✅ Subscribed (id=${sub.id})`);
+  console.log("📋 Events: Buy, Sell, CreatePool, LiquidityAdded, LiquidityRemoved");
   console.log("🛑 Press Ctrl+C to stop...\n");
 
   process.on("SIGINT", () => {
@@ -116,6 +119,15 @@ async function main() {
     console.log(`  slot : ${metadata?.slot ?? ""}`);
     if (data.pool) console.log(`  pool : ${data.pool}`);
     if (data.user) console.log(`  user : ${data.user}`);
+    if (data.creator) console.log(`  creator   : ${data.creator}`);
+    if (data.base_mint) console.log(`  base_mint : ${data.base_mint}`);
+    if (data.quote_mint) console.log(`  quote_mint: ${data.quote_mint}`);
+    if (data.base_amount_in !== undefined) {
+      console.log(`  base_amount_in : ${String(data.base_amount_in)}`);
+    }
+    if (data.quote_amount_in !== undefined) {
+      console.log(`  quote_amount_in: ${String(data.quote_amount_in)}`);
+    }
     console.log();
   }
 }

@@ -15,7 +15,6 @@ import {
   YellowstoneGrpc,
   eventTypeFilterIncludeOnly,
   lowLatencyClientConfig,
-  nowUs,
   transactionFilterForProtocols,
   type DexEvent,
 } from "../src/index.js";
@@ -41,7 +40,9 @@ let buyCacheMiss = 0;
 let sellCacheMiss = 0;
 let stopped = false;
 let latestSlot = 0n;
-let latestQueueLagMs = 0;
+let latestQueueLatencyUs = 0;
+let latestParseDurationUs = 0;
+let latestProcessingLatencyUs = 0;
 
 function getEvent(ev: DexEvent): { key: string; data: EventData } {
   const key = Object.keys(ev)[0] ?? "";
@@ -57,6 +58,9 @@ function metadata(data: EventData) {
     grpc_recv_us?: number;
     signature?: string;
     slot?: number | bigint;
+    local_queue_latency_us?: number;
+    parse_duration_us?: number;
+    local_processing_latency_us?: number;
   };
 }
 
@@ -75,6 +79,7 @@ async function main() {
   console.log("One low-latency stream | DB: none | RPC: none\n");
 
   const config = lowLatencyClientConfig();
+  config.enable_metrics = true;
   const client = new YellowstoneGrpc(ENDPOINT, X_TOKEN, config);
   const txFilter = transactionFilterForProtocols(["PumpFun"]);
   const eventFilter = eventTypeFilterIncludeOnly([
@@ -99,7 +104,9 @@ async function main() {
   const healthTimer = setInterval(() => {
     console.log(
       `[HEALTH] slot=${latestSlot} queue=${sub.len()}/${config.buffer_size} ` +
-        `dropped=${sub.dropped()} queue_lag_ms=${latestQueueLagMs.toFixed(1)} ` +
+        `dropped=${sub.dropped()} queue_us=${latestQueueLatencyUs.toFixed(1)} ` +
+        `parse_us=${latestParseDurationUs.toFixed(1)} ` +
+        `grpc_to_parsed_us=${latestProcessingLatencyUs.toFixed(1)} ` +
         `events=${totalEvents}`
     );
   }, 10_000);
@@ -141,9 +148,9 @@ async function main() {
     const signature = meta.signature ?? "";
     const slot = BigInt(meta.slot ?? 0);
     if (slot > latestSlot) latestSlot = slot;
-    if (meta.grpc_recv_us) {
-      latestQueueLagMs = Math.max(0, (nowUs() - meta.grpc_recv_us) / 1000);
-    }
+    latestQueueLatencyUs = meta.local_queue_latency_us ?? latestQueueLatencyUs;
+    latestParseDurationUs = meta.parse_duration_us ?? latestParseDurationUs;
+    latestProcessingLatencyUs = meta.local_processing_latency_us ?? latestProcessingLatencyUs;
 
     // CREATE
     if (key === "PumpFunCreate" || key === "PumpFunCreateV2") {

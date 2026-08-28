@@ -14,6 +14,8 @@ import {
 
 export type InvokePair = readonly [outerIndex: number, innerIndex: number];
 
+const accountKeyBase58Cache = new WeakMap<object, string>();
+
 /**
  * 将账户表项转为 Base58（与 `PublicKey.toBase58()` 一致）。
  * 兼容：已是地址字符串、标准 `PublicKey`、以及多份 `@solana/web3.js` 副本导致 `instanceof` 失效的情况。
@@ -30,7 +32,12 @@ export function accountKeyToBase58(account: unknown): string | undefined {
   const maybeFn = (account as { toBase58?: unknown }).toBase58;
   if (typeof maybeFn === "function") {
     try {
-      return (maybeFn as () => string).call(account);
+      const object = account as object;
+      const cached = accountKeyBase58Cache.get(object);
+      if (cached !== undefined) return cached;
+      const encoded = (maybeFn as () => string).call(account);
+      accountKeyBase58Cache.set(object, encoded);
+      return encoded;
     } catch {
       /* fall through */
     }

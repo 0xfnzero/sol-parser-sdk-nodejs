@@ -1,10 +1,15 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { YellowstoneGrpc } from "./client.js";
 import { defaultClientConfig } from "./types.js";
 
+const parseMock = vi.hoisted(() => vi.fn());
+
 vi.mock("./yellowstone_parse.js", () => ({
-  parseDexEventsFromGrpcTransactionInfo: () => [testEvent()],
+  parseDexEventsFromGrpcTransactionInfo: (...args: unknown[]) => {
+    parseMock(...args);
+    return [testEvent()];
+  },
 }));
 
 function testEvent() {
@@ -26,8 +31,10 @@ function testEvent() {
 
 class FakeStream extends EventEmitter {
   cancelCalls = 0;
+  writes: unknown[] = [];
 
-  write(_request: unknown, callback: (error?: Error | null) => void): boolean {
+  write(request: unknown, callback: (error?: Error | null) => void): boolean {
+    this.writes.push(request);
     queueMicrotask(() => callback(null));
     return true;
   }
@@ -50,10 +57,15 @@ class ImmediatelyFailingStream extends FakeStream {
   }
 }
 
-function clientWithStream(stream: FakeStream, orderMode: "Unordered" | "Ordered" = "Unordered") {
+function clientWithStream(
+  stream: FakeStream,
+  orderMode: "Unordered" | "Ordered" = "Unordered",
+  enableMetrics = false
+) {
   const client = new YellowstoneGrpc("https://example.invalid", "", {
     ...defaultClientConfig(),
     order_mode: orderMode,
+    enable_metrics: enableMetrics,
   });
   (client as unknown as { client: { subscribe: () => Promise<FakeStream> } }).client = {
     subscribe: async () => stream,
@@ -61,7 +73,7 @@ function clientWithStream(stream: FakeStream, orderMode: "Unordered" | "Ordered"
   return client;
 }
 
-function transactionUpdate() {
+function transactionUpdate(index = 0n) {
   return {
     transaction: {
       slot: 10n,
@@ -70,7 +82,7 @@ function transactionUpdate() {
         isVote: false,
         transaction: {},
         meta: {},
-        index: 0n,
+        index,
       },
     },
   };
@@ -81,6 +93,126 @@ function nextTurn(): Promise<void> {
 }
 
 describe("YellowstoneGrpc subscribeDexEvents lifecycle", () => {
+  beforeEach(() => parseMock.mockClear());
+
+  it("rejects invalid parser scheduling options", async () => {
+    const client = clientWithStream(new FakeStream());
+
+    await expect(
+      client.subscribeDexEvents([], [], undefined, { parserBatchSize: Number.NaN })
+    ).rejects.toThrow("parserBatchSize");
+    await expect(
+      client.subscribeDexEvents([], [], undefined, { ingressBufferSize: Number.POSITIVE_INFINITY })
+    ).rejects.toThrow("ingressBufferSize");
+    await expect(
+      client.subscribeDexEvents([], [], undefined, { parserBatchSize: 1.5 })
+    ).rejects.toThrow("parserBatchSize");
+  });
+
+  it("defers parsing so the gRPC data callback stays lightweight", async () => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream).subscribeDexEvents();
+    await nextTurn();
+
+    stream.emit("data", transactionUpdate());
+    expect(parseMock).not.toHaveBeenCalled();
+
+    await nextTurn();
+    expect(parseMock).toHaveBeenCalledOnce();
+    sub.cancel();
+  });
+
+  it("measures local queue and parser latency without an RPC call", async () => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream, "Unordered", true).subscribeDexEvents();
+    await nextTurn();
+
+    stream.emit("data", transactionUpdate());
+    const result = await sub.next();
+    expect(result.done).toBe(false);
+    const metadata = (result.value as ReturnType<typeof testEvent>).PumpFunTrade.metadata;
+    expect(metadata.local_queue_latency_us).toBeGreaterThanOrEqual(0);
+    expect(metadata.parse_duration_us).toBeGreaterThanOrEqual(0);
+    expect(metadata.local_processing_latency_us).toBeCloseTo(
+      metadata.local_queue_latency_us + metadata.parse_duration_us,
+      6
+    );
+    sub.cancel();
+  });
+
+  it("keeps the freshest raw updates and exposes ingress drops during a burst", async () => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream).subscribeDexEvents([], [], undefined, {
+      ingressBufferSize: 2,
+      parserBatchSize: 1,
+      queueOverflowStrategy: "drop-oldest",
+    });
+    await nextTurn();
+
+    stream.emit("data", transactionUpdate(1n));
+    stream.emit("data", transactionUpdate(2n));
+    stream.emit("data", transactionUpdate(3n));
+
+    expect(sub.ingressLen()).toBe(2);
+    expect(sub.ingressDropped()).toBe(1);
+    expect(sub.dropped()).toBe(1);
+    expect(parseMock).not.toHaveBeenCalled();
+
+    await nextTurn();
+    await nextTurn();
+    expect(parseMock.mock.calls.map((call) => call[0].index)).toEqual([2n, 3n]);
+    sub.cancel();
+  });
+
+  it("does not parse a deferred update after cancellation", async () => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream).subscribeDexEvents();
+    await nextTurn();
+
+    stream.emit("data", transactionUpdate());
+    sub.cancel();
+    await nextTurn();
+
+    expect(parseMock).not.toHaveBeenCalled();
+  });
+
+  it("answers Yellowstone ping without waiting for parser scheduling", async () => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream).subscribeDexEvents();
+    await nextTurn();
+    expect(stream.writes).toHaveLength(1);
+
+    stream.emit("data", { ping: {} });
+    expect(stream.writes).toHaveLength(2);
+    sub.cancel();
+  });
+
+  it("shares parser time fairly across independent clients", async () => {
+    const busyStream = new FakeStream();
+    const latencySensitiveStream = new FakeStream();
+    const busySub = await clientWithStream(busyStream).subscribeDexEvents([], [], undefined, {
+      parserBatchSize: 2,
+    });
+    const latencySensitiveSub = await clientWithStream(latencySensitiveStream).subscribeDexEvents(
+      [],
+      [],
+      undefined,
+      { parserBatchSize: 2 }
+    );
+    await nextTurn();
+
+    for (let index = 1n; index <= 5n; index++) {
+      busyStream.emit("data", transactionUpdate(index));
+    }
+    latencySensitiveStream.emit("data", transactionUpdate(99n));
+
+    await nextTurn();
+    expect(parseMock.mock.calls.map((call) => call[0].index)).toEqual([1n, 2n, 99n]);
+
+    busySub.cancel();
+    latencySensitiveSub.cancel();
+  });
+
   it("safely cancels while the stream is still being set up", async () => {
     const stream = new FakeStream();
     const sub = await clientWithStream(stream).subscribeDexEvents();

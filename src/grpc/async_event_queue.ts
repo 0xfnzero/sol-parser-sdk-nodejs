@@ -47,6 +47,20 @@ export class AsyncEventQueue<T> implements AsyncIterable<T>, AsyncIterator<T> {
     return this.droppedCount;
   }
 
+  /** Synchronous O(1) dequeue for internal scheduled consumers. */
+  shift(): T | undefined {
+    if (this.size === 0) return undefined;
+    const item = this.items[this.head] as T;
+    this.items[this.head] = undefined;
+    this.head = (this.head + 1) % this.maxSize;
+    this.size--;
+    return item;
+  }
+
+  clear(): void {
+    while (this.size > 0) this.shift();
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
@@ -57,11 +71,7 @@ export class AsyncEventQueue<T> implements AsyncIterable<T>, AsyncIterator<T> {
 
   next(): Promise<IteratorResult<T>> {
     if (this.size > 0) {
-      const item = this.items[this.head] as T;
-      this.items[this.head] = undefined;
-      this.head = (this.head + 1) % this.maxSize;
-      this.size--;
-      return Promise.resolve({ value: item, done: false });
+      return Promise.resolve({ value: this.shift() as T, done: false });
     }
     if (this.closed) {
       return Promise.resolve({ value: undefined, done: true });

@@ -75,7 +75,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.11
+npm install sol-parser-sdk@0.5.12
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
@@ -150,9 +150,10 @@ console.log("subscribed", sub.id);
 ### Long-running low-latency DEX subscriptions
 
 The public API remains queue-based, matching the Rust SDK's `subscribe_dex_events` shape. The Node
-subscription is an async iterable instead of Rust's `ArrayQueue`, while ring-buffer dequeue,
-Yellowstone update parsing, HTTP/2 receive-window tuning, and reconnect behavior are handled inside
-the SDK:
+subscription is an async iterable instead of Rust's `ArrayQueue`. Raw Yellowstone protobuf objects
+are mapped directly into the parser without the former protobuf/WASM/JSON/Base58 transaction
+round-trip. Ring-buffer dequeue, bounded pre-parser scheduling, HTTP/2 receive-window tuning, and
+reconnect behavior are handled inside the SDK:
 
 ```typescript
 import { YellowstoneGrpc, lowLatencyClientConfig } from "sol-parser-sdk";
@@ -170,8 +171,51 @@ for await (const event of sub) {
 ```
 
 If using `for await`, the default overflow behavior remains `drop-newest` for compatibility. A
-tip-oriented consumer can choose `queueOverflowStrategy: "drop-oldest"` and monitor `sub.len()` and
-`sub.dropped()`. Every overflow is counted and periodically reported through `sub.errors`.
+tip-oriented consumer can choose `queueOverflowStrategy: "drop-oldest"`. Monitor the public event
+queue with `sub.len()` / `sub.eventDropped()` and the pre-parser queue with
+`sub.ingressLen()` / `sub.ingressDropped()`. `sub.dropped()` is the combined count. Every overflow
+is counted and periodically reported through `sub.errors`.
+
+For precise local-only measurements, set `config.enable_metrics = true`. Event metadata then includes
+`local_queue_latency_us`, `parse_duration_us`, and `local_processing_latency_us`. These values use
+Node's monotonic high-resolution clock. They measure only local queueing and parsing; the hot path
+does not call `getSlot`, `getTransaction`, JSON-RPC, or any unary RPC method.
+
+`local_processing_latency_us` is the end-to-end local metric: it starts at entry to Yellowstone's
+gRPC `data` callback and ends immediately after complete event parsing and field filling.
+
+Full-volume PumpFun and PumpSwap can use the same Rust-aligned program filter. Yellowstone applies
+`account_include` as ANY, so this receives every transaction containing either supported program:
+
+```typescript
+const allPumpTransactions = transactionFilterForProtocols(["PumpFun", "PumpSwap"]);
+const sub = await client.subscribeDexEvents([allPumpTransactions], [], eventTypeFilter);
+```
+
+`eventTypeFilter` avoids unnecessary event decoding, but it does not reduce traffic sent by
+Yellowstone. When an application intentionally needs only selected mints, pools, or users, the
+optional scoped filter requires the protocol program and any one tracked account:
+
+```typescript
+const pumpSwap = transactionFilterForProtocolAccounts("PumpSwap", knownMintsAndPools);
+const sub = await client.subscribeDexEvents(
+  [transactionFilterForProtocols(["PumpFun"]), pumpSwap],
+  [],
+  eventTypeFilter
+);
+```
+
+The combined example uses full-volume PumpSwap by default. Set `PUMPSWAP_FILTER_MODE=scoped` only when
+scoped monitoring is desired; in that mode `updateSubscription()` refreshes the active account
+filters. `PumpSwapCreatePool` maps a known base or quote mint to its pool, and
+`PumpSwapLiquidityAdded` can then be compared with the developer associated with that mint.
+
+Two `YellowstoneGrpc` instances in one Node process still share one JavaScript event loop. The direct
+protobuf path supports full PumpFun + PumpSwap in one subscription; use a separate OS process or
+Worker Thread only when application callbacks, database work, or additional protocols saturate that
+event loop. A separate gRPC connection alone does not provide CPU isolation. Send database work to a
+bounded handoff queue and batch asynchronous SQLite WAL writes; do not await one write per event in
+the subscription loop.
 
 No bounded in-memory stream can guarantee both zero loss and bounded latency when the consumer's
 average processing rate is below the filtered input rate. Keep the loop body CPU-light, avoid
@@ -205,6 +249,7 @@ From the **package root** after `npm install`. Examples use `npx tsx` and load `
 | Debug: print `metaRaw` / log structure | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
 | CREATE + dev BUY/SELL, long-running low latency | `npx tsx examples/devtrades_low_latency.ts` | [devtrades_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_low_latency.ts) |
+| PumpFun + full-volume PumpSwap dev trades/liquidity | `npm run example:grpc:devtrades:pumpswap` | [devtrades_pumpfun_pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_pumpfun_pumpswap_low_latency.ts) |
 | Pretty-print full JSON `DexEvent` over gRPC | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
 | PumpFun events + metrics | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
 | PumpFun trade filter | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
@@ -212,7 +257,7 @@ From the **package root** after `npm install`. Examples use `npx tsx` and load `
 | **PumpSwap** | | |
 | Pretty-print full JSON `DexEvent` over gRPC | `npx tsx examples/pumpswap_grpc_json.ts` | [pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) |
 | PumpSwap events + metrics | `npx tsx examples/pumpswap_with_metrics.ts` | [pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) |
-| PumpSwap ultra-low latency | `npx tsx examples/pumpswap_low_latency.ts` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
+| PumpSwap swaps, pool creation, and liquidity events (ultra-low latency) | `npm run example:grpc:pumpswap` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
 | Meteora DAMM V2 events | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream** (HTTP, not Yellowstone gRPC; see **step 5** above) | | |

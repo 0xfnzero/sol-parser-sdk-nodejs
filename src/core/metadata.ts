@@ -6,6 +6,12 @@ export interface EventMetadata {
   tx_index: number;
   block_time_us: number;
   grpc_recv_us: number;
+  /** Time waiting in the local pre-parser queue, measured with a monotonic clock. */
+  local_queue_latency_us?: number;
+  /** Pure local adapter + parser duration. No network or RPC calls are included. */
+  parse_duration_us?: number;
+  /** Start of the local gRPC data callback through parser completion. No RPC calls are included. */
+  local_processing_latency_us?: number;
   recent_blockhash?: string;
 }
 

@@ -154,6 +154,7 @@ export {
   METEORA_DBC_PROGRAM_ID,
   getProgramIdsForProtocols,
   transactionFilterForProtocols,
+  transactionFilterForProtocolAccounts,
   accountFilterForProtocols,
 } from "./grpc/program_ids.js";
 
@@ -161,6 +162,7 @@ export {
   PROTOCOL_PROGRAM_IDS as protocol_program_ids,
   getProgramIdsForProtocols as get_program_ids_for_protocols,
   transactionFilterForProtocols as transaction_filter_for_protocols,
+  transactionFilterForProtocolAccounts as transaction_filter_for_protocol_accounts,
   accountFilterForProtocols as account_filter_for_protocols,
 } from "./grpc/program_ids.js";
 

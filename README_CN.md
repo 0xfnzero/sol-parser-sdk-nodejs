@@ -75,7 +75,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.11
+npm install sol-parser-sdk@0.5.12
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -150,7 +150,8 @@ console.log("subscribed", sub.id);
 ### 长时间运行的低延迟 DEX 订阅
 
 公开 API 保持队列式调用，与 Rust SDK 的 `subscribe_dex_events` 形态一致。Node 使用异步
-迭代器代替 Rust 的 `ArrayQueue`；环形队列出队、Yellowstone update 解析、HTTP/2 接收窗口
+迭代器代替 Rust 的 `ArrayQueue`。Yellowstone 原始 protobuf 对象会直接映射给解析器，不再经过
+旧的 protobuf/WASM/JSON/Base58 整笔交易往返；环形队列出队、有界解析前调度、HTTP/2 接收窗口
 和重连优化全部由 SDK 内部完成：
 
 ```typescript
@@ -169,8 +170,47 @@ for await (const event of sub) {
 ```
 
 若使用 `for await`，默认溢出策略仍是 `drop-newest`，以保持兼容。更重视贴近链尖的消费者
-可以设置 `queueOverflowStrategy: "drop-oldest"`，并监控 `sub.len()` 和 `sub.dropped()`。
-每次溢出都会计数，并定期通过 `sub.errors` 报告。
+可以设置 `queueOverflowStrategy: "drop-oldest"`。通过 `sub.len()` / `sub.eventDropped()` 监控
+公开事件队列，通过 `sub.ingressLen()` / `sub.ingressDropped()` 监控解析前入口队列；
+`sub.dropped()` 返回两者之和。每次溢出都会计数，并定期通过 `sub.errors` 报告。
+
+如需精确测量纯本地延迟，请设置 `config.enable_metrics = true`。事件 metadata 将包含
+`local_queue_latency_us`、`parse_duration_us` 和 `local_processing_latency_us`，这些字段使用
+Node 单调高精度时钟，只测量本地排队与解析。热路径不会调用 `getSlot`、`getTransaction`、
+JSON-RPC 或任何 unary RPC 方法。
+
+`local_processing_latency_us` 是本地端到端指标：从进入 Yellowstone gRPC `data` 回调开始，
+到完整事件解析和字段填充结束为止。
+
+PumpFun 与 PumpSwap 全量交易可以直接使用和 Rust 对齐的 Program ID 过滤器。Yellowstone 的
+`account_include` 是 ANY 语义，因此下面会接收包含任一协议程序的全部交易：
+
+```typescript
+const allPumpTransactions = transactionFilterForProtocols(["PumpFun", "PumpSwap"]);
+const sub = await client.subscribeDexEvents([allPumpTransactions], [], eventTypeFilter);
+```
+
+`eventTypeFilter` 可以减少无关事件解码，但不会减少 Yellowstone 发来的交易。只有应用明确只想
+监控部分 mint、pool 或 user 时，才需要下面的可选限定过滤器；它要求交易同时包含协议程序，
+并包含任意一个已跟踪账户：
+
+```typescript
+const pumpSwap = transactionFilterForProtocolAccounts("PumpSwap", knownMintsAndPools);
+const sub = await client.subscribeDexEvents(
+  [transactionFilterForProtocols(["PumpFun"]), pumpSwap],
+  [],
+  eventTypeFilter
+);
+```
+
+组合示例默认订阅全量 PumpSwap。只有设置 `PUMPSWAP_FILTER_MODE=scoped` 时才按账户限定；
+该模式会通过 `updateSubscription()` 刷新活跃账户过滤器。`PumpSwapCreatePool` 可把已知 base
+mint 或 quote mint 映射到 pool，再将 `PumpSwapLiquidityAdded.user` 与该 mint 的开发者比较。
+
+同一 Node 进程里的两个 `YellowstoneGrpc` 实例仍共享一个 JavaScript 事件循环。直接 protobuf
+路径支持在一条订阅中接收全量 PumpFun + PumpSwap；只有业务回调、数据库写入或更多协议使事件
+循环饱和时，才需要独立进程或 Worker Thread。仅拆成两条 gRPC 连接不能隔离 CPU。数据库写入
+应进入有界交接队列并异步批量写 SQLite WAL，不要在订阅循环中逐事件等待写入。
 
 当消费者平均处理速度低于过滤后的入流速度时，任何有界内存流都无法同时保证零丢失和
 有界延迟。消费循环应保持轻量，避免逐事件同步日志，在服务端尽量缩小过滤范围，并把
@@ -203,6 +243,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | 调试：打印 `metaRaw` / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) |
 | **PumpFun** | | |
 | CREATE + dev BUY/SELL 长时间低延迟订阅 | `npx tsx examples/devtrades_low_latency.ts` | [devtrades_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_low_latency.ts) |
+| PumpFun + 全量 PumpSwap 开发者交易/加池 | `npm run example:grpc:devtrades:pumpswap` | [devtrades_pumpfun_pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_pumpfun_pumpswap_low_latency.ts) |
 | gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) |
 | PumpFun 事件 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) |
 | PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) |
@@ -210,7 +251,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | **PumpSwap** | | |
 | gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpswap_grpc_json.ts` | [pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) |
 | PumpSwap 事件 + 性能指标 | `npx tsx examples/pumpswap_with_metrics.ts` | [pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) |
-| PumpSwap 超低延迟 | `npx tsx examples/pumpswap_low_latency.ts` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
+| PumpSwap 交易、创建池及流动性事件（超低延迟） | `npm run example:grpc:pumpswap` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) |
 | **Meteora DAMM** | | |
 | Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream**（HTTP，**非** Yellowstone gRPC；端点见上文步骤 5） | | |

@@ -30,7 +30,19 @@ import {
   parseInnerInstructionUnified,
 } from "./instr/inner.js";
 import { parseInstructionUnified } from "./instr/mod.js";
-import { METEORA_DLMM_PROGRAM_ID } from "./instr/program_ids.js";
+import {
+  METEORA_DAMM_V2_PROGRAM_ID,
+  METEORA_DLMM_PROGRAM_ID,
+  METEORA_POOLS_PROGRAM_ID,
+  ORCA_WHIRLPOOL_PROGRAM_ID,
+  PUMP_FEES_PROGRAM_ID,
+  PUMPFUN_PROGRAM_ID,
+  PUMPSWAP_PROGRAM_ID,
+  RAYDIUM_AMM_V4_PROGRAM_ID,
+  RAYDIUM_CLMM_PROGRAM_ID,
+  RAYDIUM_CPMM_PROGRAM_ID,
+  RAYDIUM_LAUNCHLAB_PROGRAM_ID,
+} from "./instr/program_ids.js";
 import {
   parseInvokeInfo,
   parseLogOptimizedWithProgramId,
@@ -54,6 +66,19 @@ type IndexedInstructionEvent = {
 
 const EVENT_CPI_PREFIX = Uint8Array.from([228, 69, 165, 46, 81, 203, 154, 29]);
 const LEGACY_EVENT_CPI_SUFFIX = Uint8Array.from([155, 167, 108, 32, 122, 76, 173, 64]);
+const SUPPORTED_INSTRUCTION_PROGRAM_IDS = new Set([
+  PUMPFUN_PROGRAM_ID,
+  PUMPSWAP_PROGRAM_ID,
+  PUMP_FEES_PROGRAM_ID,
+  RAYDIUM_LAUNCHLAB_PROGRAM_ID,
+  RAYDIUM_CPMM_PROGRAM_ID,
+  RAYDIUM_CLMM_PROGRAM_ID,
+  RAYDIUM_AMM_V4_PROGRAM_ID,
+  ORCA_WHIRLPOOL_PROGRAM_ID,
+  METEORA_POOLS_PROGRAM_ID,
+  METEORA_DAMM_V2_PROGRAM_ID,
+  METEORA_DLMM_PROGRAM_ID,
+]);
 
 function bytesEqualAt(data: Uint8Array, expected: Uint8Array, offset: number): boolean {
   for (let i = 0; i < expected.length; i++) {
@@ -435,6 +460,7 @@ function parseOuterAndInnerInstructions(
   for (const [outerIdx, ix] of (message.compiledInstructions as MessageCompiledInstruction[]).entries()) {
     const programId = accountKeyToBase58(resolver.get(ix.programIdIndex));
     if (!programId) continue;
+    if (!SUPPORTED_INSTRUCTION_PROGRAM_IDS.has(programId)) continue;
     const data = decodeIxData(ix.data);
     const accounts = resolveAccounts(resolver, ix.accountKeyIndexes);
     const ev = parseInstructionUnified(
@@ -464,6 +490,7 @@ function parseOuterAndInnerInstructions(
     for (const [innerIdx, ix] of (group.instructions as CompiledInstruction[]).entries()) {
       const programId = accountKeyToBase58(resolver.get(ix.programIdIndex));
       if (!programId) continue;
+      if (!SUPPORTED_INSTRUCTION_PROGRAM_IDS.has(programId)) continue;
       const data = decodeIxData(ix.data);
       const accounts = resolveAccounts(resolver, ix.accounts);
       const ev =
@@ -640,8 +667,7 @@ export function parseRpcTransaction(
     }
   }
 
-  applyRpcFills(instructionEvents, msg, meta);
-  applyRpcFills(logEvents, msg, meta);
+  applyRpcFills([...instructionEvents, ...logEvents], msg, meta);
   const events = dedupeLogInstructionEvents(logEvents, instructionEvents);
   enrichPumpfunSameTxPostMerge(events);
 
