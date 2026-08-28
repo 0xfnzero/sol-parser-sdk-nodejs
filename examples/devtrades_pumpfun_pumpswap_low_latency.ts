@@ -19,8 +19,12 @@ import { requireGrpcEnv } from "../scripts/grpc_env.js";
 const { ENDPOINT, X_TOKEN } = requireGrpcEnv();
 const FILTER_UPDATE_DEBOUNCE_MS = Number(process.env.FILTER_UPDATE_DEBOUNCE_MS ?? 100);
 const PUMPSWAP_ACCOUNTS_PER_FILTER = Number(process.env.PUMPSWAP_ACCOUNTS_PER_FILTER ?? 50);
-const MAX_TRACKED_MINTS = Number(process.env.MAX_TRACKED_MINTS ?? 100);
 const PUMPSWAP_FILTER_MODE = process.env.PUMPSWAP_FILTER_MODE ?? "full";
+// Full-volume mode keeps every observed creator mapping by default. Scoped mode
+// remains bounded because each retained mint expands the server-side filters.
+const MAX_TRACKED_MINTS = Number(
+  process.env.MAX_TRACKED_MINTS ?? (PUMPSWAP_FILTER_MODE === "scoped" ? 100 : 0)
+);
 
 type EventData = Record<string, unknown>;
 
@@ -72,7 +76,7 @@ function rememberDeveloper(mint: string, creator: string): boolean {
   devByMint.set(mint, creator);
   pumpSwapAccounts.add(mint);
 
-  while (devByMint.size > MAX_TRACKED_MINTS) {
+  while (MAX_TRACKED_MINTS > 0 && devByMint.size > MAX_TRACKED_MINTS) {
     const oldestMint = devByMint.keys().next().value as string | undefined;
     if (!oldestMint) break;
     devByMint.delete(oldestMint);
@@ -141,8 +145,8 @@ async function main(): Promise<void> {
   ) {
     throw new RangeError("PUMPSWAP_ACCOUNTS_PER_FILTER must be a positive integer");
   }
-  if (!Number.isInteger(MAX_TRACKED_MINTS) || MAX_TRACKED_MINTS < 1) {
-    throw new RangeError("MAX_TRACKED_MINTS must be a positive integer");
+  if (!Number.isInteger(MAX_TRACKED_MINTS) || MAX_TRACKED_MINTS < 0) {
+    throw new RangeError("MAX_TRACKED_MINTS must be a non-negative integer");
   }
   if (PUMPSWAP_FILTER_MODE !== "full" && PUMPSWAP_FILTER_MODE !== "scoped") {
     throw new RangeError("PUMPSWAP_FILTER_MODE must be full or scoped");
@@ -175,7 +179,6 @@ async function main(): Promise<void> {
     eventFilter,
     {
       queueOverflowStrategy: "drop-oldest",
-      parserBatchSize: 4,
     }
   );
 
@@ -218,6 +221,9 @@ async function main(): Promise<void> {
       `[HEALTH] slot=${latestSlot} events=${totalEvents} ` +
         `event_queue=${sub.len()}/${config.buffer_size} ingress_queue=${sub.ingressLen()} ` +
         `event_dropped=${sub.eventDropped()} ingress_dropped=${sub.ingressDropped()} ` +
+        `connected=${sub.isStreamConnected()} disconnects=${sub.streamDisconnects()} ` +
+        `reconnects=${sub.reconnects()} replayed=${sub.replayedUpdates()} ` +
+        `continuity_breaks=${sub.continuityBreaks()} ` +
         `queue_us=${latestQueueLatencyUs.toFixed(1)} parse_us=${latestParseDurationUs.toFixed(1)} ` +
         `grpc_to_parsed_us=${latestProcessingLatencyUs.toFixed(1)} tracked_mints=${devByMint.size} ` +
         `tracked_accounts=${pumpSwapAccounts.size}`

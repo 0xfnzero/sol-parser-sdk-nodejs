@@ -75,7 +75,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.12
+npm install sol-parser-sdk@0.5.13
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -173,6 +173,13 @@ for await (const event of sub) {
 可以设置 `queueOverflowStrategy: "drop-oldest"`。通过 `sub.len()` / `sub.eventDropped()` 监控
 公开事件队列，通过 `sub.ingressLen()` / `sub.ingressDropped()` 监控解析前入口队列；
 `sub.dropped()` 返回两者之和。每次溢出都会计数，并定期通过 `sub.errors` 报告。
+
+自动重连默认从最后一个成功解析的 slot 继续订阅，并对回放的 transaction/account update
+去重。可通过 `sub.isStreamConnected()`、`sub.streamDisconnects()`、`sub.reconnects()`、
+`sub.replayedUpdates()` 和 `sub.continuityBreaks()` 监控传输连续性。本地 drop 为零并不能说明
+进入 gRPC `data` 回调之前没有丢数据。如果 provider 拒绝 Yellowstone `fromSlot`，SDK 会通过
+`sub.errors` 明确报告，增加 `continuityBreaks()`，再降级为 live 重连。只有在“绝不接收回放重复”
+比“补偿断线窗口”更重要时，才应设置 `replayOnReconnect: false`。
 
 如需精确测量纯本地延迟，请设置 `config.enable_metrics = true`。事件 metadata 将包含
 `local_queue_latency_us`、`parse_duration_us` 和 `local_processing_latency_us`，这些字段使用

@@ -107,6 +107,9 @@ async function main() {
         `dropped=${sub.dropped()} queue_us=${latestQueueLatencyUs.toFixed(1)} ` +
         `parse_us=${latestParseDurationUs.toFixed(1)} ` +
         `grpc_to_parsed_us=${latestProcessingLatencyUs.toFixed(1)} ` +
+        `connected=${sub.isStreamConnected()} disconnects=${sub.streamDisconnects()} ` +
+        `reconnects=${sub.reconnects()} replayed=${sub.replayedUpdates()} ` +
+        `continuity_breaks=${sub.continuityBreaks()} ` +
         `events=${totalEvents}`
     );
   }, 10_000);

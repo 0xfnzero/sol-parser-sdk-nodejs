@@ -57,6 +57,15 @@ class ImmediatelyFailingStream extends FakeStream {
   }
 }
 
+class ReplayUnsupportedStream extends FakeStream {
+  override write(request: { fromSlot?: string }, callback: (error?: Error | null) => void): boolean {
+    this.writes.push(request);
+    const error = Object.assign(new Error("from_slot is not supported"), { code: 12 });
+    queueMicrotask(() => callback(error));
+    return true;
+  }
+}
+
 function clientWithStream(
   stream: FakeStream,
   orderMode: "Unordered" | "Ordered" = "Unordered",
@@ -73,12 +82,26 @@ function clientWithStream(
   return client;
 }
 
-function transactionUpdate(index = 0n) {
+function clientWithStreams(streams: FakeStream[]) {
+  const client = new YellowstoneGrpc("https://example.invalid", "", {
+    ...defaultClientConfig(),
+    retry_delay_ms: 1,
+  });
+  let index = 0;
+  (client as unknown as { client: { subscribe: () => Promise<FakeStream> } }).client = {
+    subscribe: async () => streams[index++]!,
+  };
+  return client;
+}
+
+function transactionUpdate(index = 0n, slot = 10n) {
+  const signature = new Uint8Array(64);
+  signature[0] = Number(index & 0xffn);
   return {
     transaction: {
-      slot: 10n,
+      slot,
       transaction: {
-        signature: new Uint8Array(64),
+        signature,
         isVote: false,
         transaction: {},
         meta: {},
@@ -211,6 +234,68 @@ describe("YellowstoneGrpc subscribeDexEvents lifecycle", () => {
 
     busySub.cancel();
     latencySensitiveSub.cancel();
+  });
+
+  it("resumes from the last parsed slot and deduplicates replayed transactions", async () => {
+    const first = new FakeStream();
+    const second = new FakeStream();
+    const sub = await clientWithStreams([first, second]).subscribeDexEvents();
+    await nextTurn();
+
+    first.emit("data", transactionUpdate(1n, 10n));
+    await sub.next();
+    first.emit("error", Object.assign(new Error("connection dropped"), { code: 14 }));
+
+    await vi.waitFor(() => expect(second.writes).toHaveLength(1));
+    expect(second.writes[0]).toMatchObject({ fromSlot: "10" });
+
+    second.emit("data", transactionUpdate(1n, 10n));
+    second.emit("data", transactionUpdate(2n, 11n));
+    await sub.next();
+    await nextTurn();
+
+    expect(parseMock.mock.calls.map((call) => call[0].index)).toEqual([1n, 2n]);
+    expect(sub.replayedUpdates()).toBe(1);
+    expect(sub.streamDisconnects()).toBe(1);
+    expect(sub.reconnects()).toBe(1);
+    expect(sub.continuityBreaks()).toBe(0);
+    sub.cancel();
+  });
+
+  it("reports a continuity break and falls back when replay is unsupported", async () => {
+    const first = new FakeStream();
+    const unsupported = new ReplayUnsupportedStream();
+    const live = new FakeStream();
+    const sub = await clientWithStreams([first, unsupported, live]).subscribeDexEvents();
+    await nextTurn();
+
+    first.emit("data", transactionUpdate(1n, 10n));
+    await sub.next();
+    first.emit("error", Object.assign(new Error("connection dropped"), { code: 14 }));
+
+    await vi.waitFor(() => expect(live.writes).toHaveLength(1));
+    expect(unsupported.writes[0]).toMatchObject({ fromSlot: "10" });
+    expect(live.writes[0]).toMatchObject({ fromSlot: undefined });
+    expect(sub.continuityBreaks()).toBe(1);
+    sub.cancel();
+  });
+
+  it("counts every disconnect as a continuity break when replay is disabled", async () => {
+    const first = new FakeStream();
+    const second = new FakeStream();
+    const sub = await clientWithStreams([first, second]).subscribeDexEvents([], [], undefined, {
+      replayOnReconnect: false,
+    });
+    await nextTurn();
+
+    first.emit("data", transactionUpdate(1n, 10n));
+    await sub.next();
+    first.emit("error", Object.assign(new Error("connection dropped"), { code: 14 }));
+
+    await vi.waitFor(() => expect(second.writes).toHaveLength(1));
+    expect(second.writes[0]).toMatchObject({ fromSlot: undefined });
+    expect(sub.continuityBreaks()).toBe(1);
+    sub.cancel();
   });
 
   it("safely cancels while the stream is still being set up", async () => {

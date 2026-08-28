@@ -3,6 +3,7 @@
  */
 import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
 import bs58 from "bs58";
+import { Buffer } from "node:buffer";
 import { metadataForDexEvent, type DexEvent } from "../core/dex_event.js";
 import { makeMetadata } from "../core/metadata.js";
 import { parseAccountUnified, type AccountData } from "../accounts/mod.js";
@@ -80,6 +81,12 @@ export interface DexEventSubscription extends AsyncIterable<DexEvent> {
   eventDropped(): number;
   ingressLen(): number;
   ingressDropped(): number;
+  isStreamConnected(): boolean;
+  streamDisconnects(): number;
+  reconnects(): number;
+  replayedUpdates(): number;
+  /** Reconnects that could not resume from the last parsed slot. */
+  continuityBreaks(): number;
 }
 
 export interface SubscribeDexEventsOptions {
@@ -93,6 +100,44 @@ export interface SubscribeDexEventsOptions {
   ingressBufferSize?: number;
   /** Maximum raw updates parsed before yielding back to Node's event loop. Defaults to 8. */
   parserBatchSize?: number;
+  /** Resume from the last parsed slot after reconnect. Defaults to true. */
+  replayOnReconnect?: boolean;
+  /** Parsed slots retained for replay deduplication. Defaults to 128. */
+  replayDedupeSlots?: number;
+}
+
+type GrpcError = Error & { code?: number; details?: string };
+
+function replayUnsupported(error: unknown): boolean {
+  const grpcError = error as GrpcError;
+  if (grpcError.code === 3 || grpcError.code === 11 || grpcError.code === 12) return true;
+  return /from.?slot.*(?:unsupported|disabled|unavailable|invalid)/i.test(
+    `${grpcError.message ?? ""} ${grpcError.details ?? ""}`
+  );
+}
+
+function updateSlot(update: SubscribeUpdate): bigint | undefined {
+  const value = update.transaction?.slot ?? update.account?.slot;
+  if (value === undefined || value === null) return undefined;
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function bytesKey(value: Uint8Array): string {
+  return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString("base64");
+}
+
+function updateIdentity(update: SubscribeUpdate): string | undefined {
+  const transaction = update.transaction?.transaction;
+  if (transaction?.signature) return `t:${bytesKey(transaction.signature)}`;
+  const account = update.account?.account;
+  if (!account?.pubkey) return undefined;
+  return `a:${bytesKey(account.pubkey)}:${String(update.account?.slot ?? 0)}:${String(
+    account.writeVersion ?? 0
+  )}`;
 }
 
 /** Yellowstone gRPC 客户端包装器 */
@@ -242,7 +287,7 @@ export class YellowstoneGrpc {
           transactionRaw: tx.transaction.transaction,
           metaRaw: tx.transaction.meta,
           index: tx.transaction.index,
-        } as SubscribeUpdateTransactionInfo;
+        } as unknown as SubscribeUpdateTransactionInfo;
       }
     }
 
@@ -559,6 +604,12 @@ export class YellowstoneGrpc {
       "ingressBufferSize"
     );
     const parserBatchSize = positiveIntegerOption(options?.parserBatchSize, 8, "parserBatchSize");
+    const replayDedupeSlots = positiveIntegerOption(
+      options?.replayDedupeSlots,
+      128,
+      "replayDedupeSlots"
+    );
+    const replayOnReconnect = options?.replayOnReconnect !== false;
     const ingress = new AsyncEventQueue<PendingDexUpdate>(
       ingressBufferSize,
       options?.queueOverflowStrategy
@@ -568,6 +619,16 @@ export class YellowstoneGrpc {
     const eventDropped = events.dropped.bind(events);
     let nextEventDropWarningAt = 0;
     let nextIngressDropWarningAt = 0;
+    let streamConnected = false;
+    let streamDisconnectCount = 0;
+    let reconnectCount = 0;
+    let replayedUpdateCount = 0;
+    let continuityBreakCount = 0;
+    let lastParsedSlot: bigint | undefined;
+    let highestRememberedSlot = 0n;
+    let seenHead = 0;
+    const seenUpdates = new Map<string, bigint>();
+    const seenOrder: Array<{ identity: string; slot: bigint }> = [];
     const reportError = (error: Error) => errors.push(error);
     const emitEvent = (event: DexEvent) => {
       if (events.push(event)) return;
@@ -620,7 +681,37 @@ export class YellowstoneGrpc {
       }
     };
 
+    const rememberParsedUpdate = (identity: string | undefined, slot: bigint | undefined) => {
+      if (slot !== undefined && (lastParsedSlot === undefined || slot > lastParsedSlot)) {
+        lastParsedSlot = slot;
+      }
+      if (!replayOnReconnect || identity === undefined || slot === undefined) return;
+
+      seenUpdates.set(identity, slot);
+      seenOrder.push({ identity, slot });
+      if (slot > highestRememberedSlot) highestRememberedSlot = slot;
+      const retainFrom =
+        highestRememberedSlot > BigInt(replayDedupeSlots)
+          ? highestRememberedSlot - BigInt(replayDedupeSlots)
+          : 0n;
+      while (seenHead < seenOrder.length && seenOrder[seenHead]!.slot < retainFrom) {
+        const stale = seenOrder[seenHead++]!;
+        if (seenUpdates.get(stale.identity) === stale.slot) seenUpdates.delete(stale.identity);
+      }
+      if (seenHead >= 4096 && seenHead * 2 >= seenOrder.length) {
+        seenOrder.splice(0, seenHead);
+        seenHead = 0;
+      }
+    };
+
     const processUpdate = ({ update, grpcRecvUs, grpcRecvNs, blockTimeUs }: PendingDexUpdate) => {
+      const identity = updateIdentity(update);
+      const slotForReplay = updateSlot(update);
+      if (replayOnReconnect && identity !== undefined && seenUpdates.has(identity)) {
+        replayedUpdateCount++;
+        rememberParsedUpdate(undefined, slotForReplay);
+        return;
+      }
       if (order.needsTimer) order.flushDue(emitEvent);
       const txUpdate = update.transaction;
       const tx = txUpdate?.transaction;
@@ -633,7 +724,7 @@ export class YellowstoneGrpc {
           signature: tx.signature,
           isVote: tx.isVote,
           transactionRaw: tx.transaction,
-          metaRaw: tx.meta as SubscribeUpdateTransactionInfo["metaRaw"],
+          metaRaw: tx.meta as unknown as SubscribeUpdateTransactionInfo["metaRaw"],
           index: (tx.index ?? 0n) as string | bigint,
         };
         const txEvents = parseDexEventsFromGrpcTransactionInfo(txInfo, slot, {
@@ -658,6 +749,7 @@ export class YellowstoneGrpc {
         if (ev) annotateLocalMetrics([ev], grpcRecvNs, parseStartedNs, parseFinishedNs);
         if (ev) emitEvent(ev);
       }
+      rememberParsedUpdate(identity, slotForReplay);
     };
 
     const scheduleIngressDrain = () => {
@@ -751,10 +843,16 @@ export class YellowstoneGrpc {
       const autoReconnect = options?.autoReconnect !== false;
       const maxBackoffMs = 60_000;
       let backoffMs = this.config.retry_delay_ms;
+      let replayAllowed = replayOnReconnect;
+      let attempt = 0;
 
       try {
         while (!isCancelled) {
+          let attemptedReplay = false;
+          let receivedData = false;
           try {
+            attempt++;
+            if (attempt > 1) reconnectCount++;
             const stream = await this.client.subscribe();
             if (isCancelled) {
               cancelSubscribeStream(stream);
@@ -762,18 +860,28 @@ export class YellowstoneGrpc {
             }
             streamHolder.current = stream;
 
+            const request = buildSubscribeRequest(
+              currentTransactionFilters,
+              currentAccountFilters
+            );
+            if (attempt > 1 && replayAllowed && lastParsedSlot !== undefined) {
+              request.fromSlot = lastParsedSlot.toString();
+              attemptedReplay = true;
+            }
             await new Promise<void>((resolve, reject) => {
               stream.write(
-                buildSubscribeRequest(currentTransactionFilters, currentAccountFilters),
+                request,
                 (err: Error | null | undefined) => {
                   if (err) reject(err);
                   else resolve();
                 }
               );
             });
+            streamConnected = true;
 
             await new Promise<void>((resolve, reject) => {
               const cleanup = () => {
+                streamConnected = false;
                 stream.removeAllListeners();
                 if (streamHolder.current === stream) {
                   streamHolder.current = null;
@@ -782,6 +890,7 @@ export class YellowstoneGrpc {
 
               stream.on("data", (update: SubscribeUpdate) => {
                 if (isCancelled) return;
+                receivedData = true;
                 const grpcRecvNs = this.config.enable_metrics
                   ? process.hrtime.bigint()
                   : undefined;
@@ -822,12 +931,15 @@ export class YellowstoneGrpc {
               });
 
               stream.on("error", (err: Error) => {
+                streamDisconnectCount++;
                 cleanup();
                 reject(err);
               });
 
               stream.on("end", () => {
+                streamDisconnectCount++;
                 cleanup();
+                if (!isCancelled) reportError(new Error("Yellowstone stream ended; reconnecting"));
                 resolve();
               });
             });
@@ -835,22 +947,46 @@ export class YellowstoneGrpc {
             if (isCancelled) break;
             cancelSubscribeStream(streamHolder.current);
             streamHolder.current = null;
+            streamConnected = false;
             reportError(err instanceof Error ? err : new Error(String(err)));
-            if (!autoReconnect) break;
-
+            await waitForIngressIdle();
+            if (!autoReconnect) {
+              if (lastParsedSlot !== undefined) continuityBreakCount++;
+              break;
+            }
+            let continuityBreakRecorded = false;
+            if (attemptedReplay && !receivedData && replayUnsupported(err)) {
+              replayAllowed = false;
+              continuityBreakCount++;
+              continuityBreakRecorded = true;
+              reportError(
+                new Error(
+                  "Yellowstone provider rejected fromSlot replay; reconnecting live and continuity is not guaranteed"
+                )
+              );
+            }
+            if (!replayAllowed && lastParsedSlot !== undefined && !continuityBreakRecorded) {
+              continuityBreakCount++;
+            }
             await waitBeforeReconnect(backoffMs);
             backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
             continue;
           }
 
-          if (isCancelled || !autoReconnect) break;
-
+          await waitForIngressIdle();
+          if (isCancelled) break;
+          if (!autoReconnect) {
+            if (lastParsedSlot !== undefined) continuityBreakCount++;
+            break;
+          }
+          if (!replayAllowed && lastParsedSlot !== undefined) continuityBreakCount++;
           await waitBeforeReconnect(backoffMs);
           backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
         }
       } finally {
         cancelSubscribeStream(streamHolder.current);
         streamHolder.current = null;
+        streamConnected = false;
         if (flushTimer) clearInterval(flushTimer);
         if (!isCancelled) {
           await waitForIngressIdle();
@@ -870,6 +1006,11 @@ export class YellowstoneGrpc {
       eventDropped,
       ingressLen: () => ingress.len(),
       ingressDropped: () => ingress.dropped(),
+      isStreamConnected: () => streamConnected,
+      streamDisconnects: () => streamDisconnectCount,
+      reconnects: () => reconnectCount,
+      replayedUpdates: () => replayedUpdateCount,
+      continuityBreaks: () => continuityBreakCount,
       cancel: () => {
         cancel();
         this.dexSubscribers.delete(id);

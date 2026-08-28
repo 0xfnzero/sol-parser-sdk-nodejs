@@ -75,7 +75,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.12
+npm install sol-parser-sdk@0.5.13
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
@@ -175,6 +175,14 @@ tip-oriented consumer can choose `queueOverflowStrategy: "drop-oldest"`. Monitor
 queue with `sub.len()` / `sub.eventDropped()` and the pre-parser queue with
 `sub.ingressLen()` / `sub.ingressDropped()`. `sub.dropped()` is the combined count. Every overflow
 is counted and periodically reported through `sub.errors`.
+
+Automatic reconnect resumes from the last successfully parsed slot by default and deduplicates
+replayed transaction/account updates. Monitor transport continuity with `sub.isStreamConnected()`,
+`sub.streamDisconnects()`, `sub.reconnects()`, `sub.replayedUpdates()`, and
+`sub.continuityBreaks()`. A zero local drop count does not describe updates lost before the gRPC
+`data` callback. If a provider rejects Yellowstone `fromSlot`, the SDK reports the failure through
+`sub.errors`, increments `continuityBreaks()`, and reconnects live. Set `replayOnReconnect: false`
+only when duplicate-free live delivery is more important than recovering a disconnect window.
 
 For precise local-only measurements, set `config.enable_metrics = true`. Event metadata then includes
 `local_queue_latency_us`, `parse_duration_us`, and `local_processing_latency_us`. These values use
