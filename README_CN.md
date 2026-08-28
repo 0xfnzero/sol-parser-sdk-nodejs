@@ -38,11 +38,19 @@
 | 解析输入 | Yellowstone gRPC、ShredStream、RPC 交易、编码交易、协议账户数据 |
 | DEX 协议 | PumpFun、PumpSwap、Pump Fees、Raydium LaunchLab、Raydium CPMM、Raydium CLMM、Raydium AMM V4、Meteora DAMM v2、Meteora DLMM、Meteora DBC、Orca Whirlpool |
 | 使用场景 | 实时 DEX 事件解析、代币发射监控、跟单交易、狙击机器人、账户填充、JSON 事件管道 |
-| 运行环境 | Node.js 18+、TypeScript、npm/yarn/pnpm 项目 |
+| 运行环境 | Node.js 20.18+、TypeScript、npm/yarn/pnpm 项目 |
 
 ---
 
 ## 发布说明
+
+### v0.5.14
+
+- 将 Yellowstone 客户端升级到 `@triton-one/yellowstone-grpc` 7.0.0，使用其原生 Rust N-API 传输层。
+- 新增 `source_to_grpc_latency_us`，用于区分服务商或传输层积压与精确的本地处理延迟。
+- 修复 Yellowstone `createdAt` 使用 JavaScript `Date` 对象表示时的时间戳解析。
+- 更新原生连接、keepalive、流量控制、流生命周期和 unary RPC 兼容处理。
+- 要求 Node.js 20.18 或更高版本。
 
 ### v0.5.8
 
@@ -75,7 +83,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.13
+npm install sol-parser-sdk@0.5.14
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）

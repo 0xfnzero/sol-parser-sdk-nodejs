@@ -12,10 +12,12 @@ describe("geyserGrpcChannelOptions", () => {
       flowControlWindowBytes: 16 * 1024 * 1024,
     });
 
-    expect(options["grpc.keepalive_time_ms"]).toBe(10_000);
-    expect(options["grpc.keepalive_timeout_ms"]).toBe(2_000);
-    expect(options["grpc.initial_reconnect_backoff_ms"]).toBe(100);
-    expect(options["grpc.max_reconnect_backoff_ms"]).toBe(5_000);
-    expect(options["grpc-node.flow_control_window"]).toBe(16 * 1024 * 1024);
+    expect(options.grpcHttp2KeepAliveInterval).toBe(10_000);
+    expect(options.grpcKeepAliveTimeout).toBe(2_000);
+    expect(options.grpcInitialConnectionWindowSize).toBe(16 * 1024 * 1024);
+    expect(options.grpcInitialStreamWindowSize).toBe(16 * 1024 * 1024);
+    expect(options.grpcHttp2AdaptiveWindow).toBe(true);
+    expect(options.grpcKeepAliveWhileIdle).toBe(true);
+    expect(options.grpcTcpNodelay).toBe(true);
   });
 });

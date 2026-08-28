@@ -4,11 +4,11 @@
  */
 import bs58 from "bs58";
 import { PublicKey } from "@solana/web3.js";
-import type {
-  TokenBalance,
-  Transaction,
-  TransactionStatusMeta,
-} from "@triton-one/yellowstone-grpc/dist/grpc/solana-storage.js";
+import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
+
+type Transaction = NonNullable<SubscribeUpdateTransactionInfo["transaction"]>;
+type TransactionStatusMeta = NonNullable<SubscribeUpdateTransactionInfo["meta"]>;
+type TokenBalance = TransactionStatusMeta["preTokenBalances"][number];
 
 /** 32 字节公钥 → Base58（无效长度返回 `null`） */
 export function pubkeyBytesToBs58(bytes: Uint8Array): string | null {

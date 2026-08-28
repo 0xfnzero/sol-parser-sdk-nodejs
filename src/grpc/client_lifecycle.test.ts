@@ -39,9 +39,10 @@ class FakeStream extends EventEmitter {
     return true;
   }
 
-  cancel(): void {
+  destroy(): this {
     this.cancelCalls++;
     queueMicrotask(() => this.emit("error", new Error("cancelled")));
+    return this;
   }
 
   end(): void {}
@@ -77,8 +78,9 @@ function clientWithStream(
     enable_metrics: enableMetrics,
   });
   (client as unknown as { client: { subscribe: () => Promise<FakeStream> } }).client = {
+    connect: async () => {},
     subscribe: async () => stream,
-  };
+  } as unknown as { subscribe: () => Promise<FakeStream> };
   return client;
 }
 
@@ -89,15 +91,21 @@ function clientWithStreams(streams: FakeStream[]) {
   });
   let index = 0;
   (client as unknown as { client: { subscribe: () => Promise<FakeStream> } }).client = {
+    connect: async () => {},
     subscribe: async () => streams[index++]!,
-  };
+  } as unknown as { subscribe: () => Promise<FakeStream> };
   return client;
 }
 
-function transactionUpdate(index = 0n, slot = 10n) {
+function transactionUpdate(
+  index = 0n,
+  slot = 10n,
+  createdAt?: Date | { seconds: number | bigint; nanos?: number }
+) {
   const signature = new Uint8Array(64);
   signature[0] = Number(index & 0xffn);
   return {
+    createdAt,
     transaction: {
       slot,
       transaction: {
@@ -160,6 +168,26 @@ describe("YellowstoneGrpc subscribeDexEvents lifecycle", () => {
       metadata.local_queue_latency_us + metadata.parse_duration_us,
       6
     );
+    sub.cancel();
+  });
+
+  it.each([
+    ["Date", () => new Date(Date.now() - 1_000)],
+    [
+      "protobuf timestamp",
+      () => ({ seconds: BigInt(Math.floor(Date.now() / 1_000) - 1), nanos: 0 }),
+    ],
+  ])("measures source-to-gRPC latency from a %s createdAt", async (_name, createdAt) => {
+    const stream = new FakeStream();
+    const sub = await clientWithStream(stream, "Unordered", true).subscribeDexEvents();
+    await nextTurn();
+
+    stream.emit("data", transactionUpdate(0n, 10n, createdAt()));
+    const result = await sub.next();
+    expect(result.done).toBe(false);
+    const metadata = (result.value as ReturnType<typeof testEvent>).PumpFunTrade.metadata;
+    expect(metadata.source_to_grpc_latency_us).toBeGreaterThan(500_000);
+    expect(metadata.source_to_grpc_latency_us).toBeLessThan(2_500_000);
     sub.cancel();
   });
 
@@ -330,11 +358,12 @@ describe("YellowstoneGrpc subscribeDexEvents lifecycle", () => {
       retry_delay_ms: 10,
     });
     (client as unknown as { client: { subscribe: () => Promise<FakeStream> } }).client = {
+      connect: async () => {},
       subscribe: async () => {
         attempts++;
         return new ImmediatelyFailingStream();
       },
-    };
+    } as unknown as { subscribe: () => Promise<FakeStream> };
 
     const sub = await client.subscribeDexEvents();
     await new Promise((resolve) => setTimeout(resolve, 75));

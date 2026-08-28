@@ -8,11 +8,11 @@ import {
   type MessageCompiledInstruction,
   type VersionedTransactionResponse,
 } from "@solana/web3.js";
-import type {
-  Message as YellowstoneMessage,
-  Transaction as YellowstoneTransaction,
-  TransactionStatusMeta as YellowstoneMeta,
-} from "@triton-one/yellowstone-grpc/dist/grpc/solana-storage.js";
+import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
+
+type YellowstoneTransaction = NonNullable<SubscribeUpdateTransactionInfo["transaction"]>;
+type YellowstoneMessage = NonNullable<YellowstoneTransaction["message"]>;
+type YellowstoneMeta = NonNullable<SubscribeUpdateTransactionInfo["meta"]>;
 
 function publicKey(bytes: Uint8Array): PublicKey {
   return new PublicKey(bytes);

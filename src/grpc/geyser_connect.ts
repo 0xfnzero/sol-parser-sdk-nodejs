@@ -4,8 +4,7 @@
  * `@triton-one/yellowstone-grpc` 的 `Client` 通过构造函数第三参传入 `ChannelOptions`；
  * `connectTimeoutMs` 无与 tonic 完全一一对应的项，仅作文档与默认值对齐（可配合环境网络调优）。
  */
-import type { ChannelOptions } from "@grpc/grpc-js";
-import Client from "@triton-one/yellowstone-grpc";
+import Client, { type ChannelOptions } from "@triton-one/yellowstone-grpc";
 
 /** 与 Rust `GeyserConnectConfig` 字段对应（毫秒 / 字节） */
 export interface GeyserConnectConfig {
@@ -49,15 +48,17 @@ export function geyserGrpcChannelOptions(
   const interval = config.keepAliveIntervalMs ?? 30_000;
   const timeout = config.keepAliveTimeoutMs ?? 5000;
   return {
-    "grpc.max_receive_message_length": max,
-    "grpc.max_send_message_length": max,
-    "grpc.keepalive_time_ms": interval,
-    "grpc.keepalive_timeout_ms": timeout,
-    /** 无活跃 RPC 时仍发 keepalive，避免长时间仅订阅时被中间设备掐断 */
-    "grpc.keepalive_permit_without_calls": 1,
-    "grpc.initial_reconnect_backoff_ms": config.initialReconnectBackoffMs,
-    "grpc.max_reconnect_backoff_ms": config.maxReconnectBackoffMs,
-    "grpc-node.flow_control_window": config.flowControlWindowBytes,
+    grpcConnectTimeout: config.connectTimeoutMs,
+    grpcMaxDecodingMessageSize: max,
+    grpcMaxEncodingMessageSize: max,
+    grpcHttp2KeepAliveInterval: interval,
+    grpcKeepAliveTimeout: timeout,
+    grpcTcpKeepalive: interval,
+    grpcInitialConnectionWindowSize: config.flowControlWindowBytes,
+    grpcInitialStreamWindowSize: config.flowControlWindowBytes,
+    grpcHttp2AdaptiveWindow: true,
+    grpcKeepAliveWhileIdle: true,
+    grpcTcpNodelay: true,
   };
 }
 
@@ -69,5 +70,7 @@ export async function connectYellowstoneGeyser(
   endpoint: string,
   config: GeyserConnectConfig = defaultGeyserConnectConfig()
 ): Promise<Client> {
-  return new Client(endpoint, config.xToken, geyserGrpcChannelOptions(config));
+  const client = new Client(endpoint, config.xToken, geyserGrpcChannelOptions(config));
+  await client.connect();
+  return client;
 }

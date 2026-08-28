@@ -52,14 +52,15 @@ type PendingDexUpdate = {
   grpcRecvUs: number;
   grpcRecvNs?: bigint;
   blockTimeUs?: number;
+  sourceToGrpcLatencyUs?: number;
 };
 
 function cancelSubscribeStream(stream: YellowstoneSubscribeStream | null): void {
   if (!stream) return;
-  // grpc-js emits CANCELLED through `error`; guard the short setup window before
+  // Stream destruction can emit an error during the short setup window before
   // the normal lifecycle listeners have been installed.
   stream.once("error", () => {});
-  stream.cancel();
+  stream.destroy();
 }
 
 function positiveIntegerOption(value: number | undefined, fallback: number, name: string): number {
@@ -145,6 +146,7 @@ export class YellowstoneGrpc {
   private client: Client;
   private config: ClientConfig;
   private connected = false;
+  private connectPromise?: Promise<void>;
   private subscribers = new Map<
     string,
     {
@@ -184,10 +186,18 @@ export class YellowstoneGrpc {
 
   /** 连接到 gRPC 服务器 */
   async connect(): Promise<void> {
-    if (this.connected) {
-      return;
+    if (this.connected) return;
+    if (!this.connectPromise) {
+      this.connectPromise = this.client.connect().then(() => {
+        this.connected = true;
+      });
     }
-    this.connected = true;
+    try {
+      await this.connectPromise;
+    } catch (error) {
+      this.connectPromise = undefined;
+      throw error;
+    }
   }
 
   /** 断开连接 */
@@ -201,6 +211,7 @@ export class YellowstoneGrpc {
     }
     this.dexSubscribers.clear();
     this.connected = false;
+    this.connectPromise = undefined;
   }
 
   /** 检查是否已连接 */
@@ -367,6 +378,10 @@ export class YellowstoneGrpc {
   }
 
   private static timestampToMicros(value: unknown): number | undefined {
+    if (value instanceof Date) {
+      const milliseconds = value.getTime();
+      return Number.isFinite(milliseconds) ? Math.trunc(milliseconds * 1_000) : undefined;
+    }
     if (!value || typeof value !== "object") return undefined;
     const ts = value as { seconds?: unknown; nanos?: unknown };
     if (ts.seconds === undefined) return undefined;
@@ -461,6 +476,7 @@ export class YellowstoneGrpc {
     filter: TransactionFilter,
     callbacks: SubscribeCallbacks
   ): Promise<{ id: string; cancel: () => void }> {
+    await this.connect();
     const id = `sub_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
     let isCancelled = false;
@@ -664,7 +680,8 @@ export class YellowstoneGrpc {
       events: readonly DexEvent[],
       grpcRecvNs: bigint | undefined,
       parseStartedNs: bigint | undefined,
-      parseFinishedNs: bigint | undefined
+      parseFinishedNs: bigint | undefined,
+      sourceToGrpcLatencyUs: number | undefined
     ) => {
       if (grpcRecvNs === undefined || parseStartedNs === undefined || parseFinishedNs === undefined) {
         return;
@@ -678,6 +695,9 @@ export class YellowstoneGrpc {
         metadata.local_queue_latency_us = queueUs;
         metadata.parse_duration_us = parseUs;
         metadata.local_processing_latency_us = processingUs;
+        if (sourceToGrpcLatencyUs !== undefined) {
+          metadata.source_to_grpc_latency_us = sourceToGrpcLatencyUs;
+        }
       }
     };
 
@@ -704,7 +724,13 @@ export class YellowstoneGrpc {
       }
     };
 
-    const processUpdate = ({ update, grpcRecvUs, grpcRecvNs, blockTimeUs }: PendingDexUpdate) => {
+    const processUpdate = ({
+      update,
+      grpcRecvUs,
+      grpcRecvNs,
+      blockTimeUs,
+      sourceToGrpcLatencyUs,
+    }: PendingDexUpdate) => {
       const identity = updateIdentity(update);
       const slotForReplay = updateSlot(update);
       if (replayOnReconnect && identity !== undefined && seenUpdates.has(identity)) {
@@ -733,7 +759,13 @@ export class YellowstoneGrpc {
           eventTypeFilter,
         });
         const parseFinishedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
-        annotateLocalMetrics(txEvents, grpcRecvNs, parseStartedNs, parseFinishedNs);
+        annotateLocalMetrics(
+          txEvents,
+          grpcRecvNs,
+          parseStartedNs,
+          parseFinishedNs,
+          sourceToGrpcLatencyUs
+        );
         order.pushTransactionEvents(txEvents, fallbackSlot, fallbackTxIndex, emitEvent);
       }
 
@@ -746,7 +778,15 @@ export class YellowstoneGrpc {
           blockTimeUs
         );
         const parseFinishedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
-        if (ev) annotateLocalMetrics([ev], grpcRecvNs, parseStartedNs, parseFinishedNs);
+        if (ev) {
+          annotateLocalMetrics(
+            [ev],
+            grpcRecvNs,
+            parseStartedNs,
+            parseFinishedNs,
+            sourceToGrpcLatencyUs
+          );
+        }
         if (ev) emitEvent(ev);
       }
       rememberParsedUpdate(identity, slotForReplay);
@@ -906,13 +946,16 @@ export class YellowstoneGrpc {
                   return;
                 }
 
+                const createdAtUs = YellowstoneGrpc.timestampToMicros(
+                  (update as any).createdAt ?? (update as any).created_at
+                );
                 const accepted = ingress.push({
                   update,
                   grpcRecvUs,
                   grpcRecvNs,
-                  blockTimeUs: YellowstoneGrpc.timestampToMicros(
-                    (update as any).createdAt ?? (update as any).created_at
-                  ),
+                  blockTimeUs: createdAtUs,
+                  sourceToGrpcLatencyUs:
+                    createdAtUs === undefined ? undefined : Math.max(0, grpcRecvUs - createdAtUs),
                 });
                 if (!accepted) {
                   const now = Date.now();
@@ -1064,6 +1107,7 @@ export class YellowstoneGrpc {
     blockhash: string;
     lastValidBlockHeight: number;
   }> {
+    await this.connect();
     const resp = await this.client.getLatestBlockhash(commitment);
     return {
       slot: Number(resp.slot),
@@ -1074,20 +1118,23 @@ export class YellowstoneGrpc {
 
   /** 获取区块高度 */
   async getBlockHeight(commitment?: CommitmentLevel): Promise<number> {
+    await this.connect();
     const resp = await this.client.getBlockHeight(commitment);
-    return Number(resp);
+    return Number(resp.blockHeight);
   }
 
   /** 获取当前 Slot */
   async getSlot(commitment?: CommitmentLevel): Promise<number> {
+    await this.connect();
     const resp = await this.client.getSlot(commitment);
-    return Number(resp);
+    return Number(resp.slot);
   }
 
   /** 获取服务器版本 */
   async getVersion(): Promise<string> {
+    await this.connect();
     const resp = await this.client.getVersion();
-    return String(resp);
+    return resp.version;
   }
 
   /** 验证区块哈希是否有效 */
@@ -1095,6 +1142,7 @@ export class YellowstoneGrpc {
     blockhash: string,
     commitment?: CommitmentLevel
   ): Promise<{ slot: number; valid: boolean }> {
+    await this.connect();
     const resp = await this.client.isBlockhashValid(blockhash, commitment);
     return {
       slot: Number(resp.slot),

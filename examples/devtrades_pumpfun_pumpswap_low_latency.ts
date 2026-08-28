@@ -46,6 +46,7 @@ let latestSlot = 0n;
 let latestQueueLatencyUs = 0;
 let latestParseDurationUs = 0;
 let latestProcessingLatencyUs = 0;
+let latestSourceToGrpcLatencyUs = 0;
 let totalEvents = 0;
 let devTradeCount = 0;
 let devPoolCreateCount = 0;
@@ -225,7 +226,9 @@ async function main(): Promise<void> {
         `reconnects=${sub.reconnects()} replayed=${sub.replayedUpdates()} ` +
         `continuity_breaks=${sub.continuityBreaks()} ` +
         `queue_us=${latestQueueLatencyUs.toFixed(1)} parse_us=${latestParseDurationUs.toFixed(1)} ` +
-        `grpc_to_parsed_us=${latestProcessingLatencyUs.toFixed(1)} tracked_mints=${devByMint.size} ` +
+        `grpc_to_parsed_us=${latestProcessingLatencyUs.toFixed(1)} ` +
+        `source_to_grpc_us=${latestSourceToGrpcLatencyUs.toFixed(1)} ` +
+        `tracked_mints=${devByMint.size} ` +
         `tracked_accounts=${pumpSwapAccounts.size}`
     );
   }, 10_000);
@@ -260,6 +263,7 @@ async function main(): Promise<void> {
           local_queue_latency_us?: number;
           parse_duration_us?: number;
           local_processing_latency_us?: number;
+          source_to_grpc_latency_us?: number;
         }
       | undefined;
     const slot = BigInt(metadata?.slot ?? 0);
@@ -268,6 +272,8 @@ async function main(): Promise<void> {
     latestParseDurationUs = metadata?.parse_duration_us ?? latestParseDurationUs;
     latestProcessingLatencyUs =
       metadata?.local_processing_latency_us ?? latestProcessingLatencyUs;
+    latestSourceToGrpcLatencyUs =
+      metadata?.source_to_grpc_latency_us ?? latestSourceToGrpcLatencyUs;
 
     if (name === "PumpFunCreate" || name === "PumpFunCreateV2") {
       const mint = stringField(data, "mint");

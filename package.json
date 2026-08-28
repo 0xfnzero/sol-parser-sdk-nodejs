@@ -1,6 +1,6 @@
 {
   "name": "sol-parser-sdk",
-  "version": "0.5.13",
+  "version": "0.5.14",
   "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/0xfnzero/sol-parser-sdk-nodejs#readme",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.18.0"
   },
   "scripts": {
     "build": "tsc && mkdir -p dist/shredstream && cp src/shredstream/shredstream.proto dist/shredstream/",
@@ -58,7 +58,7 @@
     "@grpc/grpc-js": "^1.12.4",
     "@grpc/proto-loader": "^0.7.13",
     "@solana/web3.js": "^1.95.4",
-    "@triton-one/yellowstone-grpc": "^1.0.0",
+    "@triton-one/yellowstone-grpc": "7.0.0",
     "bs58": "^6.0.0"
   }
 }

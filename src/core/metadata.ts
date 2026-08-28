@@ -12,6 +12,8 @@ export interface EventMetadata {
   parse_duration_us?: number;
   /** Start of the local gRPC data callback through parser completion. No RPC calls are included. */
   local_processing_latency_us?: number;
+  /** Yellowstone update creation through the local gRPC data callback; includes provider and transport delay. */
+  source_to_grpc_latency_us?: number;
   recent_blockhash?: string;
 }
 

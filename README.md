@@ -38,11 +38,19 @@
 | Parser inputs | Yellowstone gRPC, ShredStream, RPC transactions, encoded transactions, protocol account data |
 | DEX protocols | PumpFun, PumpSwap, Pump Fees, Raydium LaunchLab, Raydium CPMM, Raydium CLMM, Raydium AMM V4, Meteora DAMM v2, Meteora DLMM, Meteora DBC, Orca Whirlpool |
 | Use cases | Real-time DEX event parsing, token launch monitoring, copy trading, sniper bots, account filling, JSON event pipelines |
-| Runtime | Node.js 18+, TypeScript, npm/yarn/pnpm projects |
+| Runtime | Node.js 20.18+, TypeScript, npm/yarn/pnpm projects |
 
 ---
 
 ## Release notes
+
+### v0.5.14
+
+- Upgrades the Yellowstone client to `@triton-one/yellowstone-grpc` 7.0.0 with its native Rust N-API transport.
+- Adds `source_to_grpc_latency_us` to distinguish provider or transport backlog from exact local processing latency.
+- Fixes Yellowstone `createdAt` timestamps represented as JavaScript `Date` objects.
+- Updates native connection, keepalive, flow-control, stream lifecycle, and unary RPC compatibility.
+- Requires Node.js 20.18 or newer.
 
 ### v0.5.8
 
@@ -75,7 +83,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.13
+npm install sol-parser-sdk@0.5.14
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)

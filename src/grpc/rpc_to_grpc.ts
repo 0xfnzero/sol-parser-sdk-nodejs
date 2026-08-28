@@ -3,15 +3,7 @@
  * 与 Rust `rpc_parser::convert_rpc_to_grpc` 字段取舍一致（token balances / rewards 置空，err 置空等）。
  */
 import bs58 from "bs58";
-import type {
-  Message as YMessage,
-  Transaction as YTransaction,
-  TransactionStatusMeta,
-  InnerInstructions,
-  InnerInstruction,
-  CompiledInstruction as YCompiledInstruction,
-  MessageAddressTableLookup as YMessageAddressTableLookup,
-} from "@triton-one/yellowstone-grpc/dist/grpc/solana-storage.js";
+import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
 import {
   type Message,
   type MessageV0,
@@ -22,6 +14,14 @@ import {
 } from "@solana/web3.js";
 import type { ParseError } from "../core/error.js";
 import { decodeIxData, isCompiledVersionedMessage } from "../core/rpc_invoke_map.js";
+
+type YTransaction = NonNullable<SubscribeUpdateTransactionInfo["transaction"]>;
+type YMessage = NonNullable<YTransaction["message"]>;
+type TransactionStatusMeta = NonNullable<SubscribeUpdateTransactionInfo["meta"]>;
+type InnerInstructions = TransactionStatusMeta["innerInstructions"][number];
+type InnerInstruction = InnerInstructions["instructions"][number];
+type YCompiledInstruction = YMessage["instructions"][number];
+type YMessageAddressTableLookup = YMessage["addressTableLookups"][number];
 
 function toYCompiled(ix: CompiledInstruction | MessageCompiledInstruction): YCompiledInstruction {
   const accounts = "accountKeyIndexes" in ix ? ix.accountKeyIndexes : ix.accounts;
