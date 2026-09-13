@@ -76,6 +76,8 @@ describe("PumpFun TradeEvent log parser", () => {
     pushU64(out, 700n);
     pushU64(out, 800n);
     pushU64(out, 900n);
+    pushU64(out, 250n);
+    pushU64(out, 42n);
 
     const ev = parseTradeFromData(Uint8Array.from(out), {
       signature: "sig",
@@ -91,6 +93,8 @@ describe("PumpFun TradeEvent log parser", () => {
     expect(trade.quote_amount).toBe(700n);
     expect(trade.virtual_quote_reserves).toBe(800n);
     expect(trade.real_quote_reserves).toBe(900n);
+    expect(trade.holder_rewards_bps).toBe(250n);
+    expect(trade.holder_rewards).toBe(42n);
     expect(trade.buyback_fee_basis_points).toBe(500n);
     expect(trade.buyback_fee).toBe(600n);
     expect(trade.shareholders).toEqual([{ address: shareholder.toBase58(), share_bps: 2500 }]);
@@ -124,6 +128,8 @@ describe("PumpFun CreateEvent log parser", () => {
     out.push(1);
     pushPubkey(out, quoteMint);
     pushU64(out, 4_292_000_000n);
+    pushU64(out, 250n);
+    out.push(1);
 
     const ev = parseCreateFromData(Uint8Array.from(out), {
       signature: "sig",
@@ -138,6 +144,8 @@ describe("PumpFun CreateEvent log parser", () => {
     expect(create.quote_mint).toBe(quoteMint.toBase58());
     expect(create.virtual_quote_reserves).toBe(4_292_000_000n);
     expect(create.is_cashback_enabled).toBe(true);
+    expect(create.creator_fee_bps).toBe(250n);
+    expect(create.is_holder_reward).toBe(true);
   });
 });
 

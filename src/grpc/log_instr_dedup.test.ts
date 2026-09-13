@@ -190,4 +190,15 @@ describe("dedupeLogInstructionEvents", () => {
     expect(create.is_mayhem_mode).toBe(true);
     expect(create.is_cashback_enabled).toBe(true);
   });
+
+  it("does not add PumpSwap-only fields to PumpFun CreateV2", () => {
+    const mint = "Mint444444444444444444444444444444444444";
+    const logEvent = { PumpFunCreateV2: { metadata: {}, mint } } as unknown as DexEvent;
+    const ixEvent = { PumpFunCreateV2: { metadata: {}, mint } } as unknown as DexEvent;
+
+    const out = dedupeLogInstructionEvents([logEvent], [ixEvent]);
+
+    expect(out).toHaveLength(1);
+    expect((out[0] as any).PumpFunCreateV2).not.toHaveProperty("can_edit_creator_fee");
+  });
 });

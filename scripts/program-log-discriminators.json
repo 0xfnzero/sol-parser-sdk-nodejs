@@ -672,6 +672,56 @@
       142,
       214,
       178
+    ],
+    "METEORA_DAMM_LIQUIDITY_CHANGE": [
+      197,
+      171,
+      78,
+      127,
+      224,
+      211,
+      87,
+      13
+    ],
+    "METEORA_DAMM_UPDATE_DELEGATE_PERMISSION": [
+      66,
+      188,
+      75,
+      151,
+      150,
+      232,
+      87,
+      93
+    ],
+    "METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD": [
+      228,
+      66,
+      150,
+      195,
+      42,
+      62,
+      163,
+      13
+    ],
+    "METEORA_DAMM_CREATE_CONFIG": [
+      131,
+      207,
+      180,
+      174,
+      180,
+      73,
+      165,
+      54
+    ],
+    "METEORA_DAMM_CREATE_DYNAMIC_CONFIG": [
+      231,
+      197,
+      13,
+      164,
+      248,
+      213,
+      133,
+      152
     ]
   }
 }

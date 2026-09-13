@@ -174,9 +174,19 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.METEORA_DAMM_SWAP2) return "MeteoraDammV2Swap";
   if (disc === DISC.METEORA_DAMM_ADD_LIQUIDITY) return "MeteoraDammV2AddLiquidity";
   if (disc === DISC.METEORA_DAMM_REMOVE_LIQUIDITY) return "MeteoraDammV2RemoveLiquidity";
+  // Unified add/remove disc; public type selected after decode via change_type.
+  if (disc === DISC.METEORA_DAMM_LIQUIDITY_CHANGE) return null;
   if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
   if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
   if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
+  if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
+    return "MeteoraDammV2UpdateDelegatePermission";
+  }
+  if (disc === DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD) {
+    return "MeteoraDammV2WithdrawDeadLiquidityReward";
+  }
+  if (disc === DISC.METEORA_DAMM_CREATE_CONFIG) return "MeteoraDammV2CreateConfig";
+  if (disc === DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG) return "MeteoraDammV2CreateDynamicConfig";
   return null;
 }
 
@@ -271,9 +281,18 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     if (disc === DISC.METEORA_DAMM_SWAP || disc === DISC.METEORA_DAMM_SWAP2) return "MeteoraDammV2Swap";
     if (disc === DISC.METEORA_DAMM_ADD_LIQUIDITY) return "MeteoraDammV2AddLiquidity";
     if (disc === DISC.METEORA_DAMM_REMOVE_LIQUIDITY) return "MeteoraDammV2RemoveLiquidity";
+    if (disc === DISC.METEORA_DAMM_LIQUIDITY_CHANGE) return null;
     if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
     if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
     if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
+    if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
+      return "MeteoraDammV2UpdateDelegatePermission";
+    }
+    if (disc === DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD) {
+      return "MeteoraDammV2WithdrawDeadLiquidityReward";
+    }
+    if (disc === DISC.METEORA_DAMM_CREATE_CONFIG) return "MeteoraDammV2CreateConfig";
+    if (disc === DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG) return "MeteoraDammV2CreateDynamicConfig";
     return null;
   }
   if (programId === METEORA_DBC_PROGRAM_ID) {
@@ -430,6 +449,10 @@ function filterIncludesProgram(programId: string | undefined, filter: EventTypeF
       "MeteoraDammV2InitializePool",
       "MeteoraDammV2CreatePosition",
       "MeteoraDammV2ClosePosition",
+      "MeteoraDammV2UpdateDelegatePermission",
+      "MeteoraDammV2WithdrawDeadLiquidityReward",
+      "MeteoraDammV2CreateConfig",
+      "MeteoraDammV2CreateDynamicConfig",
     ]);
   }
   if (programId === METEORA_DBC_PROGRAM_ID) {
@@ -855,10 +878,18 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_SWAP2:
     case DISC.METEORA_DAMM_ADD_LIQUIDITY:
     case DISC.METEORA_DAMM_REMOVE_LIQUIDITY:
+    case DISC.METEORA_DAMM_LIQUIDITY_CHANGE:
     case DISC.METEORA_DAMM_INITIALIZE_POOL:
     case DISC.METEORA_DAMM_CREATE_POSITION:
     case DISC.METEORA_DAMM_CLOSE_POSITION:
-      return parseMeteoraDammLog(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs);
+    case DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION:
+    case DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD:
+    case DISC.METEORA_DAMM_CREATE_CONFIG:
+    case DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG:
+      return applyActualEventTypeFilter(
+        parseMeteoraDammLog(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs),
+        eventTypeFilter
+      );
     default: {
       const raydium_launchlab = parseRaydiumLaunchlabFromDiscriminator(disc, data, metadata);
       if (raydium_launchlab) return applyActualEventTypeFilter(raydium_launchlab, eventTypeFilter);

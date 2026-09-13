@@ -67,6 +67,10 @@ export type DexEvent =
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
+  | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
+  | { MeteoraDammV2WithdrawDeadLiquidityReward: MeteoraDammV2WithdrawDeadLiquidityRewardEvent }
+  | { MeteoraDammV2CreateConfig: MeteoraDammV2CreateConfigEvent }
+  | { MeteoraDammV2CreateDynamicConfig: MeteoraDammV2CreateDynamicConfigEvent }
   | { MeteoraDbcSwap: MeteoraDbcSwapEvent }
   | { MeteoraDbcInitializePool: MeteoraDbcInitializePoolEvent }
   | { MeteoraDbcCurveComplete: MeteoraDbcCurveCompleteEvent }
@@ -126,6 +130,8 @@ export interface PumpFunCreateTokenEvent {
   quote_vault: string;
   quote_token_program: string;
   virtual_quote_reserves: bigint;
+  creator_fee_bps: bigint;
+  is_holder_reward: boolean;
   ix_name: string;
 }
 
@@ -180,6 +186,8 @@ export interface PumpFunTradeEvent {
   quote_amount?: bigint;
   virtual_quote_reserves?: bigint;
   real_quote_reserves?: bigint;
+  holder_rewards_bps: bigint;
+  holder_rewards: bigint;
   is_cashback_coin: boolean;
   amount?: bigint;
   max_sol_cost?: bigint;
@@ -187,6 +195,12 @@ export interface PumpFunTradeEvent {
   spendable_sol_in?: bigint;
   spendable_quote_in?: bigint;
   min_tokens_out?: bigint;
+  /** User base-mint token balance before tx; absent when meta unavailable (e.g. ShredStream). */
+  pre_token_balance?: bigint | null;
+  post_token_balance?: bigint | null;
+  /** User native SOL lamports before/after tx. */
+  pre_sol_balance?: bigint | null;
+  post_sol_balance?: bigint | null;
   global?: string;
   bonding_curve: string;
   bonding_curve_v2?: string;
@@ -404,6 +418,8 @@ export interface PumpSwapBuyEvent {
   virtual_quote_reserves: bigint;
   can_boost: boolean;
   base_supply: bigint;
+  holder_rewards_bps: bigint;
+  holder_rewards: bigint;
   /** 由 fees 指令数据填充（见 `fillDataRpc`） */
   is_pump_pool: boolean;
   /** 自指令账户填充（account_fillers/pumpswap） */
@@ -452,6 +468,8 @@ export interface PumpSwapSellEvent {
   virtual_quote_reserves: bigint;
   can_boost: boolean;
   base_supply: bigint;
+  holder_rewards_bps: bigint;
+  holder_rewards: bigint;
   is_pump_pool: boolean;
   base_mint: string;
   quote_mint: string;
@@ -489,6 +507,10 @@ export interface PumpSwapCreatePoolEvent {
   user_quote_token_account: string;
   coin_creator: string;
   is_mayhem_mode: boolean;
+  is_cashback_coin: boolean;
+  creator_fee_bps: bigint;
+  can_edit_creator_fee: boolean;
+  is_holder_reward: boolean;
 }
 
 export interface PumpSwapLiquidityAdded {
@@ -1019,6 +1041,19 @@ export interface MeteoraDammV2SwapEvent {
   referral_fee: bigint;
   actual_amount_in: bigint;
   current_timestamp: bigint;
+  collect_fee_mode?: number;
+  amount_0?: bigint;
+  amount_1?: bigint;
+  swap_mode?: number;
+  excluded_fee_input_amount?: bigint;
+  amount_left?: bigint;
+  claiming_fee?: bigint;
+  compounding_fee?: bigint;
+  included_transfer_fee_amount_in?: bigint;
+  included_transfer_fee_amount_out?: bigint;
+  excluded_transfer_fee_amount_out?: bigint;
+  reserve_a_amount?: bigint;
+  reserve_b_amount?: bigint;
   token_a_vault: string;
   token_b_vault: string;
   token_a_mint: string;
@@ -1040,6 +1075,8 @@ export interface MeteoraDammV2AddLiquidityEvent {
   token_b_amount_threshold: bigint;
   total_amount_a: bigint;
   total_amount_b: bigint;
+  reserve_a_amount?: bigint;
+  reserve_b_amount?: bigint;
 }
 
 /** 与 `MeteoraDammV2RemoveLiquidityEvent` 对齐；Go/Python 中 `liquidity_delta` 为十进制字符串。 */
@@ -1053,6 +1090,10 @@ export interface MeteoraDammV2RemoveLiquidityEvent {
   liquidity_delta: bigint;
   token_a_amount_threshold: bigint;
   token_b_amount_threshold: bigint;
+  total_amount_a?: bigint;
+  total_amount_b?: bigint;
+  reserve_a_amount?: bigint;
+  reserve_b_amount?: bigint;
 }
 
 /** 与 `MeteoraDammV2CreatePositionEvent` 对齐 */
@@ -1100,6 +1141,61 @@ export interface MeteoraDammV2ClosePositionEvent {
   position_nft_mint: string;
 }
 
+/** Nested dynamic fee parameters from DAMM v2 `PoolFeeParameters`. */
+export interface MeteoraDammV2DynamicFeeParameters {
+  bin_step: number;
+  bin_step_u128: bigint;
+  filter_period: number;
+  decay_period: number;
+  reduction_factor: number;
+  max_volatility_accumulator: number;
+  variable_fee_control: number;
+}
+
+/** IDL `EvtUpdateDelegatePermission` */
+export interface MeteoraDammV2UpdateDelegatePermissionEvent {
+  metadata: EventMetadata;
+  position: string;
+  owner: string;
+  permission: number;
+  delegate: string | null;
+}
+
+/** IDL `EvtWithdrawDeadLiquidityReward` */
+export interface MeteoraDammV2WithdrawDeadLiquidityRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  reward_mint: string;
+  amount: bigint;
+}
+
+/** IDL `EvtCreateConfig` (includes DAMM v2 0.2.4 `permission`) */
+export interface MeteoraDammV2CreateConfigEvent {
+  metadata: EventMetadata;
+  base_fee_data: Uint8Array | number[];
+  compounding_fee_bps: number;
+  padding: number;
+  dynamic_fee: MeteoraDammV2DynamicFeeParameters | null;
+  vault_config_key: string;
+  pool_creator_authority: string;
+  activation_type: number;
+  sqrt_min_price: bigint;
+  sqrt_max_price: bigint;
+  collect_fee_mode: number;
+  index: bigint;
+  config: string;
+  permission: bigint;
+}
+
+/** IDL `EvtCreateDynamicConfig` */
+export interface MeteoraDammV2CreateDynamicConfigEvent {
+  metadata: EventMetadata;
+  config: string;
+  pool_creator_authority: string;
+  index: bigint;
+  permission: bigint;
+}
+
 export interface MeteoraDbcSwapEvent {
   metadata: EventMetadata;
   pool: string;
@@ -1138,6 +1234,13 @@ export interface MeteoraDbcCurveCompleteEvent {
 /** Meteora DLMM Swap：`fee_bps` 在 Go/Python 为十进制字符串。 */
 export interface MeteoraDlmmSwapEvent {
   metadata: EventMetadata;
+  /** Account-fill / instruction context; empty string default when absent. */
+  token_x_mint?: string;
+  token_y_mint?: string;
+  user_token_in?: string;
+  user_token_out?: string;
+  /** Exact-in min out; 0 when instruction context absent. */
+  min_amount_out?: bigint;
   pool: string;
   from: string;
   start_bin_id: number;
@@ -1229,6 +1332,16 @@ export interface RaydiumLaunchlabTradeEvent {
   is_buy: boolean;
   trade_direction: TradeDirection;
   exact_in: boolean;
+  global_config?: string;
+  platform_config?: string;
+  user_base_token?: string;
+  user_quote_token?: string;
+  base_vault?: string;
+  quote_vault?: string;
+  base_mint?: string;
+  quote_mint?: string;
+  base_token_program?: string;
+  quote_token_program?: string;
 }
 
 export interface BaseMintParam {
@@ -1243,6 +1356,15 @@ export interface RaydiumLaunchlabPoolCreateEvent {
   base_mint_param: BaseMintParam;
   pool_state: string;
   creator: string;
+  payer?: string;
+  global_config?: string;
+  platform_config?: string;
+  base_mint?: string;
+  quote_mint?: string;
+  base_vault?: string;
+  quote_vault?: string;
+  base_token_program?: string;
+  quote_token_program?: string;
 }
 
 export interface RaydiumLaunchlabMigrateAmmEvent {
@@ -1331,6 +1453,9 @@ export interface PumpFunBondingCurve {
   is_mayhem_mode: boolean;
   is_cashback_coin: boolean;
   quote_mint: string;
+  creator_fee_bps: bigint;
+  can_edit_creator_fee: boolean;
+  is_holder_reward: boolean;
 }
 
 export interface PumpFunBondingCurveAccountEvent {
@@ -1442,6 +1567,9 @@ export interface PumpSwapPool {
   is_mayhem_mode: boolean;
   is_cashback_coin: boolean;
   virtual_quote_reserves: bigint;
+  creator_fee_bps: bigint;
+  can_edit_creator_fee: boolean;
+  is_holder_reward: boolean;
 }
 
 export interface PumpSwapPoolAccountEvent {

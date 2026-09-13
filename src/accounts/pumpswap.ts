@@ -16,7 +16,9 @@ const POOL_DISC = Uint8Array.from([241, 154, 109, 4, 17, 177, 109, 188]);
 
 const GLOBAL_BODY = 634;
 const POOL_LEGACY_BODY = 244;
-const POOL_BODY = 253;
+const POOL_BOOST_BODY = 253;
+const POOL_CREATOR_FEE_BODY = 262;
+const POOL_BODY = 263;
 
 export function isGlobalConfigAccount(data: Uint8Array): boolean {
   return hasDiscriminator(data, GLOBAL_DISC);
@@ -100,7 +102,13 @@ export function parsePumpswapGlobalConfig(account: AccountData, metadata: EventM
 
 export function parsePumpswapPool(account: AccountData, metadata: EventMetadata): DexEvent | null {
   if (account.data.length < 8 + POOL_LEGACY_BODY) return null;
-  if (account.data.length !== 8 + POOL_LEGACY_BODY && account.data.length < 8 + POOL_BODY) {
+  const bodyLength = account.data.length - 8;
+  if (
+    bodyLength !== POOL_LEGACY_BODY &&
+    bodyLength !== POOL_BOOST_BODY &&
+    bodyLength !== POOL_CREATOR_FEE_BODY &&
+    bodyLength < POOL_BODY
+  ) {
     return null;
   }
   if (!isPoolAccount(account.data)) return null;
@@ -143,11 +151,17 @@ export function parsePumpswapPool(account: AccountData, metadata: EventMetadata)
   if (cashback === null) return null;
   o += 1;
   let virtual_quote_reserves = 0n;
-  if (d.length >= POOL_BODY) {
+  if (d.length >= POOL_BOOST_BODY) {
     const virtual = readU128LE(d, o);
     if (virtual === null) return null;
     virtual_quote_reserves = BigInt.asIntN(128, virtual);
   }
+  o += 16;
+  const creator_fee_bps = readU64LE(d, o) ?? 0n;
+  o += 8;
+  const can_edit_creator_fee = (readU8(d, o) ?? 0) !== 0;
+  o += 1;
+  const is_holder_reward = (readU8(d, o) ?? 0) !== 0;
   const pool: PumpSwapPool = {
     pool_bump,
     index,
@@ -162,6 +176,9 @@ export function parsePumpswapPool(account: AccountData, metadata: EventMetadata)
     is_mayhem_mode: mayhem !== 0,
     is_cashback_coin: cashback !== 0,
     virtual_quote_reserves,
+    creator_fee_bps,
+    can_edit_creator_fee,
+    is_holder_reward,
   };
   const ev: PumpSwapPoolAccountEvent = {
     metadata,

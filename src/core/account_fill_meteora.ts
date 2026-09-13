@@ -13,6 +13,7 @@ import type {
   MeteoraPoolsRemoveLiquidityEvent,
   MeteoraPoolsSwapEvent,
 } from "./dex_event.js";
+import { defaultPubkey } from "./dex_event.js";
 
 /** 预留：gRPC+meta 全量路径若需从 account_keys 补 vault，应对齐 cp_amm `swap` 账户顺序（IDL 中 vault/mint/token program 下标） */
 export function fillMeteoraDammV2SwapAccounts(
@@ -61,9 +62,15 @@ export function fillMeteoraPoolsRemoveLiquidityAccounts(
 ): void {}
 
 export function fillMeteoraDlmmSwapAccounts(
-  _e: MeteoraDlmmSwapEvent,
-  _get: (i: number) => string
-): void {}
+  e: MeteoraDlmmSwapEvent,
+  get: (i: number) => string
+): void {
+  const zero = defaultPubkey();
+  if (!e.user_token_in || e.user_token_in === zero) e.user_token_in = get(4);
+  if (!e.user_token_out || e.user_token_out === zero) e.user_token_out = get(5);
+  if (!e.token_x_mint || e.token_x_mint === zero) e.token_x_mint = get(6);
+  if (!e.token_y_mint || e.token_y_mint === zero) e.token_y_mint = get(7);
+}
 
 export function fillMeteoraDlmmAddLiquidityAccounts(
   _e: MeteoraDlmmAddLiquidityEvent,

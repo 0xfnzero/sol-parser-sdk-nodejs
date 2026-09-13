@@ -10,7 +10,7 @@ import type {
   PumpSwapSellEvent,
 } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
-import { getAccount, ixMeta, readU64LE } from "./utils.js";
+import { getAccount, ixMeta, readPubkeyIx, readU64LE } from "./utils.js";
 
 const ZP = defaultPubkey();
 const Z = ZP;
@@ -115,6 +115,8 @@ function buyLike(
     virtual_quote_reserves: 0n,
     can_boost: false,
     base_supply: 0n,
+    holder_rewards_bps: 0n,
+    holder_rewards: 0n,
     is_pump_pool: false,
     base_mint: g(3),
     quote_mint: g(4),
@@ -190,6 +192,8 @@ export function parsePumpswapInstruction(
       virtual_quote_reserves: 0n,
       can_boost: false,
       base_supply: 0n,
+      holder_rewards_bps: 0n,
+      holder_rewards: 0n,
       is_pump_pool: false,
       base_mint: g(3),
       quote_mint: g(4),
@@ -209,15 +213,15 @@ export function parsePumpswapInstruction(
     const ev: PumpSwapCreatePoolEvent = {
       metadata: meta,
       timestamp: 0n,
-      index: 0,
+      index: Number(data.length >= 2 ? data[0]! | (data[1]! << 8) : 0),
       pool: g(0),
       creator: g(2),
       base_mint: g(3),
       quote_mint: g(4),
       base_mint_decimals: 0,
       quote_mint_decimals: 0,
-      base_amount_in: 0n,
-      quote_amount_in: 0n,
+      base_amount_in: readU64LE(data, 2) ?? 0n,
+      quote_amount_in: readU64LE(data, 10) ?? 0n,
       pool_base_amount: 0n,
       pool_quote_amount: 0n,
       minimum_liquidity: 0n,
@@ -227,8 +231,12 @@ export function parsePumpswapInstruction(
       lp_mint: g(5),
       user_base_token_account: g(6),
       user_quote_token_account: g(7),
-      coin_creator: g(1),
-      is_mayhem_mode: false,
+      coin_creator: readPubkeyIx(data, 18) ?? g(1),
+      is_mayhem_mode: data[50] === 1,
+      is_cashback_coin: data[51] === 1,
+      creator_fee_bps: readU64LE(data, 52) ?? 0n,
+      can_edit_creator_fee: data[60] === 1,
+      is_holder_reward: data[61] === 1,
     };
     return { PumpSwapCreatePool: ev };
   }

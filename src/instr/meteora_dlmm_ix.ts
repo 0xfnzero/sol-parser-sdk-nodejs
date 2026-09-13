@@ -158,6 +158,11 @@ export function parseMeteoraDlmmInstruction(
     return {
       MeteoraDlmmSwap: {
         metadata,
+        token_x_mint: Z,
+        token_y_mint: Z,
+        user_token_in: getAccount(accounts, 4) ?? Z,
+        user_token_out: getAccount(accounts, 5) ?? Z,
+        min_amount_out: readU64LE(data, 8) ?? 0n,
         pool,
         from: getAccount(accounts, 10) ?? Z,
         start_bin_id: 0,
@@ -184,6 +189,11 @@ export function parseMeteoraDlmmInstruction(
     return {
       MeteoraDlmmSwap: {
         metadata,
+        token_x_mint: Z,
+        token_y_mint: Z,
+        user_token_in: getAccount(accounts, 4) ?? Z,
+        user_token_out: getAccount(accounts, 5) ?? Z,
+        min_amount_out: 0n,
         pool,
         from: getAccount(accounts, 10) ?? Z,
         start_bin_id: 0,

@@ -41,6 +41,8 @@ function createNumericDefaults() {
     quote_vault: Z,
     quote_token_program: Z,
     virtual_quote_reserves: 0n,
+    creator_fee_bps: 0n,
+    is_holder_reward: false,
     ix_name: "",
   };
 }
@@ -99,6 +101,8 @@ function parsePumpfunTradeV2Instruction(
     mayhem_mode: false,
     cashback_fee_basis_points: 0n,
     cashback: 0n,
+    holder_rewards_bps: 0n,
+    holder_rewards: 0n,
     is_cashback_coin: false,
     associated_bonding_curve: accounts[11] ?? Z,
     associated_user: accounts[14] ?? Z,
@@ -190,6 +194,8 @@ function parsePumpfunLegacyBuyInstruction(
     mayhem_mode: false,
     cashback_fee_basis_points: 0n,
     cashback: 0n,
+    holder_rewards_bps: 0n,
+    holder_rewards: 0n,
     is_cashback_coin: false,
     quote_mint: PUMPFUN_SOL_QUOTE_MINT,
     quote_token_program: Z,
@@ -289,6 +295,8 @@ function parsePumpfunLegacySellInstruction(
     mayhem_mode: false,
     cashback_fee_basis_points: 0n,
     cashback: 0n,
+    holder_rewards_bps: 0n,
+    holder_rewards: 0n,
     is_cashback_coin: false,
     ...(legacyBuybackFeeRecipient !== Z ? { account: legacyBuybackFeeRecipient } : {}),
   };
@@ -330,6 +338,10 @@ export function parsePumpfunInstruction(
     if (isMayhemMode === null) return null;
     o += 1;
     const isCashbackEnabled = readBool(data, o) ?? false;
+    if (o < data.length) o += 1;
+    const creatorFeeBps = readU64LE(data, o) ?? 0n;
+    if (o + 8 <= data.length) o += 8;
+    const isHolderReward = readBool(data, o) ?? false;
     const mint = accounts[0]!;
     const ev = {
       metadata: meta,
@@ -361,6 +373,8 @@ export function parsePumpfunInstruction(
       ix_name: "create_v2",
       is_mayhem_mode: isMayhemMode,
       is_cashback_enabled: isCashbackEnabled,
+      creator_fee_bps: creatorFeeBps,
+      is_holder_reward: isHolderReward,
     };
     return { PumpFunCreateV2: ev };
   }

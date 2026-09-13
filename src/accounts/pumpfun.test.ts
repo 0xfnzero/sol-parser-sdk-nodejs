@@ -21,7 +21,11 @@ function pushPk(out: number[], key: PublicKey): void {
   out.push(...key.toBytes());
 }
 
-function bondingCurveAccountData(creator: PublicKey, quoteMint: PublicKey): Uint8Array {
+function bondingCurveAccountData(
+  creator: PublicKey,
+  quoteMint: PublicKey,
+  creatorFeeBps?: bigint
+): Uint8Array {
   const out = [...BONDING_CURVE_DISC];
   pushU64(out, 100n);
   pushU64(out, 4_292_000_000n);
@@ -33,6 +37,10 @@ function bondingCurveAccountData(creator: PublicKey, quoteMint: PublicKey): Uint
   out.push(1);
   out.push(0);
   pushPk(out, quoteMint);
+  if (creatorFeeBps !== undefined) {
+    pushU64(out, creatorFeeBps);
+    out.push(1, 1);
+  }
   return Uint8Array.from(out);
 }
 
@@ -46,7 +54,7 @@ describe("PumpFun account parser", () => {
       lamports: 0n,
       owner: PUMPFUN_PROGRAM_ID,
       rent_epoch: 0n,
-      data: bondingCurveAccountData(creator, quoteMint),
+      data: bondingCurveAccountData(creator, quoteMint, 250n),
     };
 
     const ev = parseAccountUnified(
@@ -65,6 +73,14 @@ describe("PumpFun account parser", () => {
     expect(curve.complete).toBe(true);
     expect(curve.is_mayhem_mode).toBe(true);
     expect(curve.is_cashback_coin).toBe(false);
+    expect(curve.creator_fee_bps).toBe(250n);
+    expect(curve.can_edit_creator_fee).toBe(true);
+    expect(curve.is_holder_reward).toBe(true);
+
+    for (let bodyLength = 108; bodyLength < 116; bodyLength++) {
+      expect(parseAccountUnified({ ...account, data: account.data.slice(0, 8 + bodyLength) })).toBeNull();
+    }
+    expect(parseAccountUnified({ ...account, data: account.data.slice(0, 8 + 116) })).not.toBeNull();
   });
 
   it("drops account variants that are not requested by include-only filters", () => {

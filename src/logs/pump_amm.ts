@@ -40,6 +40,8 @@ interface PumpSwapTradeTail {
   virtual_quote_reserves: bigint;
   can_boost: boolean;
   base_supply: bigint;
+  holder_rewards_bps: bigint;
+  holder_rewards: bigint;
 }
 
 function emptyTradeTail(): PumpSwapTradeTail {
@@ -51,6 +53,8 @@ function emptyTradeTail(): PumpSwapTradeTail {
     virtual_quote_reserves: 0n,
     can_boost: false,
     base_supply: 0n,
+    holder_rewards_bps: 0n,
+    holder_rewards: 0n,
   };
 }
 
@@ -76,6 +80,11 @@ function parseTradeTail(data: Uint8Array): PumpSwapTradeTail | null {
   if (canBoost !== 0 && canBoost !== 1) return null;
   tail.can_boost = canBoost === 1;
   tail.base_supply = bn64(readU64LE(data, 49));
+  if (data.length !== 57 && data.length < 73) return null;
+  if (data.length >= 73) {
+    tail.holder_rewards_bps = bn64(readU64LE(data, 57));
+    tail.holder_rewards = bn64(readU64LE(data, 65));
+  }
   return tail;
 }
 
@@ -210,6 +219,8 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
     virtual_quote_reserves: tail.virtual_quote_reserves,
     can_boost: tail.can_boost,
     base_supply: tail.base_supply,
+    holder_rewards_bps: tail.holder_rewards_bps,
+    holder_rewards: tail.holder_rewards,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,
@@ -307,6 +318,8 @@ export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): De
     virtual_quote_reserves: tail.virtual_quote_reserves,
     can_boost: tail.can_boost,
     base_supply: tail.base_supply,
+    holder_rewards_bps: tail.holder_rewards_bps,
+    holder_rewards: tail.holder_rewards,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,
@@ -321,8 +334,9 @@ export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): De
 }
 
 export function parseCreatePoolFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const REQUIRED = 8 + 2 + 32 * 6 + 2 + 8 * 7 + 1;
+  const REQUIRED = 326;
   if (data.length < REQUIRED) return null;
+  if (data.length !== REQUIRED && data.length < 335) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));
   o += 8;
@@ -365,6 +379,9 @@ export function parseCreatePoolFromData(data: Uint8Array, metadata: EventMetadat
   const coin_creator = readPubkey(data, o)!;
   o += 32;
   const is_mayhem_mode = data.length > 325 && readBool(data, 325) === true;
+  const creator_fee_bps = data.length >= 334 ? bn64(readU64LE(data, 326)) : 0n;
+  const can_edit_creator_fee = data.length > 334 && readBool(data, 334) === true;
+  const is_holder_reward = data.length > 335 && readBool(data, 335) === true;
   const ev: PumpSwapCreatePoolEvent = {
     metadata,
     timestamp,
@@ -388,6 +405,10 @@ export function parseCreatePoolFromData(data: Uint8Array, metadata: EventMetadat
     user_quote_token_account,
     coin_creator,
     is_mayhem_mode,
+    is_cashback_coin: false,
+    creator_fee_bps,
+    can_edit_creator_fee,
+    is_holder_reward,
   };
   return { PumpSwapCreatePool: ev };
 }

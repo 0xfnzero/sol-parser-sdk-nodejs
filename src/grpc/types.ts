@@ -363,6 +363,10 @@ export type EventType =
   | "MeteoraDammV2InitializePool"
   | "MeteoraDammV2CreatePosition"
   | "MeteoraDammV2ClosePosition"
+  | "MeteoraDammV2UpdateDelegatePermission"
+  | "MeteoraDammV2WithdrawDeadLiquidityReward"
+  | "MeteoraDammV2CreateConfig"
+  | "MeteoraDammV2CreateDynamicConfig"
   // Meteora DBC
   | "MeteoraDbcSwap"
   | "MeteoraDbcInitializePool"
@@ -484,6 +488,10 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2CreatePosition",
   "MeteoraDammV2ClosePosition",
+  "MeteoraDammV2UpdateDelegatePermission",
+  "MeteoraDammV2WithdrawDeadLiquidityReward",
+  "MeteoraDammV2CreateConfig",
+  "MeteoraDammV2CreateDynamicConfig",
   // Meteora DBC
   "MeteoraDbcSwap",
   "MeteoraDbcInitializePool",
@@ -567,6 +575,10 @@ const METEORA_DAMM_V2_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDammV2CreatePosition",
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2ClosePosition",
+  "MeteoraDammV2UpdateDelegatePermission",
+  "MeteoraDammV2WithdrawDeadLiquidityReward",
+  "MeteoraDammV2CreateConfig",
+  "MeteoraDammV2CreateDynamicConfig",
 ];
 const METEORA_DBC_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDbcSwap",

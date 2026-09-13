@@ -188,6 +188,8 @@ function mergePumpfunTrade(log: EventPayload, ix: EventPayload): void {
     "quote_amount",
     "virtual_quote_reserves",
     "real_quote_reserves",
+    "holder_rewards_bps",
+    "holder_rewards",
   ]) {
     fillNonZero(log, key, ix);
   }
@@ -218,6 +220,7 @@ function mergePumpfunCreate(log: EventPayload, ix: EventPayload): void {
     "real_token_reserves",
     "token_total_supply",
     "virtual_quote_reserves",
+    "creator_fee_bps",
   ]) {
     fillNonZero(log, key, ix);
   }
@@ -225,6 +228,7 @@ function mergePumpfunCreate(log: EventPayload, ix: EventPayload): void {
   log.is_mayhem_mode = Boolean(log.is_mayhem_mode) || Boolean(ix.is_mayhem_mode);
   log.is_cashback_enabled =
     Boolean(log.is_cashback_enabled) || Boolean(ix.is_cashback_enabled);
+  log.is_holder_reward = Boolean(log.is_holder_reward) || Boolean(ix.is_holder_reward);
 }
 
 function mergePumpfunCreateV2(log: EventPayload, ix: EventPayload): void {
@@ -246,6 +250,8 @@ function mergePumpfunCreateV2(log: EventPayload, ix: EventPayload): void {
   ]) {
     fillString(log, key, ix);
   }
+  fillNonZero(log, "creator_fee_bps", ix);
+  log.is_holder_reward = Boolean(log.is_holder_reward) || Boolean(ix.is_holder_reward);
 }
 
 function mergePumpfunMigrate(log: EventPayload, ix: EventPayload): void {

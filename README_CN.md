@@ -44,6 +44,13 @@
 
 ## 发布说明
 
+### v0.5.15
+
+- 对齐 Rust sol-parser-sdk **0.7.3**，覆盖当前 PumpFun、PumpSwap、Pump Fees 与 Meteora DAMM v2 协议字段。
+- DLMM Swap 上下文字段（`token_x/y_mint`、`user_token_in/out`、`min_amount_out`）、PumpFun 可选 pre/post SOL/token 余额、Raydium LaunchLab quote/global/platform 账户上下文与 Rust 对齐。
+- 在 PumpFun/PumpSwap instruction、log、account、gRPC 与 JSON 事件链路中补齐 creator fee 和 holder reward 字段。
+- 拒绝 PumpSwap trade 与 CreatePool 已知字段的截断尾部，并避免 PumpSwap 专属字段进入 PumpFun CreateV2 payload。
+
 ### v0.5.14
 
 - 将 Yellowstone 客户端升级到 `@triton-one/yellowstone-grpc` 7.0.0，使用其原生 Rust N-API 传输层。
@@ -83,7 +90,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.14
+npm install sol-parser-sdk@0.5.15
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）

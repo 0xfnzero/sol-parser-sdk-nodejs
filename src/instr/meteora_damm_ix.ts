@@ -14,6 +14,14 @@ import type {
   MeteoraDammV2SwapEvent,
 } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
+import {
+  parseCreateConfigFromData,
+  parseCreateDynamicConfigFromData,
+  parseLiquidityChangeFromData,
+  parseSwap2FromData,
+  parseUpdateDelegatePermissionFromData,
+  parseWithdrawDeadLiquidityRewardFromData,
+} from "../logs/meteora_damm.js";
 import { getAccount, ixMeta, readBool, readPubkeyIx, readU128LE, readU64LE, readU8 } from "./utils.js";
 
 const Z = defaultPubkey();
@@ -29,6 +37,11 @@ const CPI = {
   CLOSE_POSITION_LOG: disc8([20, 145, 144, 68, 143, 142, 214, 178]),
   ADD_LIQUIDITY_LOG: disc8([175, 242, 8, 157, 30, 247, 185, 169]),
   REMOVE_LIQUIDITY_LOG: disc8([87, 46, 88, 98, 175, 96, 34, 91]),
+  LIQUIDITY_CHANGE_LOG: disc8([197, 171, 78, 127, 224, 211, 87, 13]),
+  UPDATE_DELEGATE_PERMISSION_LOG: disc8([66, 188, 75, 151, 150, 232, 87, 93]),
+  WITHDRAW_DEAD_LIQUIDITY_REWARD_LOG: disc8([228, 66, 150, 195, 42, 62, 163, 13]),
+  CREATE_CONFIG_LOG: disc8([131, 207, 180, 174, 180, 73, 165, 54]),
+  CREATE_DYNAMIC_CONFIG_LOG: disc8([231, 197, 13, 164, 248, 213, 133, 152]),
 };
 
 /** 与 cp_amm Anchor IDL `instructions[].discriminator` 一致（用户直接调用的外层指令） */
@@ -130,14 +143,26 @@ function parseOuterSwap2Ix(
   const amount_1 = readU64LE(instructionData, 16) ?? 0n;
   const swap_mode = readU8(instructionData, 24);
   if (swap_mode === null) return null;
-  const [amount_in, minimum_amount_out] =
-    swap_mode === 0 ? [amount_0, amount_1] : [amount_1, amount_0];
+  let amount_in: bigint;
+  let minimum_amount_out: bigint;
+  if (swap_mode === 0 || swap_mode === 1) {
+    amount_in = amount_0;
+    minimum_amount_out = amount_1;
+  } else if (swap_mode === 2) {
+    amount_in = amount_1;
+    minimum_amount_out = amount_0;
+  } else {
+    return null;
+  }
   const pool = getAccount(accounts, 1) ?? Z;
   const ev: MeteoraDammV2SwapEvent = {
     metadata: meta,
     pool,
     trade_direction: 0,
     has_referral: false,
+    amount_0,
+    amount_1,
+    swap_mode,
     amount_in,
     minimum_amount_out,
     output_amount: 0n,
@@ -377,72 +402,10 @@ function parseSwap2Cpi(
   accounts: string[],
   meta: MeteoraDammV2SwapEvent["metadata"]
 ): DexEvent | null {
-  let o = 0;
-  const pool = readPubkeyIx(data, o);
-  if (!pool) return null;
-  o += 32;
-  const trade_direction = readU8(data, o);
-  if (trade_direction === null) return null;
-  o += 1;
-  const _cfm = readU8(data, o);
-  if (_cfm === null) return null;
-  o += 1;
-  const has_referral = readBool(data, o);
-  if (has_referral === null) return null;
-  o += 1;
-  const amount_0 = readU64LE(data, o);
-  if (amount_0 === null) return null;
-  o += 8;
-  const amount_1 = readU64LE(data, o);
-  if (amount_1 === null) return null;
-  o += 8;
-  const swap_mode = readU8(data, o);
-  if (swap_mode === null) return null;
-  o += 1;
-  const included_fee_input_amount = readU64LE(data, o);
-  if (included_fee_input_amount === null) return null;
-  o += 8;
-  o += 8;
-  o += 8;
-  const output_amount = readU64LE(data, o);
-  if (output_amount === null) return null;
-  o += 8;
-  const next_sqrt_price = readU128LE(data, o);
-  if (next_sqrt_price === null) return null;
-  o += 16;
-  const lp_fee = readU64LE(data, o);
-  if (lp_fee === null) return null;
-  o += 8;
-  const protocol_fee = readU64LE(data, o);
-  if (protocol_fee === null) return null;
-  o += 8;
-  const referral_fee = readU64LE(data, o);
-  if (referral_fee === null) return null;
-  o += 8;
-  o += 8;
-  o += 8;
-  const current_timestamp = readU64LE(data, o);
-  if (current_timestamp === null) return null;
-  const [amount_in, minimum_amount_out] =
-    swap_mode === 0 ? [amount_0, amount_1] : [amount_1, amount_0];
-  const ev: MeteoraDammV2SwapEvent = {
-    metadata: meta,
-    pool,
-    trade_direction,
-    has_referral,
-    amount_in,
-    minimum_amount_out,
-    output_amount,
-    next_sqrt_price,
-    lp_fee,
-    protocol_fee,
-    partner_fee: 0n,
-    referral_fee,
-    actual_amount_in: included_fee_input_amount,
-    current_timestamp,
-    ...meteoraSwapVaultsFromAccounts(accounts),
-  };
-  return { MeteoraDammV2Swap: ev };
+  const ev = parseSwap2FromData(data, meta);
+  if (!ev || !("MeteoraDammV2Swap" in ev)) return null;
+  Object.assign(ev.MeteoraDammV2Swap, meteoraSwapVaultsFromAccounts(accounts));
+  return ev;
 }
 
 export function parseMeteoraDammInstruction(
@@ -607,6 +570,21 @@ export function parseMeteoraDammInstruction(
         token_b_amount,
       },
     };
+  }
+  if (discEq(cpiHead, CPI.LIQUIDITY_CHANGE_LOG)) {
+    return parseLiquidityChangeFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.UPDATE_DELEGATE_PERMISSION_LOG)) {
+    return parseUpdateDelegatePermissionFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.WITHDRAW_DEAD_LIQUIDITY_REWARD_LOG)) {
+    return parseWithdrawDeadLiquidityRewardFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.CREATE_CONFIG_LOG)) {
+    return parseCreateConfigFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.CREATE_DYNAMIC_CONFIG_LOG)) {
+    return parseCreateDynamicConfigFromData(cpiData, meta);
   }
   return null;
 }

@@ -44,6 +44,13 @@
 
 ## Release notes
 
+### v0.5.15
+
+- Syncs with Rust `sol-parser-sdk` **0.7.3**, including the current PumpFun, PumpSwap, Pump Fees, and Meteora DAMM v2 protocol surfaces.
+- Keeps existing optional DLMM mint/user-token fields and PumpFun balance snapshot fields aligned with the Rust 0.6.4–0.6.6 field model.
+- Adds creator-fee and holder-reward fields across PumpFun/PumpSwap instruction, log, account, gRPC, and JSON event paths.
+- Rejects truncated known PumpSwap trade and CreatePool tails, and prevents PumpSwap-only fields from leaking into PumpFun CreateV2 payloads.
+
 ### v0.5.14
 
 - Upgrades the Yellowstone client to `@triton-one/yellowstone-grpc` 7.0.0 with its native Rust N-API transport.
@@ -83,7 +90,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.14
+npm install sol-parser-sdk@0.5.15
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)

@@ -58,6 +58,9 @@ describe("Raydium LaunchLab instruction parity", () => {
     fillRaydiumLaunchlabTradeAccounts(trade, (i) => `account_${i}`);
     expect(trade.user).toBe("account_0");
     expect(trade.pool_state).toBe("account_4");
+    expect(trade.global_config).toBe("account_2");
+    expect(trade.platform_config).toBe("account_3");
+    expect(trade.quote_mint).toBe("account_10");
 
     const poolCreate = {
       metadata: { signature: "sig", slot: 1, tx_index: 0, block_time_us: 0, grpc_recv_us: 10 },
@@ -68,5 +71,7 @@ describe("Raydium LaunchLab instruction parity", () => {
     fillRaydiumLaunchlabPoolCreateAccounts(poolCreate, (i) => `account_${i}`);
     expect(poolCreate.creator).toBe("account_1");
     expect(poolCreate.pool_state).toBe("account_5");
+    expect(poolCreate.global_config).toBe("account_2");
+    expect(poolCreate.quote_mint).toBe("account_7");
   });
 });

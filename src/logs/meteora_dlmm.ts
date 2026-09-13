@@ -84,6 +84,11 @@ export function parseDlmmEventFromData(
     const host_fee = bn64(readU64LE(data, o));
     const ev: MeteoraDlmmSwapEvent = {
       metadata,
+      token_x_mint: defaultPubkey(),
+      token_y_mint: defaultPubkey(),
+      user_token_in: defaultPubkey(),
+      user_token_out: defaultPubkey(),
+      min_amount_out: 0n,
       pool,
       from,
       start_bin_id,
@@ -127,6 +132,11 @@ export function parseDlmmEventFromData(
     const host_fee = bn64(readU64LE(data, o));
     const ev: MeteoraDlmmSwapEvent = {
       metadata,
+      token_x_mint: defaultPubkey(),
+      token_y_mint: defaultPubkey(),
+      user_token_in: defaultPubkey(),
+      user_token_out: defaultPubkey(),
+      min_amount_out: 0n,
       pool,
       from,
       start_bin_id,

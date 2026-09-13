@@ -174,6 +174,8 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
   const quote_amount = readOptionalU64(data, tail);
   const virtual_quote_reserves = readOptionalU64(data, tail);
   const real_quote_reserves = readOptionalU64(data, tail);
+  const holder_rewards_bps = readOptionalU64(data, tail);
+  const holder_rewards = readOptionalU64(data, tail);
 
   const trade: PumpFunTradeEvent = {
     metadata,
@@ -210,6 +212,8 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
     quote_amount,
     virtual_quote_reserves,
     real_quote_reserves,
+    holder_rewards_bps,
+    holder_rewards,
     is_cashback_coin: cashback_fee_basis_points > 0n,
     bonding_curve: defaultPubkey(),
     associated_bonding_curve: defaultPubkey(),
@@ -272,6 +276,10 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
   );
   o += 32;
   const virtual_quote_reserves = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
+  o += 8;
+  const creator_fee_bps = o + 8 <= data.length ? bnU64(readU64LE(data, o)) : 0n;
+  o += 8;
+  const is_holder_reward = readBool(data, o) ?? false;
 
   const ev: PumpFunCreateTokenEvent = {
     metadata,
@@ -294,6 +302,8 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
     quote_vault: defaultPubkey(),
     quote_token_program: defaultPubkey(),
     virtual_quote_reserves,
+    creator_fee_bps,
+    is_holder_reward,
     ix_name: "create",
   };
   return { PumpFunCreate: ev };

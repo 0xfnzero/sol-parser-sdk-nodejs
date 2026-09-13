@@ -26,6 +26,8 @@ const GLOBAL_DISC = Uint8Array.from([167, 232, 232, 177, 200, 108, 114, 127]);
 const GLOBAL_BODY = 1037;
 const BONDING_CURVE_DISC = Uint8Array.from([23, 183, 248, 55, 96, 216, 172, 96]);
 const BONDING_CURVE_BODY = 107;
+const BONDING_CURVE_CREATOR_FEE_BODY = 116;
+const BONDING_CURVE_HOLDER_REWARD_BODY = 117;
 const FEE_CONFIG_DISC = Uint8Array.from([143, 52, 146, 187, 219, 123, 76, 155]);
 const GLOBAL_VOLUME_ACCUMULATOR_DISC = Uint8Array.from([202, 42, 246, 43, 142, 190, 30, 255]);
 const SHARING_CONFIG_DISC = Uint8Array.from([216, 74, 9, 0, 56, 140, 93, 75]);
@@ -236,6 +238,14 @@ export function parsePumpfunGlobal(account: AccountData, metadata: EventMetadata
 
 export function parsePumpfunBondingCurve(account: AccountData, metadata: EventMetadata): DexEvent | null {
   if (account.data.length < 8 + BONDING_CURVE_BODY) return null;
+  const bodyLength = account.data.length - 8;
+  if (
+    bodyLength !== BONDING_CURVE_BODY &&
+    bodyLength !== BONDING_CURVE_CREATOR_FEE_BODY &&
+    bodyLength < BONDING_CURVE_HOLDER_REWARD_BODY
+  ) {
+    return null;
+  }
   if (!isPumpfunBondingCurveAccount(account.data)) return null;
 
   const d = account.data.subarray(8);
@@ -273,6 +283,12 @@ export function parsePumpfunBondingCurve(account: AccountData, metadata: EventMe
   o += 1;
   const quote_mint = readPubkey(d, o);
   if (quote_mint === null) return null;
+  o += 32;
+  const creator_fee_bps = readU64LE(d, o) ?? 0n;
+  o += 8;
+  const can_edit_creator_fee = (readU8(d, o) ?? 0) !== 0;
+  o += 1;
+  const is_holder_reward = (readU8(d, o) ?? 0) !== 0;
 
   const bonding_curve: PumpFunBondingCurve = {
     virtual_token_reserves,
@@ -285,6 +301,9 @@ export function parsePumpfunBondingCurve(account: AccountData, metadata: EventMe
     is_mayhem_mode,
     is_cashback_coin,
     quote_mint,
+    creator_fee_bps,
+    can_edit_creator_fee,
+    is_holder_reward,
   };
   const ev: PumpFunBondingCurveAccountEvent = {
     metadata,

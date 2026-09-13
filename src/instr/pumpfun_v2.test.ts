@@ -41,12 +41,22 @@ function pushString(out: number[], value: string): void {
   out.push(...len, ...bytes);
 }
 
-function createV2Instruction(mayhem: boolean, cashback: boolean): Uint8Array {
+function createV2Instruction(
+  mayhem: boolean,
+  cashback: boolean,
+  creatorFeeBps?: bigint,
+  holderReward = false
+): Uint8Array {
   const out = [...CREATE_V2_DISC];
   pushString(out, "name");
   pushString(out, "SYM");
   pushString(out, "uri");
   out.push(...pubkeyBytes(120), mayhem ? 1 : 0, cashback ? 1 : 0);
+  if (creatorFeeBps !== undefined) {
+    const fee = new Uint8Array(8);
+    new DataView(fee.buffer).setBigUint64(0, creatorFeeBps, true);
+    out.push(...fee, holderReward ? 1 : 0);
+  }
   return Uint8Array.from(out);
 }
 
@@ -61,7 +71,7 @@ function trade(ev: DexEvent) {
 describe("PumpFun v2 parity", () => {
   it("parses create_v2 official args and account indexes", () => {
     const ev = parsePumpfunInstruction(
-      createV2Instruction(true, true),
+      createV2Instruction(true, true, 250n, true),
       accounts(16),
       "sig",
       1,
@@ -79,6 +89,8 @@ describe("PumpFun v2 parity", () => {
     expect(create.creator).toBe(pubkey(120));
     expect(create.is_mayhem_mode).toBe(true);
     expect(create.is_cashback_enabled).toBe(true);
+    expect(create.creator_fee_bps).toBe(250n);
+    expect(create.is_holder_reward).toBe(true);
     expect(create.quote_mint).toBe(PUMPFUN_SOL_QUOTE_MINT);
     expect(create.ix_name).toBe("create_v2");
   });
