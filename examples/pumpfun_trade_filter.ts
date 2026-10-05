@@ -71,11 +71,11 @@ async function main() {
     const queueRecvUs = nowUs();
     const [key, data] = eventEntry(ev);
     const metadata = data.metadata as
-      | { signature?: string; slot?: number | bigint; grpc_recv_us?: number }
+      | { signature?: string; slot?: bigint; grpc_recv_us?: bigint }
       | undefined;
     const latencyUs = Math.max(
       0,
-      metadata?.grpc_recv_us ? queueRecvUs - metadata.grpc_recv_us : 0
+      metadata?.grpc_recv_us ? Number(BigInt(queueRecvUs) - metadata.grpc_recv_us) : 0
     );
     eventCount++;
 

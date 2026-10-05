@@ -11,7 +11,13 @@ import {
   parseRaydiumLaunchlabPoolCreateFromData,
   parseRaydiumLaunchlabTradeFromData,
 } from "../logs/raydium_launchlab.js";
-import { getAccount, ixMeta, readBorshStrAt, readU64LE, readU8 } from "./utils.js";
+import {
+  getAccount,
+  ixMeta,
+  readBorshStrAt,
+  readU64LE,
+  readU8,
+} from "./utils.js";
 
 const Z = defaultPubkey();
 
@@ -41,7 +47,9 @@ function headEq(data: Uint8Array, bytes: readonly number[]): boolean {
 }
 
 /** 与 PumpSwap buy/sell 一致：两 u64（base / quote 侧限额） */
-function parseMintParams(payload: Uint8Array): { symbol: string; name: string; uri: string; decimals: number } | null {
+function parseMintParams(
+  payload: Uint8Array,
+): { symbol: string; name: string; uri: string; decimals: number } | null {
   const decimals = readU8(payload, 0);
   if (decimals === null) return null;
   let o = 1;
@@ -61,8 +69,9 @@ function tradeFromTwoU64(
   accounts: string[],
   meta: ReturnType<typeof ixMeta>,
   isBuy: boolean,
-  exactIn: boolean
-): DexEvent {
+  exactIn: boolean,
+): DexEvent | null {
+  if (payload.length < 16 || accounts.length < 5) return null;
   const first = readU64LE(payload, 0) ?? 0n;
   const second = readU64LE(payload, 8) ?? 0n;
   const amount_in = exactIn ? first : second;
@@ -78,6 +87,31 @@ function tradeFromTwoU64(
       amount_out,
       is_buy: isBuy,
       trade_direction: isBuy ? "Buy" : "Sell",
+      total_base_sell: 0n,
+      virtual_base: 0n,
+      virtual_quote: 0n,
+      real_base_before: 0n,
+      real_quote_before: 0n,
+      real_base_after: 0n,
+      real_quote_after: 0n,
+      protocol_fee: 0n,
+      platform_fee: 0n,
+      creator_fee: 0n,
+      share_fee: 0n,
+      pool_status: "Fund",
+      global_config: getAccount(accounts, 2) ?? Z,
+      platform_config: getAccount(accounts, 3) ?? Z,
+      user_base_token: getAccount(accounts, 5) ?? Z,
+      user_quote_token: getAccount(accounts, 6) ?? Z,
+      base_vault: getAccount(accounts, 7) ?? Z,
+      quote_vault: getAccount(accounts, 8) ?? Z,
+      base_mint: getAccount(accounts, 9) ?? Z,
+      quote_mint: getAccount(accounts, 10) ?? Z,
+      base_token_program: getAccount(accounts, 11) ?? Z,
+      quote_token_program: getAccount(accounts, 12) ?? Z,
+      system_program: getAccount(accounts, 15) ?? Z,
+      platform_associated_account: getAccount(accounts, 16) ?? Z,
+      creator_associated_account: getAccount(accounts, 17) ?? Z,
       exact_in: exactIn,
     },
   };
@@ -87,20 +121,26 @@ export function parseRaydiumLaunchlabInstruction(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
 ): DexEvent | null {
   if (instructionData.length < 8) return null;
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
   // --- Program data 事件形（与链上 emit 载荷一致，偶见于外层） ---
   if (discEqU64(instructionData, RAYDIUM_LAUNCHLAB_DISC.TRADE)) {
-    return parseRaydiumLaunchlabTradeFromData(instructionData.subarray(8), meta);
+    return parseRaydiumLaunchlabTradeFromData(
+      instructionData.subarray(8),
+      meta,
+    );
   }
   if (discEqU64(instructionData, RAYDIUM_LAUNCHLAB_DISC.POOL_CREATE)) {
-    return parseRaydiumLaunchlabPoolCreateFromData(instructionData.subarray(8), meta);
+    return parseRaydiumLaunchlabPoolCreateFromData(
+      instructionData.subarray(8),
+      meta,
+    );
   }
 
   const rest = instructionData.subarray(8);
@@ -128,6 +168,7 @@ export function parseRaydiumLaunchlabInstruction(
     headEq(instructionData, ANCHOR.INITIALIZE_V2) ||
     headEq(instructionData, ANCHOR.INITIALIZE_WITH_TOKEN_2022)
   ) {
+    if (accounts.length < 6) return null;
     const base_mint_param = parseMintParams(rest);
     if (!base_mint_param) return null;
     return {
@@ -136,12 +177,55 @@ export function parseRaydiumLaunchlabInstruction(
         base_mint_param,
         pool_state: getAccount(accounts, 5) ?? Z,
         creator: getAccount(accounts, 1) ?? Z,
+        payer: getAccount(accounts, 0) ?? Z,
+        global_config: getAccount(accounts, 2) ?? Z,
+        platform_config: getAccount(accounts, 3) ?? Z,
+        base_mint: getAccount(accounts, 6) ?? Z,
+        quote_mint: getAccount(accounts, 7) ?? Z,
+        base_vault: getAccount(accounts, 8) ?? Z,
+        quote_vault: getAccount(accounts, 9) ?? Z,
+        base_token_program:
+          getAccount(
+            accounts,
+            headEq(instructionData, ANCHOR.INITIALIZE_WITH_TOKEN_2022)
+              ? 10
+              : 11,
+          ) ?? Z,
+        quote_token_program:
+          getAccount(
+            accounts,
+            headEq(instructionData, ANCHOR.INITIALIZE_WITH_TOKEN_2022)
+              ? 11
+              : 12,
+          ) ?? Z,
       },
     };
   }
 
-  if (headEq(instructionData, ANCHOR.MIGRATE_TO_AMM) || headEq(instructionData, ANCHOR.MIGRATE_TO_CPSWAP)) {
-    return null;
+  if (
+    headEq(instructionData, ANCHOR.MIGRATE_TO_AMM) ||
+    headEq(instructionData, ANCHOR.MIGRATE_TO_CPSWAP)
+  ) {
+    const cp = headEq(instructionData, ANCHOR.MIGRATE_TO_CPSWAP);
+    if (
+      accounts.length < (cp ? 28 : 32) ||
+      (!cp && instructionData.length < 17)
+    )
+      return null;
+    return {
+      RaydiumLaunchlabMigrateAmm: {
+        metadata: meta,
+        old_pool: accounts[cp ? 17 : 23]!,
+        new_pool: accounts[cp ? 5 : 13]!,
+        user: accounts[0]!,
+        liquidity_amount: 0n,
+        liquidity_amount_known: false,
+        base_mint: accounts[1]!,
+        quote_mint: accounts[2]!,
+        platform_config: cp ? accounts[3]! : Z,
+        destination_program: accounts[cp ? 4 : 12]!,
+      },
+    };
   }
 
   return null;

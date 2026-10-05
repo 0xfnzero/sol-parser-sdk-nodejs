@@ -16,6 +16,7 @@ import {
   parseTransactionFromRpc,
   dexEventToJsonString,
   formatParseError,
+  bigintToJsonReplacer,
 } from "../src/index.js";
 
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
@@ -60,7 +61,7 @@ async function main() {
     try {
       console.log(dexEventToJsonString(ev));
     } catch {
-      console.log(JSON.stringify(ev, null, 2));
+      console.log(JSON.stringify(ev, bigintToJsonReplacer, 2));
     }
     console.log();
   }

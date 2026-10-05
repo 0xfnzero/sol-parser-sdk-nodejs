@@ -1,9 +1,10 @@
+import { exactU64, exactI64 } from "../core/metadata.js";
 /**
  * Yellowstone gRPC 单笔交易：统一交易解析（指令 + 日志 + 与 Rust 相同的账户/数据填充）。
  * 直接将 Yellowstone protobuf transaction/meta 映射为 web3 兼容结构，避免每笔交易经过
  * protobuf encode、WASM JSON/Base58 encode、Base58 decode 和反序列化的往返开销。
  */
-import type { SubscribeUpdateTransactionInfo as YellowstoneTxInfo } from "@triton-one/yellowstone-grpc";
+import type { SubscribeUpdateTransactionInfo as YellowstoneTxInfo } from "./protocol/geyser.js";
 import bs58 from "bs58";
 import type { DexEvent } from "../core/dex_event.js";
 import { parseRpcTransaction } from "../rpc_transaction.js";
@@ -14,11 +15,8 @@ import { yellowstoneTransactionToWeb3 } from "./yellowstone_transaction_adapter.
  * Yellowstone `SubscribeUpdateTransactionInfo.index` → `EventMetadata.tx_index`。
  * 与 Rust `sol-parser-sdk` gRPC 路径中 `let idx = info.index` 传入 `parse_logs(..., idx, ...)` 一致。
  */
-export function grpcTxIndexFromInfo(info: Pick<SubscribeUpdateTransactionInfo, "index">): number {
-  const index = info.index;
-  if (index === undefined) return 0;
-  const n = typeof index === "bigint" ? Number(index) : Number(index);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+export function grpcTxIndexFromInfo(info: Pick<SubscribeUpdateTransactionInfo, "index">): bigint {
+  return exactU64(info.index ?? 0n, "transaction index");
 }
 
 /**
@@ -28,7 +26,7 @@ export function grpcTxIndexFromInfo(info: Pick<SubscribeUpdateTransactionInfo, "
 export function parseDexEventsFromGrpcTransactionInfo(
   info: SubscribeUpdateTransactionInfo,
   slot: string | bigint,
-  options?: { blockTimeUs?: number; grpcRecvUs?: number; eventTypeFilter?: EventTypeFilter }
+  options?: { blockTimeUs?: number | bigint | string; grpcRecvUs?: number | bigint | string; eventTypeFilter?: EventTypeFilter }
 ): DexEvent[] {
   const tr = info.transactionRaw;
   const mr = info.metaRaw;
@@ -42,11 +40,11 @@ export function parseDexEventsFromGrpcTransactionInfo(
     index: String(info.index),
   };
 
-  const slotNum = typeof slot === "bigint" ? Number(slot) : Number(slot);
+  const slotNum = exactU64(slot, "slot");
   const signatureBase58 = bs58.encode(Uint8Array.from(info.signature));
   const txIndex = grpcTxIndexFromInfo(info);
-  const blockTime = options?.blockTimeUs == null ? null : Math.floor(options.blockTimeUs / 1_000_000);
-  const response = yellowstoneTransactionToWeb3(y.transaction!, y.meta!, slotNum, blockTime);
+  const blockTime = options?.blockTimeUs == null ? null : Number(exactI64(options.blockTimeUs) / 1_000_000n);
+  const response = yellowstoneTransactionToWeb3(y.transaction!, y.meta!, 0, blockTime);
   // This reuses the parser for the web3-compatible in-memory shape. It does not
   // perform an RPC request or any other network I/O.
   const parsed = parseRpcTransaction(
@@ -56,6 +54,7 @@ export function parseDexEventsFromGrpcTransactionInfo(
     {
       blockTimeUs: options?.blockTimeUs,
       grpcRecvUs: options?.grpcRecvUs,
+      slot: slotNum,
       txIndex,
     }
   );

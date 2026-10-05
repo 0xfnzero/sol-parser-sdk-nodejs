@@ -1,7 +1,10 @@
+import type {RawAccountSnapshotEvent,LiquidityAccountSnapshotEvent} from '../liquidity_snapshot.js';
 import type { EventMetadata } from "./metadata.js";
 
 /** 统一 DEX 事件：外部标签 JSON（单键对象）；键名清单见 `scripts/dex-event-variant-names.json` */
 export type DexEvent =
+  | { RawAccountSnapshot: RawAccountSnapshotEvent }
+  | { LiquidityAccountSnapshot: LiquidityAccountSnapshotEvent }
   | { PumpFunCreate: PumpFunCreateTokenEvent }
   | { PumpFunCreateV2: PumpFunCreateV2TokenEvent }
   | { PumpFunTrade: PumpFunTradeEvent }
@@ -1332,6 +1335,21 @@ export interface RaydiumLaunchlabTradeEvent {
   is_buy: boolean;
   trade_direction: TradeDirection;
   exact_in: boolean;
+  total_base_sell?: bigint;
+  virtual_base?: bigint;
+  virtual_quote?: bigint;
+  real_base_before?: bigint;
+  real_quote_before?: bigint;
+  real_base_after?: bigint;
+  real_quote_after?: bigint;
+  protocol_fee?: bigint;
+  platform_fee?: bigint;
+  creator_fee?: bigint;
+  share_fee?: bigint;
+  pool_status?: "Fund" | "Migrate" | "Trade";
+  system_program?: string;
+  platform_associated_account?: string;
+  creator_associated_account?: string;
   global_config?: string;
   platform_config?: string;
   user_base_token?: string;
@@ -1373,6 +1391,11 @@ export interface RaydiumLaunchlabMigrateAmmEvent {
   new_pool: string;
   user: string;
   liquidity_amount: bigint;
+  liquidity_amount_known?: boolean;
+  base_mint?: string;
+  quote_mint?: string;
+  platform_config?: string;
+  destination_program?: string;
 }
 
 export interface TokenInfoEvent {
@@ -1878,3 +1901,9 @@ export function metadataForDexEvent(ev: DexEvent): EventMetadata | null {
 export function defaultPubkey(): string {
   return ZERO;
 }
+
+/** Rust platform aliases share the existing LaunchLab event shape. */
+export type LaunchLabPoolCreateEvent = RaydiumLaunchlabPoolCreateEvent;
+export type StonkFunPoolCreateEvent = RaydiumLaunchlabPoolCreateEvent;
+export type LaunchLabTradeEvent = RaydiumLaunchlabTradeEvent;
+export type StonkFunTradeEvent = RaydiumLaunchlabTradeEvent;

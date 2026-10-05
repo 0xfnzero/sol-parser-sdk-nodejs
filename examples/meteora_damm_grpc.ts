@@ -67,7 +67,7 @@ async function main() {
   for await (const ev of sub) {
     const [key, data] = eventEntry(ev);
     const metadata = data.metadata as
-      | { signature?: string; slot?: number | bigint }
+      | { signature?: string; slot?: bigint }
       | undefined;
 
     switch (key) {

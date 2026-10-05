@@ -3,7 +3,7 @@
  * 与 Rust `rpc_parser::convert_rpc_to_grpc` 字段取舍一致（token balances / rewards 置空，err 置空等）。
  */
 import bs58 from "bs58";
-import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
+import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
 import {
   type Message,
   type MessageV0,

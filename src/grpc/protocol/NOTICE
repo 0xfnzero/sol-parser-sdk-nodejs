@@ -1,0 +1,4 @@
+Yellowstone Geyser protobuf definitions and TypeScript protocol shapes derive from
+rpcpool/yellowstone-grpc, licensed Apache-2.0.
+https://github.com/rpcpool/yellowstone-grpc
+No Yellowstone N-API client or Rust runtime is included or loaded.

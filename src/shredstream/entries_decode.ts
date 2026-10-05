@@ -1,3 +1,5 @@
+import bs58 from 'bs58';
+import {decodeWireTransaction} from '../wire_transaction.js';
 /**
  * gRPC `Entry.entries` 负载解码：对齐 sol-parser-sdk-golang `shredstream/entries_decode.go`
  *（bincode Vec<Entry> 前缀 + 每笔线格式交易定长扫描）。
@@ -47,83 +49,10 @@ export function decodeCompactU16(buf: Uint8Array, pos: number): { value: number;
 
 /** 返回 (txWireLength, signatures)；失败返回 null */
 export function parseTransaction(buf: Uint8Array, pos: number): { txLen: number; sigs: Uint8Array[] } | null {
-  const start = pos;
-  if (pos >= buf.length) return null;
-
-  const sigCountEnc = decodeCompactU16(buf, pos);
-  if (!sigCountEnc) return null;
-  let p = pos + sigCountEnc.bytes;
-  const sigCount = sigCountEnc.value;
-
-  const sigsEnd = p + sigCount * 64;
-  if (sigsEnd > buf.length) return null;
-
-  const sigs: Uint8Array[] = [];
-  for (let i = 0; i < sigCount; i++) {
-    sigs.push(buf.subarray(p, p + 64));
-    p += 64;
-  }
-
-  if (p >= buf.length) return null;
-  const msgFirst = buf[p]!;
-  const isV0 = msgFirst >= 0x80;
-  if (isV0) p += 1;
-
-  p += 3;
-  if (p > buf.length) return null;
-
-  const acctEnc = decodeCompactU16(buf, p);
-  if (!acctEnc) return null;
-  p += acctEnc.bytes;
-  p += acctEnc.value * 32;
-  if (p > buf.length) return null;
-
-  p += 32;
-  if (p > buf.length) return null;
-
-  const ixCountEnc = decodeCompactU16(buf, p);
-  if (!ixCountEnc) return null;
-  p += ixCountEnc.bytes;
-  const ixCount = ixCountEnc.value;
-
-  for (let ix = 0; ix < ixCount; ix++) {
-    p += 1;
-    if (p > buf.length) return null;
-    const acctLenEnc = decodeCompactU16(buf, p);
-    if (!acctLenEnc) return null;
-    p += acctLenEnc.bytes;
-    p += acctLenEnc.value;
-    if (p > buf.length) return null;
-    const dataLenEnc = decodeCompactU16(buf, p);
-    if (!dataLenEnc) return null;
-    p += dataLenEnc.bytes;
-    p += dataLenEnc.value;
-    if (p > buf.length) return null;
-  }
-
-  if (isV0) {
-    if (p >= buf.length) return null;
-    const atlCountEnc = decodeCompactU16(buf, p);
-    if (!atlCountEnc) return null;
-    p += atlCountEnc.bytes;
-    const atlCount = atlCountEnc.value;
-    for (let atl = 0; atl < atlCount; atl++) {
-      p += 32;
-      if (p > buf.length) return null;
-      const wLenEnc = decodeCompactU16(buf, p);
-      if (!wLenEnc) return null;
-      p += wLenEnc.bytes;
-      p += wLenEnc.value;
-      if (p > buf.length) return null;
-      const rLenEnc = decodeCompactU16(buf, p);
-      if (!rLenEnc) return null;
-      p += rLenEnc.bytes;
-      p += rLenEnc.value;
-      if (p > buf.length) return null;
-    }
-  }
-
-  return { txLen: p - start, sigs };
+  try {
+    const {transaction,length}=decodeWireTransaction(buf,pos,false);
+    return {txLen:length,sigs:transaction.signatures.map(s=>bs58.decode(s))};
+  } catch { return null; }
 }
 
 class BatchDecoder {

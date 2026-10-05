@@ -39,7 +39,7 @@ export type ShredWasmTx = {
   accounts: string[];
   instructions?: ShredWasmCompiledIx[];
   /** 缺省则按仅静态账户处理 */
-  messageVersion?: "legacy" | "v0";
+  messageVersion?: "legacy" | "v0" | "v1";
   header?: MessageHeader;
   recentBlockhash?: Uint8Array;
   addressTableLookups?: ShredAddressTableLookup[];
@@ -86,9 +86,9 @@ function ixAccountStrings(fullAccountKeys: string[], accBytes: Uint8Array): stri
 export function dexEventsFromShredWasmTxWithFullKeys(
   tx: ShredWasmTx,
   fullAccountKeys: string[],
-  slot: number,
-  txIndex: number,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  grpcRecvUs: number | bigint | string,
   eventTypeFilter?: EventTypeFilter
 ): DexEvent[] {
   const ixs = tx.instructions;
@@ -147,9 +147,9 @@ export function dexEventsFromShredWasmTxWithFullKeys(
 /** 仅静态账户表（无 RPC 时；V0+ALT 缺失账户以默认 pubkey 占位） */
 export function dexEventsFromShredWasmTx(
   tx: ShredWasmTx,
-  slot: number,
-  txIndex: number,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  grpcRecvUs: number | bigint | string,
   eventTypeFilter?: EventTypeFilter
 ): DexEvent[] {
   return dexEventsFromShredWasmTxWithFullKeys(tx, tx.accounts, slot, txIndex, grpcRecvUs, eventTypeFilter);

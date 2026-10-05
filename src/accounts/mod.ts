@@ -1,3 +1,4 @@
+import {parseLiquidityAccount} from '../liquidity_snapshot.js';
 import type { EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { AccountData } from "./types.js";
@@ -93,6 +94,7 @@ const ACCOUNT_EVENT_TYPES: EventType[] = [
   "AccountOrcaTickArray",
   "AccountOrcaFeeTier",
   "AccountOrcaWhirlpoolsConfig",
+  "AccountLiquiditySnapshot",
 ];
 
 function filterParsedEvent(ev: DexEvent | null, eventTypeFilter?: EventTypeFilter): DexEvent | null {
@@ -113,6 +115,10 @@ export function parseAccountUnified(
     if (!shouldParse) return null;
   }
 
+  if (!eventTypeFilter || eventTypeFilter.shouldInclude('AccountLiquiditySnapshot')) {
+    const snapshot=parseLiquidityAccount(account,metadata);
+    if(snapshot)return {LiquidityAccountSnapshot:snapshot};
+  }
   if (account.owner === PUMPSWAP_PROGRAM_ID) {
     if (
       !eventTypeFilter ||

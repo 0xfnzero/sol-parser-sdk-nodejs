@@ -29,10 +29,10 @@ export function parsePumpFeesInstruction(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string
 ): DexEvent | null {
   const disc = readDiscriminatorU64(instructionData);
   if (disc === null) return null;

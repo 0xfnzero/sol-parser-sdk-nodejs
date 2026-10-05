@@ -8,7 +8,7 @@ import {
   type MessageCompiledInstruction,
   type VersionedTransactionResponse,
 } from "@solana/web3.js";
-import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
+import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
 
 type YellowstoneTransaction = NonNullable<SubscribeUpdateTransactionInfo["transaction"]>;
 type YellowstoneMessage = NonNullable<YellowstoneTransaction["message"]>;

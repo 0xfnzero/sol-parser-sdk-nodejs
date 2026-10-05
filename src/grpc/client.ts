@@ -1,16 +1,19 @@
+import {parseBlockMetaUpdate} from "./block_meta.js";
 /**
- * Yellowstone gRPC 客户端实现 - 基于 @triton-one/yellowstone-grpc
+ * Yellowstone gRPC 客户端实现 - 基于纯 JavaScript @grpc/grpc-js
  */
-import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
+import Client from "./native_client.js";
+import {CommitmentLevel} from "./protocol/geyser.js";
 import bs58 from "bs58";
+import {createHash} from "node:crypto";
 import { Buffer } from "node:buffer";
 import { metadataForDexEvent, type DexEvent } from "../core/dex_event.js";
-import { makeMetadata } from "../core/metadata.js";
+import { makeMetadata, exactU64, exactI64, exactInteger } from "../core/metadata.js";
 import { parseAccountUnified, type AccountData } from "../accounts/mod.js";
 import { defaultGeyserConnectConfig, geyserGrpcChannelOptions } from "./geyser_connect.js";
 import { AsyncEventQueue, type EventQueueOverflowStrategy } from "./async_event_queue.js";
 import { OrderDispatcher } from "./order_buffer.js";
-import { buildSubscribeRequest } from "./subscribe_builder.js";
+import { buildSubscribeRequest, buildSubscribeRequestWithEventFilter } from "./subscribe_builder.js";
 import { parseDexEventsFromGrpcTransactionInfo } from "./yellowstone_parse.js";
 import type {
   SubscribeRequest,
@@ -21,7 +24,7 @@ import type {
   SubscribeUpdateBlock,
   SubscribeUpdateBlockMeta,
   SubscribeUpdatePing,
-} from "@triton-one/yellowstone-grpc";
+} from "./protocol/geyser.js";
 import {
   type AccountFilter,
   type ClientConfig,
@@ -49,9 +52,9 @@ type YellowstoneSubscribeStream = Awaited<ReturnType<Client["subscribe"]>>;
 
 type PendingDexUpdate = {
   update: SubscribeUpdate;
-  grpcRecvUs: number;
+  grpcRecvUs: number | bigint | string;
   grpcRecvNs?: bigint;
-  blockTimeUs?: number;
+  blockTimeUs?: bigint;
   sourceToGrpcLatencyUs?: number;
 };
 
@@ -60,7 +63,9 @@ function cancelSubscribeStream(stream: YellowstoneSubscribeStream | null): void 
   // Stream destruction can emit an error during the short setup window before
   // the normal lifecycle listeners have been installed.
   stream.once("error", () => {});
-  stream.destroy();
+  const cancellable=stream as typeof stream & {cancel?:()=>void};
+  if(typeof cancellable.cancel==="function")cancellable.cancel();
+  else stream.destroy();
 }
 
 function positiveIntegerOption(value: number | undefined, fallback: number, name: string): number {
@@ -71,10 +76,22 @@ function positiveIntegerOption(value: number | undefined, fallback: number, name
   return normalized;
 }
 
+export interface GrpcStreamStatus {
+  readonly state: "connecting" | "connected" | "reconnecting" | "stopped";
+  readonly continuityBroken: boolean;
+  readonly reconnects: number;
+  readonly dropped: number;
+}
+
 export interface DexEventSubscription extends AsyncIterable<DexEvent> {
   id: string;
   errors: AsyncIterable<Error>;
+  /** Bounded transition stream; inspect status() even if notifications were dropped. */
+  states: AsyncIterable<GrpcStreamStatus>;
+  status(): GrpcStreamStatus;
   cancel(): void;
+  /** Wait until the stream and associated workers exit. */
+  join(): Promise<void>;
   next(): Promise<IteratorResult<DexEvent>>;
   len(): number;
   /** Total drops across ingress and the public event queue. */
@@ -118,7 +135,7 @@ function replayUnsupported(error: unknown): boolean {
 }
 
 function updateSlot(update: SubscribeUpdate): bigint | undefined {
-  const value = update.transaction?.slot ?? update.account?.slot;
+  const value = update.transaction?.slot ?? update.account?.slot ?? update.blockMeta?.slot;
   if (value === undefined || value === null) return undefined;
   try {
     return BigInt(value);
@@ -134,6 +151,7 @@ function bytesKey(value: Uint8Array): string {
 function updateIdentity(update: SubscribeUpdate): string | undefined {
   const transaction = update.transaction?.transaction;
   if (transaction?.signature) return `t:${bytesKey(transaction.signature)}`;
+  if(update.blockMeta)return `b:${String(update.blockMeta.slot)}:${update.blockMeta.blockhash}`;
   const account = update.account?.account;
   if (!account?.pubkey) return undefined;
   return `a:${bytesKey(account.pubkey)}:${String(update.account?.slot ?? 0)}:${String(
@@ -162,6 +180,22 @@ export class YellowstoneGrpc {
       update?: (transactionFilters: TransactionFilter[], accountFilters: AccountFilter[]) => Promise<void>;
     }
   >();
+
+  private dexLifecycle: Promise<void> = Promise.resolve();
+  private activeDex?: { cancel(): void; join(): Promise<void> };
+  private withDexLifecycle<T>(work: () => Promise<T>): Promise<T> {
+    const result = this.dexLifecycle.then(work);
+    this.dexLifecycle = result.then(() => undefined, () => undefined);
+    return result;
+  }
+  private async stopDexUnlocked(): Promise<void> {
+    const active = this.activeDex;
+    this.activeDex = undefined;
+    if (active) { active.cancel(); await active.join(); }
+  }
+  async stop(): Promise<void> {
+    await this.withDexLifecycle(() => this.stopDexUnlocked());
+  }
 
   constructor(
     endpoint: string,
@@ -202,6 +236,7 @@ export class YellowstoneGrpc {
 
   /** 断开连接 */
   async disconnect(): Promise<void> {
+    await this.stop();
     for (const [, sub] of this.subscribers) {
       sub.cancel();
     }
@@ -210,6 +245,7 @@ export class YellowstoneGrpc {
       sub.cancel();
     }
     this.dexSubscribers.clear();
+    this.client.close?.();
     this.connected = false;
     this.connectPromise = undefined;
   }
@@ -362,7 +398,7 @@ export class YellowstoneGrpc {
   }
 
   private static toBigInt(value: string | bigint | number): bigint {
-    return typeof value === "bigint" ? value : BigInt(value);
+    return exactU64(value);
   }
 
   private static protobufNumber(value: unknown): number {
@@ -377,25 +413,27 @@ export class YellowstoneGrpc {
     return Number.NaN;
   }
 
-  private static timestampToMicros(value: unknown): number | undefined {
+  private static timestampToMicros(value: unknown): bigint | undefined {
     if (value instanceof Date) {
       const milliseconds = value.getTime();
-      return Number.isFinite(milliseconds) ? Math.trunc(milliseconds * 1_000) : undefined;
+      return Number.isFinite(milliseconds) ? BigInt(milliseconds) * 1_000n : undefined;
     }
     if (!value || typeof value !== "object") return undefined;
     const ts = value as { seconds?: unknown; nanos?: unknown };
     if (ts.seconds === undefined) return undefined;
-    const seconds = YellowstoneGrpc.protobufNumber(ts.seconds);
-    const nanos = Number(ts.nanos ?? 0);
-    if (!Number.isFinite(seconds) || !Number.isFinite(nanos)) return undefined;
-    return Math.trunc(seconds * 1_000_000 + nanos / 1_000);
+    const seconds = exactInteger(typeof ts.seconds === "object" && ts.seconds !== null ? ts.seconds.toString() : ts.seconds as string | bigint | number, "timestamp seconds");
+    const nanos = exactInteger((ts.nanos ?? 0) as string | bigint | number, "timestamp nanos");
+    if (nanos < 0n || nanos >= 1_000_000_000n) throw new RangeError("Invalid timestamp nanos");
+    const micros = seconds * 1_000_000n + nanos / 1_000n;
+    const lo = -(1n << 63n), hi = (1n << 63n) - 1n;
+    return micros < lo ? lo : micros > hi ? hi : micros;
   }
 
   private parseAccountEvent(
     update: LocalSubscribeUpdateAccount,
-    grpcRecvUs: number,
+    grpcRecvUs: number | bigint | string,
     eventTypeFilter?: EventTypeFilter,
-    blockTimeUs?: number
+    blockTimeUs?: bigint
   ): DexEvent | null {
     const acc = update.account;
     if (!acc) return null;
@@ -411,7 +449,7 @@ export class YellowstoneGrpc {
     };
     const metadata = makeMetadata(
       signatureBytes.length > 0 ? bs58.encode(signatureBytes) : "",
-      Number(update.slot),
+      update.slot,
       0,
       blockTimeUs,
       grpcRecvUs
@@ -421,9 +459,10 @@ export class YellowstoneGrpc {
 
   private parseAccountEventRaw(
     update: SubscribeUpdateAccount,
-    grpcRecvUs: number,
+    grpcRecvUs: number | bigint | string,
     eventTypeFilter?: EventTypeFilter,
-    blockTimeUs?: number
+    blockTimeUs?: bigint,
+    rawSnapshot = false
   ): DexEvent | null {
     const acc = update.account;
     if (!acc) return null;
@@ -439,11 +478,12 @@ export class YellowstoneGrpc {
     };
     const metadata = makeMetadata(
       signatureBytes.length > 0 ? bs58.encode(signatureBytes) : "",
-      YellowstoneGrpc.protobufNumber(update.slot),
+      update.slot,
       0,
       blockTimeUs,
       grpcRecvUs
     );
+    if(rawSnapshot)return {RawAccountSnapshot:{metadata,account:{...account,data:Uint8Array.from(account.data)},write_version:YellowstoneGrpc.toBigInt(acc.writeVersion),is_startup:update.isStartup}};
     return parseAccountUnified(account, metadata, eventTypeFilter);
   }
 
@@ -491,7 +531,7 @@ export class YellowstoneGrpc {
 
     this.subscribers.set(id, { filter, callbacks, cancel });
 
-    (async () => {
+    const streamTask = (async () => {
       const autoReconnect = callbacks.autoReconnect !== false;
       const maxBackoffMs = 60_000;
       let backoffMs = this.config.retry_delay_ms;
@@ -607,6 +647,18 @@ export class YellowstoneGrpc {
     eventTypeFilter?: EventTypeFilter,
     options?: SubscribeDexEventsOptions
   ): Promise<DexEventSubscription> {
+    return this.withDexLifecycle(async () => {
+      await this.stopDexUnlocked();
+      return this.startDexEvents(transactionFilters, accountFilters, eventTypeFilter, options);
+    });
+  }
+
+  private async startDexEvents(
+    transactionFilters: TransactionFilter[] = [],
+    accountFilters: AccountFilter[] = [],
+    eventTypeFilter?: EventTypeFilter,
+    options?: SubscribeDexEventsOptions
+  ): Promise<DexEventSubscription> {
     await this.connect();
 
     const id = `dex_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -644,10 +696,20 @@ export class YellowstoneGrpc {
     let highestRememberedSlot = 0n;
     let seenHead = 0;
     const seenUpdates = new Map<string, bigint>();
+    const accountFingerprints = new Map<string,string>();
     const seenOrder: Array<{ identity: string; slot: bigint }> = [];
+    const states = new AsyncEventQueue<GrpcStreamStatus>(Math.max(1, this.config.buffer_size));
+    let streamStatus: GrpcStreamStatus = Object.freeze({state:"connecting",continuityBroken:false,reconnects:0,dropped:0});
+    states.push(streamStatus);
+    const transition = (state: GrpcStreamStatus["state"], broken = false) => {
+      const next = Object.freeze({state, continuityBroken:streamStatus.continuityBroken || broken, reconnects:reconnectCount, dropped:eventDropped()+ingress.dropped()});
+      if (next.state===streamStatus.state && next.continuityBroken===streamStatus.continuityBroken && next.reconnects===streamStatus.reconnects && next.dropped===streamStatus.dropped) return;
+      streamStatus=next; states.push(next);
+    };
     const reportError = (error: Error) => errors.push(error);
     const emitEvent = (event: DexEvent) => {
       if (events.push(event)) return;
+      transition(streamStatus.state, true);
       const now = Date.now();
       if (now < nextEventDropWarningAt) return;
       nextEventDropWarningAt = now + 10_000;
@@ -701,11 +763,12 @@ export class YellowstoneGrpc {
       }
     };
 
-    const rememberParsedUpdate = (identity: string | undefined, slot: bigint | undefined) => {
+    const rememberParsedUpdate = (identity: string | undefined, slot: bigint | undefined, fingerprint?:string) => {
       if (slot !== undefined && (lastParsedSlot === undefined || slot > lastParsedSlot)) {
         lastParsedSlot = slot;
       }
-      if (!replayOnReconnect || identity === undefined || slot === undefined) return;
+      if (identity === undefined || slot === undefined) return;
+      if(fingerprint!==undefined)accountFingerprints.set(identity,fingerprint);
 
       seenUpdates.set(identity, slot);
       seenOrder.push({ identity, slot });
@@ -716,7 +779,7 @@ export class YellowstoneGrpc {
           : 0n;
       while (seenHead < seenOrder.length && seenOrder[seenHead]!.slot < retainFrom) {
         const stale = seenOrder[seenHead++]!;
-        if (seenUpdates.get(stale.identity) === stale.slot) seenUpdates.delete(stale.identity);
+        if (seenUpdates.get(stale.identity) === stale.slot) {seenUpdates.delete(stale.identity);accountFingerprints.delete(stale.identity);}
       }
       if (seenHead >= 4096 && seenHead * 2 >= seenOrder.length) {
         seenOrder.splice(0, seenHead);
@@ -733,6 +796,12 @@ export class YellowstoneGrpc {
     }: PendingDexUpdate) => {
       const identity = updateIdentity(update);
       const slotForReplay = updateSlot(update);
+      const raw=update.account?.account;
+      const fingerprint=raw?createHash("sha256").update(raw.owner).update(raw.data).update(`${raw.lamports}:${raw.executable}:${raw.rentEpoch}`).digest("hex"):undefined;
+      if(identity&&fingerprint&&accountFingerprints.has(identity)&&accountFingerprints.get(identity)!==fingerprint){
+        transition(streamStatus.state,true);
+        throw Error("Conflicting account version; select and revalidate a fork explicitly");
+      }
       if (replayOnReconnect && identity !== undefined && seenUpdates.has(identity)) {
         replayedUpdateCount++;
         rememberParsedUpdate(undefined, slotForReplay);
@@ -744,8 +813,8 @@ export class YellowstoneGrpc {
       if (tx) {
         const parseStartedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
         const slot = txUpdate?.slot ?? 0n;
-        const fallbackSlot = YellowstoneGrpc.protobufNumber(slot);
-        const fallbackTxIndex = YellowstoneGrpc.protobufNumber(tx.index ?? 0);
+        const fallbackSlot = YellowstoneGrpc.toBigInt(slot);
+        const fallbackTxIndex = YellowstoneGrpc.toBigInt(tx.index ?? 0);
         const txInfo: SubscribeUpdateTransactionInfo = {
           signature: tx.signature,
           isVote: tx.isVote,
@@ -769,9 +838,21 @@ export class YellowstoneGrpc {
         order.pushTransactionEvents(txEvents, fallbackSlot, fallbackTxIndex, emitEvent);
       }
 
+      if(update.blockMeta){
+        const event=parseBlockMetaUpdate(update.blockMeta,grpcRecvUs,blockTimeUs);
+        if(!eventTypeFilter || eventTypeFilter.shouldInclude("BlockMeta"))emitEvent(event);
+      }
       if (update.account) {
+        const rawOnly = !!eventTypeFilter?.include_only?.length &&
+          eventTypeFilter.include_only.every(type => type === "AccountRawSnapshot");
+        if(eventTypeFilter?.include_only?.includes('AccountRawSnapshot')) {
+          const snapshot=this.parseAccountEventRaw(update.account,grpcRecvUs,eventTypeFilter,blockTimeUs,true);
+          if(snapshot)emitEvent(snapshot);
+        }
         const parseStartedNs = grpcRecvNs === undefined ? undefined : process.hrtime.bigint();
-        const ev = this.parseAccountEventRaw(
+        // Raw-only cache subscriptions do not need a second normalization,
+        // base58 conversion and protocol decode for the same account bytes.
+        const ev = rawOnly ? null : this.parseAccountEventRaw(
           update.account,
           grpcRecvUs,
           eventTypeFilter,
@@ -789,7 +870,7 @@ export class YellowstoneGrpc {
         }
         if (ev) emitEvent(ev);
       }
-      rememberParsedUpdate(identity, slotForReplay);
+      rememberParsedUpdate(identity, slotForReplay, fingerprint);
     };
 
     const scheduleIngressDrain = () => {
@@ -810,6 +891,7 @@ export class YellowstoneGrpc {
           try {
             processUpdate(pending);
           } catch (err) {
+            transition(streamStatus.state,true);
             reportError(err instanceof Error ? err : new Error(String(err)));
           }
           processed++;
@@ -847,6 +929,8 @@ export class YellowstoneGrpc {
       });
     const cancel = () => {
       isCancelled = true;
+      transition("stopped", true);
+      states.close();
       cancelReconnectDelay?.();
       cancelSubscribeStream(streamHolder.current);
       streamHolder.current = null;
@@ -868,7 +952,7 @@ export class YellowstoneGrpc {
       if (!stream) return;
       await new Promise<void>((resolve, reject) => {
         stream.write(
-          buildSubscribeRequest(currentTransactionFilters, currentAccountFilters),
+          buildSubscribeRequestWithEventFilter(currentTransactionFilters, currentAccountFilters,eventTypeFilter),
           (err: Error | null | undefined) => {
             if (err) reject(err);
             else resolve();
@@ -879,7 +963,7 @@ export class YellowstoneGrpc {
 
     this.dexSubscribers.set(id, { cancel, update });
 
-    (async () => {
+    const streamTask = (async () => {
       const autoReconnect = options?.autoReconnect !== false;
       const maxBackoffMs = 60_000;
       let backoffMs = this.config.retry_delay_ms;
@@ -893,6 +977,7 @@ export class YellowstoneGrpc {
           try {
             attempt++;
             if (attempt > 1) reconnectCount++;
+            transition(attempt > 1 ? "reconnecting" : "connecting");
             const stream = await this.client.subscribe();
             if (isCancelled) {
               cancelSubscribeStream(stream);
@@ -900,9 +985,9 @@ export class YellowstoneGrpc {
             }
             streamHolder.current = stream;
 
-            const request = buildSubscribeRequest(
+            const request = buildSubscribeRequestWithEventFilter(
               currentTransactionFilters,
-              currentAccountFilters
+              currentAccountFilters,eventTypeFilter
             );
             if (attempt > 1 && replayAllowed && lastParsedSlot !== undefined) {
               request.fromSlot = lastParsedSlot.toString();
@@ -918,6 +1003,7 @@ export class YellowstoneGrpc {
               );
             });
             streamConnected = true;
+            transition("connected");
 
             await new Promise<void>((resolve, reject) => {
               const cleanup = () => {
@@ -955,9 +1041,10 @@ export class YellowstoneGrpc {
                   grpcRecvNs,
                   blockTimeUs: createdAtUs,
                   sourceToGrpcLatencyUs:
-                    createdAtUs === undefined ? undefined : Math.max(0, grpcRecvUs - createdAtUs),
+                    createdAtUs === undefined ? undefined : Math.max(0, Number(exactI64(grpcRecvUs) - createdAtUs)),
                 });
                 if (!accepted) {
+                  transition(streamStatus.state, true);
                   const now = Date.now();
                   if (now >= nextIngressDropWarningAt) {
                     nextIngressDropWarningAt = now + 10_000;
@@ -975,12 +1062,14 @@ export class YellowstoneGrpc {
 
               stream.on("error", (err: Error) => {
                 streamDisconnectCount++;
+                if (!isCancelled) transition("reconnecting", true);
                 cleanup();
                 reject(err);
               });
 
               stream.on("end", () => {
                 streamDisconnectCount++;
+                if (!isCancelled) transition("reconnecting", true);
                 cleanup();
                 if (!isCancelled) reportError(new Error("Yellowstone stream ended; reconnecting"));
                 resolve();
@@ -991,6 +1080,7 @@ export class YellowstoneGrpc {
             cancelSubscribeStream(streamHolder.current);
             streamHolder.current = null;
             streamConnected = false;
+            transition("reconnecting", true);
             reportError(err instanceof Error ? err : new Error(String(err)));
             await waitForIngressIdle();
             if (!autoReconnect) {
@@ -1038,13 +1128,19 @@ export class YellowstoneGrpc {
         ingress.close();
         events.close();
         errors.close();
+        transition("stopped", true);
+        states.close();
         this.dexSubscribers.delete(id);
       }
     })();
 
+    this.activeDex = { cancel, join: () => streamTask };
     return Object.assign(events, {
       id,
+      join: () => streamTask,
       errors,
+      states,
+      status: () => streamStatus,
       dropped: () => eventDropped() + ingress.dropped(),
       eventDropped,
       ingressLen: () => ingress.len(),
@@ -1076,7 +1172,11 @@ export class YellowstoneGrpc {
   }
 
   /** 动态更新当前 DEX 订阅过滤器（与 Rust update_subscription 语义对齐）。 */
-  async updateSubscription(
+  async updateSubscription(transactionFilters: TransactionFilter[], accountFilters: AccountFilter[]): Promise<void> {
+    return this.withDexLifecycle(() => this.updateDexUnlocked(transactionFilters, accountFilters));
+  }
+
+  private async updateDexUnlocked(
     transactionFilters: TransactionFilter[],
     accountFilters: AccountFilter[]
   ): Promise<void> {
@@ -1103,31 +1203,31 @@ export class YellowstoneGrpc {
 
   /** 获取最新区块哈希 */
   async getLatestBlockhash(commitment?: CommitmentLevel): Promise<{
-    slot: number;
+    slot: bigint;
     blockhash: string;
-    lastValidBlockHeight: number;
+    lastValidBlockHeight: bigint;
   }> {
     await this.connect();
     const resp = await this.client.getLatestBlockhash(commitment);
     return {
-      slot: Number(resp.slot),
+      slot: exactU64(resp.slot),
       blockhash: resp.blockhash,
-      lastValidBlockHeight: Number(resp.lastValidBlockHeight),
+      lastValidBlockHeight: exactU64(resp.lastValidBlockHeight),
     };
   }
 
   /** 获取区块高度 */
-  async getBlockHeight(commitment?: CommitmentLevel): Promise<number> {
+  async getBlockHeight(commitment?: CommitmentLevel): Promise<bigint> {
     await this.connect();
     const resp = await this.client.getBlockHeight(commitment);
-    return Number(resp.blockHeight);
+    return exactU64(resp.blockHeight);
   }
 
   /** 获取当前 Slot */
-  async getSlot(commitment?: CommitmentLevel): Promise<number> {
+  async getSlot(commitment?: CommitmentLevel): Promise<bigint> {
     await this.connect();
     const resp = await this.client.getSlot(commitment);
-    return Number(resp.slot);
+    return exactU64(resp.slot);
   }
 
   /** 获取服务器版本 */
@@ -1141,11 +1241,11 @@ export class YellowstoneGrpc {
   async isBlockhashValid(
     blockhash: string,
     commitment?: CommitmentLevel
-  ): Promise<{ slot: number; valid: boolean }> {
+  ): Promise<{ slot: bigint; valid: boolean }> {
     await this.connect();
     const resp = await this.client.isBlockhashValid(blockhash, commitment);
     return {
-      slot: Number(resp.slot),
+      slot: exactU64(resp.slot),
       valid: resp.valid,
     };
   }

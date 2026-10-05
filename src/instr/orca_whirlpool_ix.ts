@@ -29,10 +29,10 @@ export function parseOrcaWhirlpoolInstruction(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string
 ): DexEvent | null {
   if (instructionData.length < 8) return null;
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);

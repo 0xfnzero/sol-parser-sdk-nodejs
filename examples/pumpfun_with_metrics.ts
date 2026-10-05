@@ -95,7 +95,7 @@ async function main() {
     const queueRecvUs = BigInt(nowUs());
     const [key, data] = eventEntry(ev);
     const metadata = data.metadata as
-      | { grpc_recv_us?: number; signature?: string; slot?: number | bigint }
+      | { grpc_recv_us?: bigint; signature?: string; slot?: bigint }
       | undefined;
     const grpcRecvUs = BigInt(metadata?.grpc_recv_us ?? 0);
     const latencyUs = grpcRecvUs > 0n && queueRecvUs > grpcRecvUs ? queueRecvUs - grpcRecvUs : 0n;

@@ -150,7 +150,7 @@ describe("parseRpcTransaction parity", () => {
     expect(trade.amount).toBe(123n);
     expect(trade.max_sol_cost).toBe(456n);
     expect(trade.bonding_curve).toBe(keys[3]!.pubkey.toBase58());
-    expect(trade.metadata.tx_index).toBe(42);
+    expect(trade.metadata.tx_index).toBe(42n);
     expect(trade.metadata.recent_blockhash).toBe("11111111111111111111111111111111");
   });
 

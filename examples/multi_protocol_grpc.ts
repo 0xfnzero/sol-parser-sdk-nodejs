@@ -93,7 +93,7 @@ async function main() {
     stats[key] = (stats[key] || 0) + 1;
 
     const metadata = data.metadata as
-      | { signature?: string; slot?: number | bigint }
+      | { signature?: string; slot?: bigint }
       | undefined;
     console.log(`[${new Date().toISOString()}] ${key}`);
     console.log(`  sig  : ${metadata?.signature ?? ""} | slot: ${metadata?.slot ?? ""}`);

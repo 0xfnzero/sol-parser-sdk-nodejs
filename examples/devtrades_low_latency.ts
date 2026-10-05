@@ -55,9 +55,9 @@ function getEvent(ev: DexEvent): { key: string; data: EventData } {
 
 function metadata(data: EventData) {
   return (data.metadata ?? {}) as {
-    grpc_recv_us?: number;
+    grpc_recv_us?: bigint;
     signature?: string;
-    slot?: number | bigint;
+    slot?: bigint;
     local_queue_latency_us?: number;
     parse_duration_us?: number;
     local_processing_latency_us?: number;

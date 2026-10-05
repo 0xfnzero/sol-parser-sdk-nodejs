@@ -557,10 +557,10 @@ function parseUnscopedPumpfunLaunchlabTrade(
 export function parseLogOptimized(
   log: string,
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   eventTypeFilter: EventTypeFilter | undefined,
   isCreatedBuy: boolean,
   recentBlockhash?: Uint8Array,
@@ -904,9 +904,9 @@ export function parseLogOptimized(
 export function parseLogUnified(
   log: string,
   signature: string,
-  slot: number,
-  blockTimeUs: number | undefined,
-  txIndex: number = 0
+  slot: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  txIndex: number | bigint | string = 0
 ): DexEvent | null {
   const grpcRecvUs = nowUs();
   return parseLogOptimized(log, signature, slot, txIndex, blockTimeUs, grpcRecvUs, undefined, false, undefined);
@@ -915,10 +915,10 @@ export function parseLogUnified(
 export function parseLogOptimizedWithProgramId(
   log: string,
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   eventTypeFilter: EventTypeFilter | undefined,
   isCreatedBuy: boolean,
   recentBlockhash: Uint8Array | undefined,

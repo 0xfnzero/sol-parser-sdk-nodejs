@@ -1,7 +1,17 @@
 /** Raydium LaunchLab 日志解析 */
 import type { EventMetadata } from "../core/metadata.js";
-import type { RaydiumLaunchlabPoolCreateEvent, RaydiumLaunchlabTradeEvent, DexEvent } from "../core/dex_event.js";
-import { readBool, readBorshString, readPubkey, readU64LE, readU8 } from "../util/binary.js";
+import type {
+  RaydiumLaunchlabPoolCreateEvent,
+  RaydiumLaunchlabTradeEvent,
+  DexEvent,
+} from "../core/dex_event.js";
+import {
+  readBool,
+  readBorshString,
+  readPubkey,
+  readU64LE,
+  readU8,
+} from "../util/binary.js";
 
 function disc(bytes: readonly number[]): bigint {
   const u8 = new Uint8Array(8);
@@ -18,13 +28,24 @@ function bn64(v: ReturnType<typeof readU64LE>): bigint {
   return v ?? 0n;
 }
 
-export function parseRaydiumLaunchlabTradeFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
+export function parseRaydiumLaunchlabTradeFromData(
+  data: Uint8Array,
+  metadata: EventMetadata,
+): DexEvent | null {
+  if (data.length !== 139 || data[136]! > 1 || data[137]! > 2 || data[138]! > 1)
+    return null;
   const pool_state = readPubkey(data, 0);
   const amount_in = readU64LE(data, 88);
   const amount_out = readU64LE(data, 96);
   const trade_direction = readU8(data, 136);
   const exact_in = readBool(data, 138);
-  if (!pool_state || amount_in === null || amount_out === null || trade_direction === null || exact_in === null) {
+  if (
+    !pool_state ||
+    amount_in === null ||
+    amount_out === null ||
+    trade_direction === null ||
+    exact_in === null
+  ) {
     return null;
   }
   const is_buy = trade_direction === 0;
@@ -36,12 +57,27 @@ export function parseRaydiumLaunchlabTradeFromData(data: Uint8Array, metadata: E
     amount_out: bn64(amount_out),
     is_buy,
     trade_direction: is_buy ? "Buy" : "Sell",
+    total_base_sell: readU64LE(data, 32)!,
+    virtual_base: readU64LE(data, 40)!,
+    virtual_quote: readU64LE(data, 48)!,
+    real_base_before: readU64LE(data, 56)!,
+    real_quote_before: readU64LE(data, 64)!,
+    real_base_after: readU64LE(data, 72)!,
+    real_quote_after: readU64LE(data, 80)!,
+    protocol_fee: readU64LE(data, 104)!,
+    platform_fee: readU64LE(data, 112)!,
+    creator_fee: readU64LE(data, 120)!,
+    share_fee: readU64LE(data, 128)!,
+    pool_status: (["Fund", "Migrate", "Trade"] as const)[data[137]!]!,
     exact_in,
   };
   return { RaydiumLaunchlabTrade: ev };
 }
 
-export function parseRaydiumLaunchlabPoolCreateFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
+export function parseRaydiumLaunchlabPoolCreateFromData(
+  data: Uint8Array,
+  metadata: EventMetadata,
+): DexEvent | null {
   if (data.length < 97) return null;
   let o = 0;
   const pool_state = readPubkey(data, o)!;
@@ -74,9 +110,11 @@ export function parseRaydiumLaunchlabPoolCreateFromData(data: Uint8Array, metada
 export function parseRaydiumLaunchlabFromDiscriminator(
   discriminator: bigint,
   data: Uint8Array,
-  metadata: EventMetadata
+  metadata: EventMetadata,
 ): DexEvent | null {
-  if (discriminator === RAYDIUM_LAUNCHLAB_DISC.TRADE) return parseRaydiumLaunchlabTradeFromData(data, metadata);
-  if (discriminator === RAYDIUM_LAUNCHLAB_DISC.POOL_CREATE) return parseRaydiumLaunchlabPoolCreateFromData(data, metadata);
+  if (discriminator === RAYDIUM_LAUNCHLAB_DISC.TRADE)
+    return parseRaydiumLaunchlabTradeFromData(data, metadata);
+  if (discriminator === RAYDIUM_LAUNCHLAB_DISC.POOL_CREATE)
+    return parseRaydiumLaunchlabPoolCreateFromData(data, metadata);
   return null;
 }

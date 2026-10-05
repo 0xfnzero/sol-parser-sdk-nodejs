@@ -1,10 +1,10 @@
 /**
  * 与 Rust `sol-parser-sdk/src/grpc/geyser_connect.rs` 对齐：Yellowstone Geyser gRPC 连接选项。
  *
- * `@triton-one/yellowstone-grpc` 的 `Client` 通过构造函数第三参传入 `ChannelOptions`；
- * `connectTimeoutMs` 无与 tonic 完全一一对应的项，仅作文档与默认值对齐（可配合环境网络调优）。
+ * 纯 JavaScript `@grpc/grpc-js` 传输，不加载 Rust N-API；
+ * `connectTimeoutMs` 用于 waitForReady 与 unary deadline。
  */
-import Client, { type ChannelOptions } from "@triton-one/yellowstone-grpc";
+import Client, {type NativeChannelOptions as ChannelOptions} from "./native_client.js";
 
 /** 与 Rust `GeyserConnectConfig` 字段对应（毫秒 / 字节） */
 export interface GeyserConnectConfig {
@@ -48,17 +48,15 @@ export function geyserGrpcChannelOptions(
   const interval = config.keepAliveIntervalMs ?? 30_000;
   const timeout = config.keepAliveTimeoutMs ?? 5000;
   return {
-    grpcConnectTimeout: config.connectTimeoutMs,
-    grpcMaxDecodingMessageSize: max,
-    grpcMaxEncodingMessageSize: max,
-    grpcHttp2KeepAliveInterval: interval,
-    grpcKeepAliveTimeout: timeout,
-    grpcTcpKeepalive: interval,
-    grpcInitialConnectionWindowSize: config.flowControlWindowBytes,
-    grpcInitialStreamWindowSize: config.flowControlWindowBytes,
-    grpcHttp2AdaptiveWindow: true,
-    grpcKeepAliveWhileIdle: true,
-    grpcTcpNodelay: true,
+    connectTimeoutMs: config.connectTimeoutMs,
+    "grpc.max_receive_message_length": max,
+    "grpc.max_send_message_length": max,
+    "grpc.keepalive_time_ms": interval,
+    "grpc.keepalive_timeout_ms": timeout,
+    "grpc.keepalive_permit_without_calls": 1,
+    "grpc.initial_reconnect_backoff_ms": config.initialReconnectBackoffMs ?? 1000,
+    "grpc.max_reconnect_backoff_ms": config.maxReconnectBackoffMs ?? 60000,
+    "grpc-node.flow_control_window": config.flowControlWindowBytes ?? 1024*1024,
   };
 }
 

@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { YellowstoneGrpc } from "./client.js";
-import { defaultClientConfig } from "./types.js";
+import { defaultClientConfig, eventTypeFilterIncludeOnly } from "./types.js";
 
 const parseMock = vi.hoisted(() => vi.fn());
 
@@ -372,4 +372,54 @@ describe("YellowstoneGrpc subscribeDexEvents lifecycle", () => {
     expect(attempts).toBeGreaterThanOrEqual(3);
     expect(attempts).toBeLessThanOrEqual(5);
   });
+});
+
+it("replaces the single DEX subscription only after the old stream exits", async () => {
+  const first = new FakeStream(), second = new FakeStream();
+  const client = clientWithStreams([first, second]);
+  const old = await client.subscribeDexEvents([], [], undefined, {autoReconnect: false});
+  await new Promise(resolve => setImmediate(resolve));
+  const current = await client.subscribeDexEvents([], [], undefined, {autoReconnect: false});
+  await old.join();
+  expect(first.cancelCalls).toBeGreaterThan(0);
+  expect((client as any).dexSubscribers.size).toBe(1);
+  expect(await old.next()).toEqual({value: undefined, done: true});
+  await client.stop();
+  await current.join();
+  expect(second.cancelCalls).toBeGreaterThan(0);
+  expect((client as any).dexSubscribers.size).toBe(0);
+});
+
+it("exposes sticky continuity loss after disconnect and queue drops",async()=>{
+ const first=new FakeStream(),second=new FakeStream();
+ const client=clientWithStreams([first,second]);
+ const sub=await client.subscribeDexEvents([],[],undefined,{ingressBufferSize:1});
+ await nextTurn();expect(sub.status().state).toBe("connected");
+ first.emit("data",transactionUpdate(1n));first.emit("data",transactionUpdate(2n));
+ expect(sub.status().dropped).toBe(1);expect(sub.status().continuityBroken).toBe(true);
+ first.emit("error",new Error("gap"));
+ await vi.waitFor(()=>expect(second.writes).toHaveLength(1));
+ expect(sub.status()).toMatchObject({state:"connected",continuityBroken:true,reconnects:1});
+ await client.stop();expect(sub.status().state).toBe("stopped");await sub.join();
+});
+
+it("reports same-version account byte conflicts before replay deduplication",async()=>{
+ const stream=new FakeStream();const client=clientWithStream(stream);const sub=await client.subscribeDexEvents();await nextTurn();
+ const update=(value:number)=>({account:{slot:"10",account:{pubkey:new Uint8Array(32).fill(1),owner:new Uint8Array(32).fill(2),data:Uint8Array.of(value),lamports:"1",writeVersion:"2",executable:false,rentEpoch:"0"}}});
+ stream.emit("data",update(1));await nextTurn();
+ stream.emit("data",update(2));await nextTurn();
+ const result=await sub.errors[Symbol.asyncIterator]().next();expect(result.value?.message).toContain("Conflicting account version");
+ expect(sub.status().continuityBroken).toBe(true);await client.stop();
+});
+
+it("raw-only subscriptions emit one exact account snapshot without protocol decoding",async()=>{
+ const stream=new FakeStream(),client=clientWithStream(stream);
+ const normalize=vi.spyOn(client as unknown as {parseAccountEventRaw(...args:unknown[]):unknown},'parseAccountEventRaw');
+ const sub=await client.subscribeDexEvents([],[],eventTypeFilterIncludeOnly(['AccountRawSnapshot']));
+ try{
+  await nextTurn();stream.emit('data',{account:{slot:'10',isStartup:false,account:{pubkey:new Uint8Array(32).fill(1),owner:new Uint8Array(32).fill(2),data:Uint8Array.of(7),lamports:'1',writeVersion:'2',executable:false,rentEpoch:'0'}}});
+  await nextTurn();const event=await sub[Symbol.asyncIterator]().next();
+  expect(event.value).toMatchObject({RawAccountSnapshot:{metadata:{slot:10n},account:{data:Uint8Array.of(7),lamports:1n},write_version:2n}});
+  expect(normalize).toHaveBeenCalledTimes(1);
+ }finally{await client.stop();normalize.mockRestore()}
 });

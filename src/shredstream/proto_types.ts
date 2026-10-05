@@ -5,6 +5,6 @@
 export type SubscribeEntriesRequest = Record<string, never>;
 
 export interface ShredstreamEntryMessage {
-  slot: number | string | bigint;
+  slot: number | bigint | string | string | bigint;
   entries: Uint8Array | Buffer;
 }

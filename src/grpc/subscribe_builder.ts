@@ -5,9 +5,9 @@ import type {
   SubscribeRequest,
   SubscribeRequestFilterAccounts,
   SubscribeRequestFilterTransactions,
-} from "@triton-one/yellowstone-grpc";
-import { CommitmentLevel } from "@triton-one/yellowstone-grpc";
-import type { AccountFilter, TransactionFilter } from "./types.js";
+} from "./protocol/geyser.js";
+import { CommitmentLevel } from "./protocol/geyser.js";
+import type { AccountFilter, TransactionFilter, EventTypeFilter } from "./types.js";
 
 function txFilterToProto(f: TransactionFilter): SubscribeRequestFilterTransactions {
   return {
@@ -89,3 +89,10 @@ export function buildSubscribeTransactionFiltersNamed(
 }
 
 export { CommitmentLevel };
+
+/** Subscribe to BlockMeta only when explicitly included, matching Rust. */
+export function buildSubscribeRequestWithEventFilter(txFilters:TransactionFilter[],accFilters:AccountFilter[],filter?:EventTypeFilter):SubscribeRequest {
+ const request=buildSubscribeRequest(txFilters,accFilters);
+ if(filter?.shouldInclude("BlockMeta"))request.blocksMeta={block_meta:{}};
+ return request;
+}

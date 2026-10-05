@@ -44,6 +44,12 @@
 
 ## 发布说明
 
+### v0.5.16
+
+- Adds native gRPC lifecycle and block metadata support, instruction-level route analysis and StonkFun registry/snapshot examples.
+- Improves exact metadata serialization, account matching and wire transaction bounds validation.
+- Includes native alignment evidence and simulation route fixtures. These language releases do not yet implement the new CPMM creator-fee collection event API.
+
 ### v0.5.15
 
 - 对齐 Rust sol-parser-sdk **0.7.3**，覆盖当前 PumpFun、PumpSwap、Pump Fees 与 Meteora DAMM v2 协议字段。
@@ -90,7 +96,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.15
+npm install sol-parser-sdk@0.5.16
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -321,3 +327,10 @@ npm run check:migration   # 对齐与校验，需先 build
 ## 许可证
 
 MIT — https://github.com/0xfnzero/sol-parser-sdk-nodejs
+
+## Native alignment status
+
+See [NATIVE_ALIGNMENT.md](NATIVE_ALIGNMENT.md) for implemented native APIs, Rust golden tests, mainnet simulation evidence, examples, and remaining parity gaps. Full cross-language parity is still in progress.
+
+
+[本轮原生对齐 API 迁移](NATIVE_MIGRATION.md)（实施中，尚未发布）。

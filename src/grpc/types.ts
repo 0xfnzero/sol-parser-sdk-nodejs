@@ -1,4 +1,5 @@
-import type { SubscribeRequestFilterAccountsFilter } from "@triton-one/yellowstone-grpc";
+import { exactU64 } from "../core/metadata.js";
+import type { SubscribeRequestFilterAccountsFilter } from "./protocol/geyser.js";
 import type { DexEvent } from "../core/dex_event.js";
 
 /** gRPC 订阅顺序模式 */
@@ -9,6 +10,8 @@ export type Protocol =
   | "PumpFun"
   | "PumpSwap"
   | "PumpFees"
+  | "LaunchLab"
+  | "StonkFun"
   | "RaydiumLaunchlab"
   | "RaydiumCpmm"
   | "RaydiumClmm"
@@ -107,7 +110,7 @@ export interface SubscribeUpdate {
   ping?: SubscribeUpdatePing;
   pong?: SubscribeUpdatePong;
   /** Yellowstone SubscribeUpdate.created_at, Unix timestamp in microseconds. */
-  createdAtUs?: number;
+  createdAtUs?: bigint;
 }
 
 export interface SubscribeCallbacks {
@@ -244,20 +247,20 @@ export function newAccountFilter(): AccountFilter {
 
 /** 与 Rust `grpc::types::SlotFilter` 一致 */
 export interface SlotFilter {
-  min_slot?: number;
-  max_slot?: number;
+  min_slot?: bigint;
+  max_slot?: bigint;
 }
 
 export function newSlotFilter(): SlotFilter {
   return {};
 }
 
-export function slotFilterMinSlot(filter: SlotFilter, slot: number): SlotFilter {
-  return { ...filter, min_slot: slot };
+export function slotFilterMinSlot(filter: SlotFilter, slot: number | bigint | string): SlotFilter {
+  return { ...filter, min_slot: exactU64(slot) };
 }
 
-export function slotFilterMaxSlot(filter: SlotFilter, slot: number): SlotFilter {
-  return { ...filter, max_slot: slot };
+export function slotFilterMaxSlot(filter: SlotFilter, slot: number | bigint | string): SlotFilter {
+  return { ...filter, max_slot: exactU64(slot) };
 }
 
 /** 与 Rust `AccountFilter::from_program_owners` 一致 */
@@ -283,6 +286,8 @@ export function accountFilterMemcmp(
 
 /** 事件类型过滤标签 */
 export type EventType =
+  | "AccountRawSnapshot"
+  | "AccountLiquiditySnapshot"
   // Block
   | "BlockMeta"
   // RaydiumLaunchlab
@@ -527,6 +532,8 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "AccountOrcaTickArray",
   "AccountOrcaFeeTier",
   "AccountOrcaWhirlpoolsConfig",
+  "AccountLiquiditySnapshot",
+  "AccountRawSnapshot",
 ];
 
 const ALL_EVENT_TYPE_SET = new Set<string>(ALL_EVENT_TYPES);
@@ -680,6 +687,8 @@ const DEX_EVENT_TYPE_BY_VARIANT: Partial<Record<string, EventType>> = {
   OrcaTickArrayAccount: "AccountOrcaTickArray",
   OrcaFeeTierAccount: "AccountOrcaFeeTier",
   OrcaWhirlpoolsConfigAccount: "AccountOrcaWhirlpoolsConfig",
+  RawAccountSnapshot: "AccountRawSnapshot",
+  LiquidityAccountSnapshot: "AccountLiquiditySnapshot",
 };
 
 export function eventTypeFromDexEvent(event: DexEvent): EventType | null {

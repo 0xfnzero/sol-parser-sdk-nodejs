@@ -24,6 +24,8 @@ export const PROTOCOL_PROGRAM_IDS: Record<Protocol, readonly string[]> = {
   PumpFun: [PUMPFUN_PROGRAM_ID],
   PumpSwap: [PUMPSWAP_PROGRAM_ID],
   PumpFees: [PUMP_FEES_PROGRAM_ID],
+  LaunchLab: [RAYDIUM_LAUNCHLAB_PROGRAM_ID],
+  StonkFun: [RAYDIUM_LAUNCHLAB_PROGRAM_ID],
   RaydiumLaunchlab: [RAYDIUM_LAUNCHLAB_PROGRAM_ID],
   RaydiumCpmm: [RAYDIUM_CPMM_PROGRAM_ID],
   RaydiumClmm: [RAYDIUM_CLMM_PROGRAM_ID],

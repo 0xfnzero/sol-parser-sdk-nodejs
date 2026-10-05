@@ -126,6 +126,8 @@ describe("event type filters", () => {
       "AccountOrcaTickArray",
       "AccountOrcaFeeTier",
       "AccountOrcaWhirlpoolsConfig",
+      "AccountLiquiditySnapshot",
+      "AccountRawSnapshot",
     ];
     expect(ALL_EVENT_TYPES).toEqual(rustEventTypes);
   });

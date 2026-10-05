@@ -323,7 +323,7 @@ function headIn(data: Uint8Array, discs: readonly (readonly number[])[]): boolea
 
 function normalInstructionDataMayParse(programId: string, data: Uint8Array): boolean {
   if (data.length === 0) return false;
-  if (programId === RAYDIUM_AMM_V4_PROGRAM_ID) return firstByteIn(data, [1, 3, 4, 7, 9, 11]);
+  if (programId === RAYDIUM_AMM_V4_PROGRAM_ID) return firstByteIn(data, [1, 3, 4, 7, 9, 11, 16, 17]);
   if (programId === METEORA_DLMM_PROGRAM_ID) return headIn(data, IX.METEORA_DLMM);
   if (programId === METEORA_DAMM_V2_PROGRAM_ID) {
     return discEq(data, LOG.METEORA_DAMM_INITIALIZE_POOL);
@@ -344,10 +344,10 @@ export function parseInnerCompiledInstructionIfSupported(
   data: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   filter: EventTypeFilter | undefined,
   programId: string
 ): DexEvent | null {
@@ -402,10 +402,10 @@ export function parseInnerInstructionUnified(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   filter: EventTypeFilter | undefined,
   programId: string,
   isCreatedBuy = false

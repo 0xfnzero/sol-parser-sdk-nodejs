@@ -72,10 +72,10 @@ export function parseInstructionUnified(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   eventTypeFilter: EventTypeFilter | undefined,
   programId: string
 ): DexEvent | null {

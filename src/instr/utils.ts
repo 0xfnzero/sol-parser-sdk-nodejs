@@ -1,20 +1,14 @@
-import type { EventMetadata } from "../core/metadata.js";
+import { makeMetadata, type EventMetadata } from "../core/metadata.js";
 import { readBorshString, readPubkey } from "../util/binary.js";
 
 export function ixMeta(
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string
 ): EventMetadata {
-  return {
-    signature,
-    slot,
-    tx_index: txIndex,
-    block_time_us: blockTimeUs ?? 0,
-    grpc_recv_us: grpcRecvUs,
-  };
+  return makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 }
 
 export function getAccount(accounts: string[], i: number): string | undefined {

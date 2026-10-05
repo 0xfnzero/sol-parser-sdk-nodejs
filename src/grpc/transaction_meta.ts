@@ -4,7 +4,7 @@
  */
 import bs58 from "bs58";
 import { PublicKey } from "@solana/web3.js";
-import type { SubscribeUpdateTransactionInfo } from "@triton-one/yellowstone-grpc";
+import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
 
 type Transaction = NonNullable<SubscribeUpdateTransactionInfo["transaction"]>;
 type TransactionStatusMeta = NonNullable<SubscribeUpdateTransactionInfo["meta"]>;

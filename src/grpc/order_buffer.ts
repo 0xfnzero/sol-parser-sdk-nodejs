@@ -1,20 +1,21 @@
+import { exactU64 } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { metadataForDexEvent } from "../core/dex_event.js";
 import type { EventMetadata } from "../core/metadata.js";
 import type { ClientConfig, OrderMode } from "./types.js";
 
 type TxBatch = {
-  slot: number;
-  txIndex: number;
+  slot: bigint;
+  txIndex: bigint;
   seq: number;
   events: DexEvent[];
 };
 
-function eventSlotAndIndex(events: readonly DexEvent[], fallbackSlot: number, fallbackTxIndex: number) {
+function eventSlotAndIndex(events: readonly DexEvent[], fallbackSlot: number | bigint | string, fallbackTxIndex: number | bigint | string) {
   const meta = events.length > 0 ? metadataForDexEvent(events[0]) : null;
   return {
-    slot: Number.isFinite(meta?.slot) ? (meta as EventMetadata).slot : fallbackSlot,
-    txIndex: Number.isFinite(meta?.tx_index) ? (meta as EventMetadata).tx_index : fallbackTxIndex,
+    slot: meta?.slot ?? exactU64(fallbackSlot),
+    txIndex: meta?.tx_index ?? exactU64(fallbackTxIndex),
   };
 }
 
@@ -22,12 +23,12 @@ export class OrderDispatcher {
   private readonly mode: OrderMode;
   private readonly timeoutMs: number;
   private readonly microBatchUs: number;
-  private readonly slots = new Map<number, TxBatch[]>();
-  private readonly streamingWatermarks = new Map<number, number>();
+  private readonly slots = new Map<bigint, TxBatch[]>();
+  private readonly streamingWatermarks = new Map<bigint, bigint>();
   private microBatch: TxBatch[] = [];
   private microBatchStartUs = 0;
   private lastFlushMs = Date.now();
-  private currentSlot = 0;
+  private currentSlot = 0n;
   private seq = 0;
 
   constructor(config: ClientConfig) {
@@ -42,8 +43,8 @@ export class OrderDispatcher {
 
   pushTransactionEvents(
     events: DexEvent[],
-    fallbackSlot: number,
-    fallbackTxIndex: number,
+    fallbackSlot: number | bigint | string,
+    fallbackTxIndex: number | bigint | string,
     emit: (event: DexEvent) => void
   ): void {
     if (events.length === 0) return;
@@ -101,10 +102,10 @@ export class OrderDispatcher {
     }
     if (batch.slot > this.currentSlot) this.currentSlot = batch.slot;
 
-    const expected = this.streamingWatermarks.get(batch.slot) ?? 0;
+    const expected = this.streamingWatermarks.get(batch.slot) ?? 0n;
     if (batch.txIndex === expected) {
       this.emitBatch(batch, emit);
-      let watermark = expected + 1;
+      let watermark = expected + 1n;
       const buffered = this.slots.get(batch.slot);
       if (buffered) {
         buffered.sort(compareBatch);
@@ -112,7 +113,7 @@ export class OrderDispatcher {
         while (pos >= 0) {
           const [next] = buffered.splice(pos, 1);
           this.emitBatch(next, emit);
-          watermark += 1;
+          watermark += 1n;
           pos = buffered.findIndex((b) => b.txIndex === watermark);
         }
         if (buffered.length === 0) this.slots.delete(batch.slot);
@@ -138,8 +139,8 @@ export class OrderDispatcher {
     else this.slots.set(batch.slot, [batch]);
   }
 
-  private flushBefore(slot: number, emit: (event: DexEvent) => void): void {
-    for (const s of [...this.slots.keys()].sort((a, b) => a - b)) {
+  private flushBefore(slot: bigint, emit: (event: DexEvent) => void): void {
+    for (const s of [...this.slots.keys()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0)) {
       if (s >= slot) continue;
       const batches = this.slots.get(s) ?? [];
       batches.sort(compareBatch);
@@ -151,7 +152,7 @@ export class OrderDispatcher {
   }
 
   private flushAllSlots(emit: (event: DexEvent) => void): void {
-    for (const s of [...this.slots.keys()].sort((a, b) => a - b)) {
+    for (const s of [...this.slots.keys()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0)) {
       const batches = this.slots.get(s) ?? [];
       batches.sort(compareBatch);
       for (const batch of batches) this.emitBatch(batch, emit);
@@ -176,5 +177,5 @@ export class OrderDispatcher {
 }
 
 function compareBatch(a: TxBatch, b: TxBatch): number {
-  return a.slot - b.slot || a.txIndex - b.txIndex || a.seq - b.seq;
+  return (a.slot < b.slot ? -1 : a.slot > b.slot ? 1 : 0) || (a.txIndex < b.txIndex ? -1 : a.txIndex > b.txIndex ? 1 : 0) || a.seq - b.seq;
 }

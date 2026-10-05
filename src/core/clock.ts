@@ -8,7 +8,7 @@ export const nowMicros = nowUs;
 
 /** 与 Rust `now_nanos` 同语义：墙钟纳秒（`Date` 精度为毫秒，纳秒位为推算值） */
 export function nowNanos(): bigint {
-  return BigInt(Math.floor(Date.now() * 1_000_000));
+  return BigInt(Date.now()) * 1_000_000n;
 }
 
 /** 与 Rust `elapsed_micros_since` 一致 */

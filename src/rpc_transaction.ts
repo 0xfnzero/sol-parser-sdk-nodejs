@@ -1,3 +1,4 @@
+import { exactU64, exactI64 } from "./core/metadata.js";
 /**
  * RPC 交易解析：外层 + 内层指令 → 日志 → `fillAccountsFromTransactionDataRpc` → `fillDataRpc`。
  */
@@ -447,10 +448,10 @@ function parseOuterAndInnerInstructions(
   message: Message | MessageV0,
   meta: ConfirmedTransactionMeta | null,
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
   filter: EventTypeFilter | undefined,
   isCreatedBuy: boolean,
 ): DexEvent[] {
@@ -541,10 +542,10 @@ function recentBlockhashBytes(recentBlockhash: string): Uint8Array | undefined {
 function detectPumpfunCreateInLogs(
   logMessages: readonly string[],
   _signature: string,
-  _slot: number,
-  _txIndex: number,
-  _blockTimeUs: number | undefined,
-  _grpcRecvUs: number,
+  _slot: number | bigint | string,
+  _txIndex: number | bigint | string,
+  _blockTimeUs: number | bigint | string | undefined,
+  _grpcRecvUs: number | bigint | string,
   _recentBlockhash: Uint8Array | undefined
 ): boolean {
   return logMessages.some((log) => log.includes("Program data: G3KpTd7rY3Y"));
@@ -591,7 +592,7 @@ export function parseRpcTransaction(
   tx: VersionedTransactionResponse,
   signature: string,
   filter?: EventTypeFilter,
-  options?: { grpcRecvUs?: number; txIndex?: number; blockTimeUs?: number }
+  options?: { slot?: bigint | string | number; grpcRecvUs?: bigint | string | number; txIndex?: bigint | string | number; blockTimeUs?: bigint | string | number }
 ): { ok: true; events: DexEvent[] } | { ok: false; error: ParseError } {
   const msg = tx.transaction?.message;
   if (!msg || !isCompiledVersionedMessage(msg)) {
@@ -606,9 +607,9 @@ export function parseRpcTransaction(
   }
 
   const meta = tx.meta ?? null;
-  const slot = tx.slot;
+  const slot = exactU64(options?.slot ?? tx.slot, "slot");
   const blockTimeUs =
-    options?.blockTimeUs ?? (tx.blockTime != null ? tx.blockTime * 1_000_000 : undefined);
+    options?.blockTimeUs ?? (tx.blockTime != null ? exactI64(tx.blockTime) * 1_000_000n : undefined);
   const grpcRecvUs = options?.grpcRecvUs ?? Math.floor(Date.now() * 1000);
   const txIndex = options?.txIndex ?? 0;
   const rb = recentBlockhashBytes(msg.recentBlockhash);

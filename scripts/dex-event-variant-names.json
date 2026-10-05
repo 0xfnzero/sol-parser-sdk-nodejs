@@ -106,6 +106,8 @@
     "PumpSwapGlobalConfigAccount",
     "PumpSwapPoolAccount",
     "BlockMeta",
-    "Error"
+    "Error",
+    "LiquidityAccountSnapshot",
+    "RawAccountSnapshot"
   ]
 }

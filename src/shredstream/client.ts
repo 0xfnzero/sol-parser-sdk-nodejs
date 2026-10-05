@@ -1,3 +1,4 @@
+import { exactU64, exactI64 } from "../core/metadata.js";
 /**
  * ShredStream 客户端：与 Rust `shredstream/client.rs` 对齐（gRPC + bincode 解码 + `parseTransactionEvents`）。
  */
@@ -106,11 +107,11 @@ export class ShredEventQueue {
   }
 }
 
-function setGrpcRecvUsMut(event: DexEvent, grpcRecvUs: number): void {
+function setGrpcRecvUsMut(event: DexEvent, grpcRecvUs: number | bigint | string): void {
   const key = Object.keys(event)[0];
   if (key === "Error") return;
-  const inner = (event as Record<string, { metadata?: { grpc_recv_us?: number } }>)[key];
-  if (inner?.metadata) inner.metadata.grpc_recv_us = grpcRecvUs;
+  const inner = (event as Record<string, { metadata?: { grpc_recv_us?: bigint } }>)[key];
+  if (inner?.metadata) inner.metadata.grpc_recv_us = exactI64(grpcRecvUs);
 }
 
 export class ShredStreamClient {
@@ -362,7 +363,7 @@ export class ShredStreamClient {
   /** 无 RPC：仅用静态账户表 */
   private processEntryMessageSync(
     decoded: ShredWasmTx[][],
-    slotNum: number,
+    slotNum: number | bigint | string,
     recvUs: number,
     queue: ShredEventQueue,
     entriesBytesLen: number,
@@ -402,7 +403,7 @@ export class ShredStreamClient {
   /** 拉取 ALT 后完整账户表解析 */
   private async processEntryMessageWithAlt(
     decoded: ShredWasmTx[][],
-    slotNum: number,
+    slotNum: number | bigint | string,
     recvUs: number,
     queue: ShredEventQueue,
     entriesBytesLen: number,
@@ -458,9 +459,6 @@ export class ShredStreamClient {
   }
 }
 
-function toSlotNumber(slot: string | number | bigint): number {
-  if (typeof slot === "number") return slot;
-  if (typeof slot === "bigint") return Number(slot);
-  const n = Number(slot);
-  return Number.isFinite(n) ? Math.floor(n) : 0;
+function toSlotNumber(slot: string | number | bigint): bigint {
+  return exactU64(slot, "ShredStream slot");
 }

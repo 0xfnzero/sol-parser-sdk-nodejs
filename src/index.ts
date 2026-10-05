@@ -11,6 +11,8 @@ export {
 export type { DexEvent } from "./core/dex_event.js";
 export { metadataForDexEvent, defaultPubkey } from "./core/dex_event.js";
 export { bigintToJsonReplacer, dexEventToJsonString } from "./core/json_utils.js";
+export { exactInteger, exactU64, exactI64 } from "./core/metadata.js";
+export type { ExactIntegerInput } from "./core/metadata.js";
 export type { EventMetadata } from "./core/metadata.js";
 export type { ParseError } from "./core/error.js";
 export { formatParseError } from "./core/error.js";
@@ -293,6 +295,7 @@ export {
   YellowstoneGrpc,
   type SubscribeCallbacks,
   type DexEventSubscription,
+  type GrpcStreamStatus,
   type SubscribeDexEventsOptions,
   type EventQueueOverflowStrategy,
 } from "./grpc/client.js";
@@ -342,3 +345,19 @@ export {
   lowLatencyShredStreamConfig as low_latency_shred_stream_config,
   highThroughputShredStreamConfig as high_throughput_shred_stream_config,
 } from "./shredstream/index.js";
+
+export {decodeWireTransaction, type WireMessage, type WireInstruction, type DecodedWireTransaction as NativeWireTransaction} from './wire_transaction.js';
+export * from './transaction_route.js';
+export * from './stonkfun_registry.js';
+
+export * from './liquidity_snapshot.js';
+
+export {analyzeSimulationRoutes} from "./simulation_route.js";
+
+export {parseBlockMetaUpdate} from "./grpc/block_meta.js";
+export {buildSubscribeRequestWithEventFilter} from "./grpc/subscribe_builder.js";
+
+export type {
+  LaunchLabPoolCreateEvent, StonkFunPoolCreateEvent,
+  LaunchLabTradeEvent, StonkFunTradeEvent,
+} from "./core/dex_event.js";

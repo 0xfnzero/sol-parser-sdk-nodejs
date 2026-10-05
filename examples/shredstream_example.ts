@@ -97,7 +97,7 @@ async function main(): Promise<void> {
         const meta = metadataForDexEvent(ev);
         if (meta) {
           const grpcRecvUs = meta.grpc_recv_us;
-          const latencyUs = queueRecvUs - grpcRecvUs;
+          const latencyUs = Number(BigInt(queueRecvUs) - grpcRecvUs);
           if (latencyUs >= 0) {
             eventCount += 1;
             totalLatency += latencyUs;

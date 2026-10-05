@@ -77,7 +77,7 @@ async function main() {
     const key = eventName(ev);
     if (!key.startsWith("PumpFun")) continue;
 
-    const data = (ev as Record<string, { metadata?: { slot?: number | bigint } }>)[key] ?? {};
+    const data = (ev as Record<string, { metadata?: { slot?: bigint } }>)[key] ?? {};
     eventCount++;
     console.log(`✅ Event #${eventCount}: ${key} (slot=${data.metadata?.slot ?? ""})`);
 

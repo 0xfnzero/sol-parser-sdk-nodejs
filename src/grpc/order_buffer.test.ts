@@ -8,10 +8,10 @@ function event(signature: string, slot: number, txIndex: number): DexEvent {
     PumpFunTrade: {
       metadata: {
         signature,
-        slot,
-        tx_index: txIndex,
-        block_time_us: 0,
-        grpc_recv_us: 0,
+        slot: BigInt(slot),
+        tx_index: BigInt(txIndex),
+        block_time_us: 0n,
+        grpc_recv_us: 0n,
       },
       mint: "",
       user: "",

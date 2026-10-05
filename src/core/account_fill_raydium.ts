@@ -114,8 +114,12 @@ export function fillRaydiumCpmmInitializeAccounts(
 }
 
 export function fillRaydiumAmmV4SwapAccounts(e: RaydiumAmmV4SwapEvent, get: (i: number) => string): void {
-  const zero = Z();
-  if (!e.amm || e.amm === zero) e.amm = get(1);
+  const empty=(v:string)=>!v||v===Z();
+  if(empty(e.amm))e.amm=get(1);
+  const modern=empty(get(8))&&!empty(get(7));
+  if(modern){
+    for(const [field,index]of [['token_program',0],['amm_authority',2],['pool_coin_token_account',3],['pool_pc_token_account',4],['user_source_token_account',5],['user_destination_token_account',6],['user_source_owner',7]]as const){if(empty(e[field]))e[field]=get(index);}
+  }else if(empty(e.user_source_owner)){e.user_source_owner=empty(get(17))?get(16):get(17);}
 }
 
 export function fillRaydiumAmmV4DepositAccounts(

@@ -35,7 +35,8 @@ const SWAP = {
   USER_OWNER: 17,
 } as const;
 
-function swapAccountIndexes(accountCount: number): Record<keyof typeof SWAP, number> {
+function swapAccountIndexes(accountCount: number, modern: boolean): Record<keyof typeof SWAP, number> {
+  if(modern)return {...SWAP,AMM_OPEN_ORDERS:-1,AMM_TARGET_ORDERS:-1,POOL_COIN_TOKEN:3,POOL_PC_TOKEN:4,SERUM_PROGRAM:-1,SERUM_MARKET:-1,SERUM_BIDS:-1,SERUM_ASKS:-1,SERUM_EVENT_QUEUE:-1,SERUM_COIN_VAULT:-1,SERUM_PC_VAULT:-1,SERUM_VAULT_SIGNER:-1,USER_SOURCE_TOKEN:5,USER_DEST_TOKEN:6,USER_OWNER:7};
   if (accountCount !== 17) return SWAP;
   return {
     ...SWAP,
@@ -65,7 +66,7 @@ function swapBaseInFromIx(
   const amount_in = readU64LE(instructionData, 1) ?? 0n;
   const minimum_amount_out = readU64LE(instructionData, 9) ?? 0n;
   const g = (i: number) => getAccount(accounts, i) ?? Z;
-  const indexes = swapAccountIndexes(accounts.length);
+  const indexes = swapAccountIndexes(accounts.length, instructionData[0]===16 || instructionData[0]===17);
   return {
     RaydiumAmmV4Swap: {
       metadata: meta,
@@ -104,7 +105,7 @@ function swapBaseOutFromIx(
   const max_amount_in = readU64LE(instructionData, 1) ?? 0n;
   const amount_out = readU64LE(instructionData, 9) ?? 0n;
   const g = (i: number) => getAccount(accounts, i) ?? Z;
-  const indexes = swapAccountIndexes(accounts.length);
+  const indexes = swapAccountIndexes(accounts.length, instructionData[0]===16 || instructionData[0]===17);
   return {
     RaydiumAmmV4Swap: {
       metadata: meta,
@@ -138,20 +139,21 @@ export function parseRaydiumAmmV4Instruction(
   instructionData: Uint8Array,
   accounts: string[],
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string
 ): DexEvent | null {
   if (instructionData.length < 1) return null;
 
   const instrType = instructionData[0];
+  if((instrType===16||instrType===17)&&accounts.length<8)return null;
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
-  if (instrType === INSTR_TYPE.SWAP_BASE_IN) {
+  if (instrType === INSTR_TYPE.SWAP_BASE_IN || instrType===16) {
     return swapBaseInFromIx(instructionData, accounts, meta);
   }
-  if (instrType === INSTR_TYPE.SWAP_BASE_OUT) {
+  if (instrType === INSTR_TYPE.SWAP_BASE_OUT || instrType===17) {
     return swapBaseOutFromIx(instructionData, accounts, meta);
   }
 

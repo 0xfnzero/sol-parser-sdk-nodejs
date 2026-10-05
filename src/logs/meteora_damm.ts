@@ -1,3 +1,4 @@
+import { exactU64 } from "../core/metadata.js";
 import { makeMetadata, type EventMetadata } from "../core/metadata.js";
 import type {
   DexEvent,
@@ -50,8 +51,9 @@ const CREATE_DYNAMIC_CONFIG = discOf([231, 197, 13, 164, 248, 213, 133, 152]);
  */
 export const COMPOUNDING_FEE_LAYOUT_ACTIVATION_SLOT = 406_048_752;
 
-function usesCompoundingFeeLayout(slot: number): boolean {
-  return slot === 0 || slot >= COMPOUNDING_FEE_LAYOUT_ACTIVATION_SLOT;
+function usesCompoundingFeeLayout(slot: number | bigint | string): boolean {
+  const n = exactU64(slot);
+  return n === 0n || n >= BigInt(COMPOUNDING_FEE_LAYOUT_ACTIVATION_SLOT);
 }
 
 function bn64(v: ReturnType<typeof readU64LE>): bigint {
@@ -692,10 +694,10 @@ export function parseCreateDynamicConfigFromData(
 export function parseMeteoraDammLog(
   log: string,
   signature: string,
-  slot: number,
-  txIndex: number,
-  blockTimeUs: number | undefined,
-  grpcRecvUs: number
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string
 ): DexEvent | null {
   const programData = decodeProgramDataLine(log);
   if (!programData) return null;

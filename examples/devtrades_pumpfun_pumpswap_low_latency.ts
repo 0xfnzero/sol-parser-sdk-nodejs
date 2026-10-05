@@ -259,7 +259,7 @@ async function main(): Promise<void> {
     const metadata = data.metadata as
       | {
           signature?: string;
-          slot?: number | bigint;
+          slot?: bigint;
           local_queue_latency_us?: number;
           parse_duration_us?: number;
           local_processing_latency_us?: number;
