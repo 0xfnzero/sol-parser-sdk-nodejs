@@ -44,6 +44,13 @@
 
 ## Release notes
 
+### v0.5.17
+
+- Matches PumpFun create/create_v2 accounts by the actual instruction discriminator and event mint, including CPI calls; ambiguous matches are left unspecified.
+- Stops inferring quote mint/vault/token-program fields from arbitrary remaining create_v2 accounts and preserves authoritative decoded fields.
+- Restores historical CreateEvent decoding and verifies successful and failed transactions using saved mainnet fixtures.
+- Suppresses rolled-back DEX events from failed transactions and preserves failure status through RPC/gRPC adapters.
+
 ### v0.5.16
 
 - Adds native gRPC lifecycle and block metadata support, instruction-level route analysis and StonkFun registry/snapshot examples.
@@ -96,7 +103,7 @@
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.16
+npm install sol-parser-sdk@0.5.17
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)

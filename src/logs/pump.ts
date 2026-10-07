@@ -241,6 +241,17 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
   const n3 = readBorshString(data, o);
   if (!n3) return null;
   o = n3.next;
+  if (data.length - o === 96) {
+    return {PumpFunCreate: {
+      metadata, name: n1.s, symbol: n2.s, uri: n3.s,
+      mint: readPubkey(data, o)!, bonding_curve: readPubkey(data, o + 32)!, user: readPubkey(data, o + 64)!,
+      creator: defaultPubkey(), timestamp: 0n, virtual_token_reserves: 0n, virtual_sol_reserves: 0n,
+      real_token_reserves: 0n, token_total_supply: 0n, token_program: defaultPubkey(),
+      is_mayhem_mode: false, is_cashback_enabled: false, quote_mint: normalizePumpfunQuoteMint(defaultPubkey()),
+      quote_vault: defaultPubkey(), quote_token_program: defaultPubkey(), virtual_quote_reserves: 0n,
+      creator_fee_bps: 0n, is_holder_reward: false, ix_name: "create",
+    }};
+  }
   if (data.length < o + 32 * 4 + 8 * 5 + 32 + 1) return null;
 
   const mint = readPubkey(data, o);

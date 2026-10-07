@@ -109,13 +109,13 @@ export function fillPumpfunTradeAccounts(e: PumpFunTradeEvent, get: (i: number) 
 
 export function fillPumpfunCreateAccounts(e: PumpFunCreateTokenEvent, get: (i: number) => string): void {
   const zero = Z();
-  if (get(15) === "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P") {
-    fillPumpfunCreateV2Accounts(e as PumpFunCreateV2TokenEvent, get);
-    return;
+  const accounts = e as PumpFunCreateV2TokenEvent;
+  for (const [field, index] of Object.entries({mint:0, mint_authority:1, bonding_curve:2,
+    associated_bonding_curve:3, global:4, user:7, system_program:8, token_program:9,
+    associated_token_program:10, event_authority:12, program:13})) {
+    const key = field as keyof PumpFunCreateV2TokenEvent;
+    if (!accounts[key] || accounts[key] === zero) (accounts as unknown as Record<string, unknown>)[field] = get(index);
   }
-  if (!e.mint || e.mint === zero) e.mint = get(0);
-  if (!e.bonding_curve || e.bonding_curve === zero) e.bonding_curve = get(2);
-  if (!e.user || e.user === zero) e.user = get(7);
 }
 
 export function fillPumpfunCreateV2Accounts(
@@ -143,11 +143,6 @@ export function fillPumpfunCreateV2Accounts(
   if (!e.mayhem_token_vault || e.mayhem_token_vault === zero) e.mayhem_token_vault = get(13);
   if (!e.event_authority || e.event_authority === zero) e.event_authority = get(14);
   if (!e.program || e.program === zero) e.program = get(15);
-  if (!e.quote_mint || e.quote_mint === zero || e.quote_mint === "So11111111111111111111111111111111111111111") {
-    e.quote_mint = get(16);
-  }
-  if (!e.quote_vault || e.quote_vault === zero) e.quote_vault = get(17);
-  if (!e.quote_token_program || e.quote_token_program === zero) e.quote_token_program = get(18);
   if (!e.ix_name || e.ix_name === "create") e.ix_name = "create_v2";
 }
 

@@ -594,6 +594,8 @@ export function parseRpcTransaction(
   filter?: EventTypeFilter,
   options?: { slot?: bigint | string | number; grpcRecvUs?: bigint | string | number; txIndex?: bigint | string | number; blockTimeUs?: bigint | string | number }
 ): { ok: true; events: DexEvent[] } | { ok: false; error: ParseError } {
+  // Failed transactions roll back every instruction, including earlier create logs.
+  if (tx.meta?.err != null) return { ok: true, events: [] };
   const msg = tx.transaction?.message;
   if (!msg || !isCompiledVersionedMessage(msg)) {
     return {

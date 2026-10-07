@@ -23,6 +23,8 @@ import type {
 } from "@solana/web3.js";
 import {
   findMaxAccountsInvoke,
+  getInstructionDataBytes,
+  countInstructionAccounts,
   makeInvokeAccountGetter,
   type InvokePair,
 } from "./rpc_invoke_map.js";
@@ -136,6 +138,24 @@ export function fillAccountsFromTransactionDataRpc(
   programInvokes: Map<string, InvokePair[]>,
   resolver: { get(i: number): PublicKey | undefined },
 ): void {
+  const fillCreate = (e: Parameters<typeof fillPumpfunCreateAccounts>[0], v2Only = false): void => {
+    let selected: {get: (i: number) => string; v2: boolean} | undefined;
+    for (const invoke of programInvokes.get(PUMPFUN_PROGRAM_ID) ?? []) {
+      const raw = getInstructionDataBytes(message, meta, invoke);
+      const matches = (disc: number[]) => raw && disc.every((b, i) => raw[i] === b);
+      const v2 = !!matches([214,144,76,236,95,139,49,180]);
+      if (!v2 && (v2Only || !matches([24,30,200,40,5,28,7,119]))) continue;
+      if (countInstructionAccounts(message, meta, invoke) < (v2 ? 16 : 14)) continue;
+      const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
+      if (!get || (e.mint && e.mint !== "11111111111111111111111111111111" && get(0) !== e.mint)) continue;
+      if (selected) return;
+      selected = {get, v2};
+    }
+    if (selected) {
+      if (selected.v2) fillPumpfunCreateV2Accounts(e as Parameters<typeof fillPumpfunCreateV2Accounts>[0], selected.get);
+      else fillPumpfunCreateAccounts(e, selected.get);
+    }
+  };
   if ("PumpFunTrade" in ev) {
     tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillPumpfunTradeAccounts(ev.PumpFunTrade, g),
@@ -153,13 +173,9 @@ export function fillAccountsFromTransactionDataRpc(
       fillPumpfunTradeAccounts(ev.PumpFunBuyExactSolIn, g),
     );
   } else if ("PumpFunCreate" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunCreateAccounts(ev.PumpFunCreate, g),
-    );
+    fillCreate(ev.PumpFunCreate);
   } else if ("PumpFunCreateV2" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunCreateV2Accounts(ev.PumpFunCreateV2, g),
-    );
+    fillCreate(ev.PumpFunCreateV2, true);
   } else if ("PumpFunMigrate" in ev) {
     tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillPumpfunMigrateAccounts(ev.PumpFunMigrate, g),

@@ -1,6 +1,6 @@
 /**
  * 将 `@solana/web3.js` 的 `VersionedTransactionResponse` 转为 Yellowstone `Transaction` + `TransactionStatusMeta`，
- * 与 Rust `rpc_parser::convert_rpc_to_grpc` 字段取舍一致（token balances / rewards 置空，err 置空等）。
+ * 与 Rust `rpc_parser::convert_rpc_to_grpc` 字段取舍一致（token balances / rewards 置空；保留失败状态）。
  */
 import bs58 from "bs58";
 import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
@@ -96,7 +96,8 @@ function metaToYellowstone(meta: ConfirmedTransactionMeta): TransactionStatusMet
   const logs = meta.logMessages ?? [];
 
   return {
-    err: undefined,
+    // Preserve failure presence without inventing a Yellowstone binary error enum.
+    err: meta.err != null ? { err: new Uint8Array() } : undefined,
     fee: String(meta.fee),
     preBalances: meta.preBalances.map(String),
     postBalances: meta.postBalances.map(String),

@@ -65,7 +65,7 @@ function versionedMessage(message: YellowstoneMessage): MessageV0 {
 
 function transactionMeta(meta: YellowstoneMeta): ConfirmedTransactionMeta {
   return {
-    err: null,
+    err: meta.err ? "Yellowstone transaction failed" : null,
     fee: Number(meta.fee),
     preBalances: meta.preBalances.map(Number),
     postBalances: meta.postBalances.map(Number),
