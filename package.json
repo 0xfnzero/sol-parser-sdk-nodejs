@@ -10,7 +10,7 @@
     "README_CN.md",
     "LICENSE",
     ".env.example",
-    "NATIVE_MIGRATION.md"
+    "docs/USAGE.md"
   ],
   "repository": {
     "type": "git",
