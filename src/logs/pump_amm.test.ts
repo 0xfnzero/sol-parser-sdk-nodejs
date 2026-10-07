@@ -79,7 +79,7 @@ describe("PumpSwap log parser", () => {
     expect(parseSellFromData(new Uint8Array(352), metadata)).not.toBeNull();
 
     for (let length = 0; length <= 80; length++) {
-      const expected = length === 0 || length === 16 || length === 32 || length === 57 || length >= 73;
+      const expected = length === 0 || length === 16 || length === 32 || length === 57 || length === 73 || length >= 81;
       const sell = Uint8Array.from([...new Uint8Array(352), ...new Uint8Array(length)]);
       expect(parseSellFromData(sell, metadata) !== null, `tail ${length}`).toBe(expected);
     }

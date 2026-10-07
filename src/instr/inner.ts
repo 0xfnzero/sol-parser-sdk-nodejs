@@ -1,3 +1,4 @@
+import {parsePumpUpgradeEvent,pumpUpgradeEventType} from "../logs/pump_upgrade.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { makeMetadata } from "../core/metadata.js";
 import type { EventTypeFilter } from "../grpc/types.js";
@@ -218,6 +219,10 @@ const LOG = {
 
 const IX = {
   PUMPFUN: [
+    [7, 5, 29, 196, 245, 23, 101, 80],
+    [225, 247, 80, 30, 213, 179, 132, 136],
+    [28, 146, 222, 119, 38, 196, 105, 213],
+
     [24, 30, 200, 40, 5, 28, 7, 119],
     [214, 144, 76, 236, 95, 139, 49, 180],
     [102, 6, 61, 18, 1, 218, 235, 234],
@@ -228,6 +233,10 @@ const IX = {
     [93, 246, 130, 60, 231, 233, 64, 178],
   ],
   PUMPSWAP: [
+    [184, 23, 238, 97, 103, 197, 211, 61],
+    [194, 171, 28, 70, 104, 77, 91, 47],
+    [93, 246, 130, 60, 231, 233, 64, 178],
+
     [102, 6, 61, 18, 1, 218, 235, 234],
     [51, 230, 133, 164, 1, 127, 131, 173],
     [233, 146, 209, 142, 207, 104, 64, 188],
@@ -415,6 +424,10 @@ export function parseInnerInstructionUnified(
   const disc = instructionData.subarray(0, 16);
   const data = instructionData.subarray(16);
   const metadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
+  const upgradeDisc = eventCpiDiscriminator(disc);
+  if(upgradeDisc!==null && pumpUpgradeEventType(upgradeDisc,programId)) {
+    return filterDexEvent(parsePumpUpgradeEvent(upgradeDisc,data,metadata,programId),filter);
+  }
   let ev: DexEvent | null = null;
 
   if (programId === PUMPFUN_PROGRAM_ID) {

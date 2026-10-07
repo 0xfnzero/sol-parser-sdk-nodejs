@@ -128,6 +128,9 @@ describe("event type filters", () => {
       "AccountOrcaWhirlpoolsConfig",
       "AccountLiquiditySnapshot",
       "AccountRawSnapshot",
+      "PumpFunPostCompleteBuy",
+      "PumpFunSweepBondingCurveFee",
+      "PumpSwapSweepPoolFee",
     ];
     expect(ALL_EVENT_TYPES).toEqual(rustEventTypes);
   });

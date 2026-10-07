@@ -163,6 +163,9 @@ export function parsePumpswapPool(account: AccountData, metadata: EventMetadata)
   o += 1;
   const is_holder_reward = (readU8(d, o) ?? 0) !== 0;
   const pool: PumpSwapPool = {
+    protocol_fees: readU64LE(d,263) ?? 0n,
+    creator_fees: readU64LE(d,271) ?? 0n,
+
     pool_bump,
     index,
     creator,

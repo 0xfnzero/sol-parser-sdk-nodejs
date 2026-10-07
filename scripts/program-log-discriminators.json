@@ -1,5 +1,5 @@
 {
-  "description": "与 src/logs/program_log_discriminators.ts 同步；8 字节小端 u64",
+  "description": "\u4e0e src/logs/program_log_discriminators.ts \u540c\u6b65\uff1b8 \u5b57\u8282\u5c0f\u7aef u64",
   "PUMPSWAP_DISC": {
     "BUY": [
       103,
@@ -722,6 +722,46 @@
       213,
       133,
       152
+    ],
+    "PUMPFUN_POST_COMPLETE_BUY": [
+      111,
+      176,
+      109,
+      139,
+      49,
+      108,
+      213,
+      251
+    ],
+    "PUMPFUN_SWEEP_BONDING_CURVE_FEE": [
+      116,
+      43,
+      77,
+      189,
+      17,
+      122,
+      72,
+      43
+    ],
+    "PUMPFUN_COMPLETE": [
+      95,
+      114,
+      97,
+      156,
+      212,
+      46,
+      152,
+      8
+    ],
+    "PUMPSWAP_SWEEP_POOL_FEE": [
+      130,
+      164,
+      36,
+      97,
+      228,
+      130,
+      135,
+      165
     ]
   }
 }

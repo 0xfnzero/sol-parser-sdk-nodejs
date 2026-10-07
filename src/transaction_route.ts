@@ -109,10 +109,14 @@ const LAB = new Map<string, [boolean, boolean]>([
   [hex([95, 200, 71, 34, 8, 9, 11, 166]), [false, false]],
 ]);
 const PUMP = new Map<string, [boolean, boolean]>([
+ [hex([184,23,238,97,103,197,211,61]),[true,false]],
+ [hex([194,171,28,70,104,77,91,47]),[true,true]],
+ [hex([93,246,130,60,231,233,64,178]),[false,true]],
   [hex([198, 46, 21, 82, 180, 217, 232, 112]), [true, true]],
   [hex([102, 6, 61, 18, 1, 218, 235, 234]), [true, false]],
   [hex([51, 230, 133, 164, 1, 127, 131, 173]), [false, true]],
 ]);
+const CURVE_V3=new Map<string,[boolean,boolean]>([[hex([7,5,29,196,245,23,101,80]),[true,false]],[hex([225,247,80,30,213,179,132,136]),[true,true]],[hex([28,146,222,119,38,196,105,213]),[false,true]]]);
 const CURVE_V2=new Map<string,[boolean,boolean]>([
  [hex([194,171,28,70,104,77,91,47]),[true,true]],
  [hex([184,23,238,97,103,197,211,61]),[true,false]],
@@ -212,7 +216,7 @@ function swap(
   ) {
     const [buy, input] = (protocol === "LaunchLab" ? LAB : PUMP).get(disc)!;
     exact = input;
-    if (n < (protocol === "LaunchLab" ? 18 : 21)) return null;
+    if (n < (protocol === "LaunchLab" ? 18 : (["b817ee6167c5d33d","c2ab1c46684d5b2f","5df6823ce7e940b2"].includes(disc)?17:21))) return null;
     source = a(buy ? 6 : 5);
     dest = a(buy ? 5 : 6);
     if (protocol === "LaunchLab") {
@@ -225,6 +229,8 @@ function swap(
       user = a(1);
       pair = buy ? [a(4), a(3)] : [a(3), a(4)];
     }
+  } else if(protocol==='PumpFun'&&CURVE_V3.has(disc)&&n===17&&d.length>=24) {
+    const [buy,input]=CURVE_V3.get(disc)!;exact=input;pool=a(5);user=a(8);source=a(buy?10:9);dest=a(buy?9:10);pair=buy?[a(2),a(1)]:[a(1),a(2)];if(a(2)===WSOL){if(buy)source=user;else dest=user;}
   } else if (protocol==='PumpFun'&&CURVE_V2.has(disc)&&n>=16) {
     const [buy,input]=CURVE_V2.get(disc)!;exact=input;
     pool=a(10);user=a(13);source=a(buy?15:14);dest=a(buy?14:15);

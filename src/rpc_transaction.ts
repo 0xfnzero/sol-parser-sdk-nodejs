@@ -340,6 +340,7 @@ function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
     (baseName === "PumpSwapBuy" && innerName === "PumpSwapBuy") ||
     (baseName === "PumpSwapSell" && innerName === "PumpSwapSell")
   ) {
+    if(baseData.pool && innerData.pool && baseData.pool!==innerData.pool)return false;
     mergePumpSwapBuySellInstruction(baseData, innerData);
     return true;
   }

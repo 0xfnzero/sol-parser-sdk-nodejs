@@ -33,6 +33,7 @@ function bnI64(v: ReturnType<typeof readI64LE>): bigint {
 const ZP = defaultPubkey();
 
 interface PumpSwapTradeTail {
+  creator_fee_unclaimed: bigint;
   cashback_fee_basis_points: bigint;
   cashback: bigint;
   buyback_fee_basis_points: bigint;
@@ -46,6 +47,7 @@ interface PumpSwapTradeTail {
 
 function emptyTradeTail(): PumpSwapTradeTail {
   return {
+    creator_fee_unclaimed:0n,
     cashback_fee_basis_points: 0n,
     cashback: 0n,
     buyback_fee_basis_points: 0n,
@@ -85,6 +87,8 @@ function parseTradeTail(data: Uint8Array): PumpSwapTradeTail | null {
     tail.holder_rewards_bps = bn64(readU64LE(data, 57));
     tail.holder_rewards = bn64(readU64LE(data, 65));
   }
+  if(data.length>73 && data.length<81)return null;
+  tail.creator_fee_unclaimed=bn64(readU64LE(data,73));
   return tail;
 }
 
@@ -221,6 +225,7 @@ export function parseBuyFromData(data: Uint8Array, metadata: EventMetadata): Dex
     base_supply: tail.base_supply,
     holder_rewards_bps: tail.holder_rewards_bps,
     holder_rewards: tail.holder_rewards,
+    creator_fee_unclaimed:tail.creator_fee_unclaimed,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,
@@ -320,6 +325,7 @@ export function parseSellFromData(data: Uint8Array, metadata: EventMetadata): De
     base_supply: tail.base_supply,
     holder_rewards_bps: tail.holder_rewards_bps,
     holder_rewards: tail.holder_rewards,
+    creator_fee_unclaimed:tail.creator_fee_unclaimed,
     is_pump_pool: false,
     base_mint: ZP,
     quote_mint: ZP,

@@ -1,8 +1,14 @@
+import type {PumpFunPostCompleteBuyEvent,PumpFunSweepBondingCurveFeeEvent,PumpFunCompleteEvent,PumpSwapSweepPoolFeeEvent} from "../logs/pump_upgrade.js";
 import type {RawAccountSnapshotEvent,LiquidityAccountSnapshotEvent} from '../liquidity_snapshot.js';
 import type { EventMetadata } from "./metadata.js";
 
 /** 统一 DEX 事件：外部标签 JSON（单键对象）；键名清单见 `scripts/dex-event-variant-names.json` */
 export type DexEvent =
+  | {PumpFunPostCompleteBuy: PumpFunPostCompleteBuyEvent}
+  | {PumpFunSweepBondingCurveFee: PumpFunSweepBondingCurveFeeEvent}
+  | {PumpFunComplete: PumpFunCompleteEvent}
+  | {PumpSwapSweepPoolFee: PumpSwapSweepPoolFeeEvent}
+
   | { RawAccountSnapshot: RawAccountSnapshotEvent }
   | { LiquidityAccountSnapshot: LiquidityAccountSnapshotEvent }
   | { PumpFunCreate: PumpFunCreateTokenEvent }
@@ -113,6 +119,7 @@ export type DexEvent =
   | { Error: string };
 
 export interface PumpFunCreateTokenEvent {
+  depth?: number;
   metadata: EventMetadata;
   name: string;
   symbol: string;
@@ -155,6 +162,7 @@ export interface PumpFunCreateV2TokenEvent extends PumpFunCreateTokenEvent {
 }
 
 export interface PumpFunTradeEvent {
+  creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   mint: string;
   sol_amount: bigint;
@@ -382,6 +390,7 @@ export interface PumpSwapTradeEvent {
 }
 
 export interface PumpSwapBuyEvent {
+  creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   timestamp: bigint;
   base_amount_out: bigint;
@@ -440,6 +449,7 @@ export interface PumpSwapBuyEvent {
 }
 
 export interface PumpSwapSellEvent {
+  creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   timestamp: bigint;
   base_amount_in: bigint;
@@ -1432,6 +1442,12 @@ export interface NonceAccountEvent {
 }
 
 export interface PumpFunGlobal {
+  creator_fee_configurable?: boolean;
+  max_configurable_creator_fee_bps?: bigint;
+  holder_reward_claim_authority?: string;
+  is_holder_reward_enabled?: boolean;
+  max_curve_depth?: number;
+
   initialized: boolean;
   authority: string;
   fee_recipient: string;
@@ -1466,6 +1482,12 @@ export interface PumpFunGlobalAccountEvent {
 }
 
 export interface PumpFunBondingCurve {
+  creator_fee?: bigint;
+  protocol_fees?: bigint;
+  depth?: number;
+  initial_virtual_quote_reserves?: bigint;
+  post_complete_base_out?: bigint;
+  post_complete_quote_in?: bigint;
   virtual_token_reserves: bigint;
   virtual_quote_reserves: bigint;
   real_token_reserves: bigint;
@@ -1488,6 +1510,7 @@ export interface PumpFunBondingCurveAccountEvent {
 }
 
 export interface PumpFunFeeConfig {
+  exotic_flat_fees?: PumpFeesFees;
   bump: number;
   admin: string;
   flat_fees: PumpFeesFees;
@@ -1577,6 +1600,8 @@ export interface PumpSwapGlobalConfigAccountEvent {
 }
 
 export interface PumpSwapPool {
+  protocol_fees?: bigint;
+  creator_fees?: bigint;
   pool_bump: number;
   index: number;
   creator: string;

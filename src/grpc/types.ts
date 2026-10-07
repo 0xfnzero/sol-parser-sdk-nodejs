@@ -312,6 +312,9 @@ export type EventType =
   | "PumpFeesUpdateFeeConfig"
   | "PumpFeesUpdateFeeShares"
   | "PumpFeesUpsertFeeTiers"
+  | "PumpFunPostCompleteBuy"
+  | "PumpFunSweepBondingCurveFee"
+  | "PumpSwapSweepPoolFee"
   | "PumpFunMigrateBondingCurveCreator"
   // PumpSwap
   | "PumpSwapTrade"
@@ -534,6 +537,9 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "AccountOrcaWhirlpoolsConfig",
   "AccountLiquiditySnapshot",
   "AccountRawSnapshot",
+  "PumpFunPostCompleteBuy",
+  "PumpFunSweepBondingCurveFee",
+  "PumpSwapSweepPoolFee",
 ];
 
 const ALL_EVENT_TYPE_SET = new Set<string>(ALL_EVENT_TYPES);
@@ -565,9 +571,12 @@ const PUMPFUN_FILTER_TYPES: readonly EventType[] = [
   "PumpFunCreateV2",
   "PumpFunComplete",
   "PumpFunMigrate",
+  "PumpFunPostCompleteBuy",
+  "PumpFunSweepBondingCurveFee",
   "PumpFunMigrateBondingCurveCreator",
 ];
 const PUMPSWAP_FILTER_TYPES: readonly EventType[] = [
+  "PumpSwapSweepPoolFee",
   "PumpSwapTrade",
   "PumpSwapBuy",
   "PumpSwapSell",

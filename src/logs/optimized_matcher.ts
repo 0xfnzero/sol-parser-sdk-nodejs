@@ -1,3 +1,4 @@
+import {pumpUpgradeEventType,parsePumpUpgradeEvent} from "./pump_upgrade.js";
 import { makeMetadata, type EventMetadata } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { decodeProgramDataLine } from "./program_data.js";
@@ -114,6 +115,7 @@ const DLMM_DISC = {
 } as const;
 
 function discriminatorToEventType(disc: bigint): EventType | null {
+  const upgrade=pumpUpgradeEventType(disc);if(upgrade)return upgrade;
   if (disc === DISC.PUMPFUN_CREATE) return "PumpFunCreate";
   if (disc === DISC.PUMPFUN_TRADE) return "PumpFunTrade";
   if (disc === DISC.PUMPFUN_MIGRATE) return "PumpFunMigrate";
@@ -191,6 +193,7 @@ function discriminatorToEventType(disc: bigint): EventType | null {
 }
 
 function programScopedDiscriminatorToEventType(programId: string | undefined, disc: bigint): EventType | null {
+  const upgrade=pumpUpgradeEventType(disc,programId);if(upgrade)return upgrade;
   if (programId === PUMPFUN_PROGRAM_ID) {
     if (disc === DISC.PUMPFUN_CREATE) return "PumpFunCreate";
     if (disc === DISC.PUMPFUN_TRADE) return "PumpFunTrade";
@@ -583,6 +586,7 @@ export function parseLogOptimized(
     recentBlockhash && recentBlockhash.length > 0 ? bs58.encode(recentBlockhash) : undefined;
   const metadata: EventMetadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
 
+  if(pumpUpgradeEventType(disc,programId)) return applyActualEventTypeFilter(parsePumpUpgradeEvent(disc,data,metadata,programId),eventTypeFilter);
   const isUnscopedSharedDiscriminator = !programId &&
     (disc === DISC.PUMPFUN_TRADE || disc === DISC.RAYDIUM_CPMM_SWAP_BASE_IN);
   const et = programScopedDiscriminatorToEventType(programId, disc);

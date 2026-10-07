@@ -177,7 +177,9 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
   const holder_rewards_bps = readOptionalU64(data, tail);
   const holder_rewards = readOptionalU64(data, tail);
 
+  const creator_fee_unclaimed=readOptionalU64(data,tail);
   const trade: PumpFunTradeEvent = {
+    creator_fee_unclaimed,
     metadata,
     mint,
     sol_amount,
@@ -221,12 +223,12 @@ export function parseTradeFromData(data: Uint8Array, metadata: EventMetadata, is
     creator_vault: defaultPubkey(),
   };
 
-  if (ix_name === "buy") return { PumpFunBuy: trade };
-  if (ix_name === "sell") return { PumpFunSell: trade };
+  if (ix_name === "buy" || ix_name === "buy_v3") return { PumpFunBuy: trade };
+  if (ix_name === "sell" || ix_name === "sell_v3") return { PumpFunSell: trade };
   if (ix_name === "buy_exact_sol_in") {
     return { PumpFunBuyExactSolIn: trade };
   }
-  if (ix_name === "buy_exact_quote_in") return { PumpFunBuy: trade };
+  if (ix_name === "buy_exact_quote_in" || ix_name === "buy_exact_quote_in_v3") return { PumpFunBuy: trade };
   return { PumpFunTrade: trade };
 }
 
@@ -315,6 +317,7 @@ export function parseCreateFromData(data: Uint8Array, metadata: EventMetadata): 
     virtual_quote_reserves,
     creator_fee_bps,
     is_holder_reward,
+    depth:data[o+1]??0,
     ix_name: "create",
   };
   return { PumpFunCreate: ev };

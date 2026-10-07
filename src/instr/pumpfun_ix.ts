@@ -318,6 +318,78 @@ export function parsePumpfunInstruction(
   const data = instructionData.subarray(8);
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
+  if (discEq(outer, Uint8Array.from([7, 5, 29, 196, 245, 23, 101, 80]))) {
+    if(accounts.length!==17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
+    const mapped=Array<string>(27).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[8]=accounts[13]!;
+    mapped[10]=accounts[5]!;
+    mapped[11]=accounts[6]!;
+    mapped[12]=accounts[7]!;
+    mapped[13]=accounts[8]!;
+    mapped[14]=accounts[9]!;
+    mapped[15]=accounts[10]!;
+    mapped[20]=accounts[11]!;
+    mapped[22]=accounts[12]!;
+    mapped[24]=accounts[14]!;
+    mapped[25]=accounts[15]!;
+    mapped[26]=accounts[16]!;
+    const ev=parsePumpfunTradeV2Instruction("buy_v2",data,mapped,meta);
+    if(ev) { const trade=Object.values(ev)[0] as {ix_name:string}; trade.ix_name="buy_v3"; }
+    return ev;
+  }
+  if (discEq(outer, Uint8Array.from([225, 247, 80, 30, 213, 179, 132, 136]))) {
+    if(accounts.length!==17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
+    const mapped=Array<string>(27).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[8]=accounts[13]!;
+    mapped[10]=accounts[5]!;
+    mapped[11]=accounts[6]!;
+    mapped[12]=accounts[7]!;
+    mapped[13]=accounts[8]!;
+    mapped[14]=accounts[9]!;
+    mapped[15]=accounts[10]!;
+    mapped[20]=accounts[11]!;
+    mapped[22]=accounts[12]!;
+    mapped[24]=accounts[14]!;
+    mapped[25]=accounts[15]!;
+    mapped[26]=accounts[16]!;
+    const ev=parsePumpfunTradeV2Instruction("buy_exact_quote_in_v2",data,mapped,meta);
+    if(ev) { const trade=Object.values(ev)[0] as {ix_name:string}; trade.ix_name="buy_exact_quote_in_v3"; }
+    return ev;
+  }
+  if (discEq(outer, Uint8Array.from([28, 146, 222, 119, 38, 196, 105, 213]))) {
+    if(accounts.length!==17 || data.length<16 || data.length>17 || data.length!==16) return null;
+    const mapped=Array<string>(27).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[8]=accounts[13]!;
+    mapped[10]=accounts[5]!;
+    mapped[11]=accounts[6]!;
+    mapped[12]=accounts[7]!;
+    mapped[13]=accounts[8]!;
+    mapped[14]=accounts[9]!;
+    mapped[15]=accounts[10]!;
+    mapped[19]=accounts[11]!;
+    mapped[21]=accounts[12]!;
+    mapped[23]=accounts[14]!;
+    mapped[24]=accounts[15]!;
+    mapped[25]=accounts[16]!;
+    const ev=parsePumpfunTradeV2Instruction("sell_v2",data,mapped,meta);
+    if(ev) { const trade=Object.values(ev)[0] as {ix_name:string}; trade.ix_name="sell_v3"; }
+    return ev;
+  }
   if (discEq(outer, DISC.CREATE_V2)) {
     if (accounts.length < 16) return null;
     let o = 0;

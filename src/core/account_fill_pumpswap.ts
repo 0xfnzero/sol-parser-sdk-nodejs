@@ -32,6 +32,12 @@ function fillPumpswapTradeCommon(
   if (!e.pool_quote_token_account || e.pool_quote_token_account === zero) {
     e.pool_quote_token_account = get(8);
   }
+  if(get(16)==="pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA") {
+    if(!e.base_token_program || e.base_token_program===zero) e.base_token_program=get(9);
+    if(!e.quote_token_program || e.quote_token_program===zero) e.quote_token_program=get(10);
+    if(!e.fee_recipient_quote_token_account || e.fee_recipient_quote_token_account===zero) e.fee_recipient_quote_token_account=get(14);
+    return;
+  }
   if (!e.protocol_fee_recipient || e.protocol_fee_recipient === zero) {
     e.protocol_fee_recipient = get(9);
   }
@@ -48,6 +54,7 @@ function fillPumpswapTradeCommon(
 
 export function fillPumpswapBuyAccounts(e: PumpSwapBuyEvent, get: (i: number) => string): void {
   fillPumpswapTradeCommon(e, get);
+  if(get(16)==="pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA") return;
   const zero = Z();
   const a26 = get(26);
   if (a26 && a26 !== zero) {
@@ -72,6 +79,7 @@ export function fillPumpswapBuyAccounts(e: PumpSwapBuyEvent, get: (i: number) =>
 
 export function fillPumpswapSellAccounts(e: PumpSwapSellEvent, get: (i: number) => string): void {
   fillPumpswapTradeCommon(e, get);
+  if(get(16)==="pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA") return;
   const zero = Z();
   const a25 = get(25);
   if (a25 && a25 !== zero) {

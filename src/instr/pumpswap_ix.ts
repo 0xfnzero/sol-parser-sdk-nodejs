@@ -145,6 +145,75 @@ export function parsePumpswapInstruction(
   const data = instructionData.subarray(8);
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
+  if(discEq(head,Uint8Array.from([184, 23, 238, 97, 103, 197, 211, 61]))) {
+    if(accounts.length!==17 || data.length!==16) return null;
+    const mapped=Array<string>(26).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[5]=accounts[5]!;
+    mapped[6]=accounts[6]!;
+    mapped[7]=accounts[7]!;
+    mapped[8]=accounts[8]!;
+    mapped[11]=accounts[9]!;
+    mapped[12]=accounts[10]!;
+    mapped[13]=accounts[11]!;
+    mapped[15]=accounts[15]!;
+    mapped[16]=accounts[16]!;
+    mapped[20]=accounts[12]!;
+    mapped[21]=accounts[13]!;
+    mapped[25]=accounts[14]!;
+    const legacy=new Uint8Array(instructionData); legacy.set(PS.BUY,0);
+    return parsePumpswapInstruction(legacy,mapped,signature,slot,txIndex,blockTimeUs,grpcRecvUs);
+  }
+  if(discEq(head,Uint8Array.from([194, 171, 28, 70, 104, 77, 91, 47]))) {
+    if(accounts.length!==17 || data.length!==16) return null;
+    const mapped=Array<string>(26).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[5]=accounts[5]!;
+    mapped[6]=accounts[6]!;
+    mapped[7]=accounts[7]!;
+    mapped[8]=accounts[8]!;
+    mapped[11]=accounts[9]!;
+    mapped[12]=accounts[10]!;
+    mapped[13]=accounts[11]!;
+    mapped[15]=accounts[15]!;
+    mapped[16]=accounts[16]!;
+    mapped[20]=accounts[12]!;
+    mapped[21]=accounts[13]!;
+    mapped[25]=accounts[14]!;
+    const legacy=new Uint8Array(instructionData); legacy.set(PS.BUY_EXACT_QUOTE_IN,0);
+    return parsePumpswapInstruction(legacy,mapped,signature,slot,txIndex,blockTimeUs,grpcRecvUs);
+  }
+  if(discEq(head,Uint8Array.from([93, 246, 130, 60, 231, 233, 64, 178]))) {
+    if(accounts.length!==17 || data.length!==16) return null;
+    const mapped=Array<string>(26).fill(Z);
+    mapped[0]=accounts[0]!;
+    mapped[1]=accounts[1]!;
+    mapped[2]=accounts[2]!;
+    mapped[3]=accounts[3]!;
+    mapped[4]=accounts[4]!;
+    mapped[5]=accounts[5]!;
+    mapped[6]=accounts[6]!;
+    mapped[7]=accounts[7]!;
+    mapped[8]=accounts[8]!;
+    mapped[11]=accounts[9]!;
+    mapped[12]=accounts[10]!;
+    mapped[13]=accounts[11]!;
+    mapped[15]=accounts[15]!;
+    mapped[16]=accounts[16]!;
+    mapped[20]=accounts[12]!;
+    mapped[21]=accounts[13]!;
+    mapped[25]=accounts[14]!;
+    const legacy=new Uint8Array(instructionData); legacy.set(PS.SELL,0);
+    return parsePumpswapInstruction(legacy,mapped,signature,slot,txIndex,blockTimeUs,grpcRecvUs);
+  }
   if (discEq(head, PS.BUY)) {
     if (accounts.length < 13) return null;
     return { PumpSwapBuy: buyLike(data, accounts, meta, "buy") };

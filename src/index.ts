@@ -361,3 +361,5 @@ export type {
   LaunchLabPoolCreateEvent, StonkFunPoolCreateEvent,
   LaunchLabTradeEvent, StonkFunTradeEvent,
 } from "./core/dex_event.js";
+
+export * from "./logs/pump_upgrade.js";

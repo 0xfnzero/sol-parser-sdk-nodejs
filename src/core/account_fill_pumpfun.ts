@@ -19,6 +19,26 @@ export function fillPumpfunTradeAccounts(e: PumpFunTradeEvent, get: (i: number) 
       (e as any)[key] = get(idx);
     }
   };
+  if (get(16)==="6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P" && accountAtMatchesMint(1)) {
+    set("global",0);
+    set("mint",1);
+    set("quote_mint",2);
+    set("token_program",3);
+    set("quote_token_program",4);
+    set("bonding_curve",5);
+    set("associated_bonding_curve",6);
+    set("associated_quote_bonding_curve",7);
+    set("user",8);
+    set("associated_user",9);
+    set("associated_quote_user",10);
+    set("user_volume_accumulator",11);
+    set("fee_config",12);
+    set("buyback_fee_recipient",13);
+    set("system_program",14);
+    set("event_authority",15);
+    set("program",16);
+    return;
+  }
   const isV2 =
     e.ix_name === "buy_v2" ||
     e.ix_name === "sell_v2" ||

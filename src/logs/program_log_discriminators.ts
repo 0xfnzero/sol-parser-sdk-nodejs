@@ -21,6 +21,10 @@ export const PUMPSWAP_DISC = {
  * `parseLogOptimized` 使用的全部分支 discriminator（含 PumpSwap 引用上表）。
  */
 export const PROGRAM_LOG_DISC = {
+  PUMPSWAP_SWEEP_POOL_FEE: u64leDiscriminator([130, 164, 36, 97, 228, 130, 135, 165]),
+  PUMPFUN_COMPLETE: u64leDiscriminator([95, 114, 97, 156, 212, 46, 152, 8]),
+  PUMPFUN_SWEEP_BONDING_CURVE_FEE: u64leDiscriminator([116, 43, 77, 189, 17, 122, 72, 43]),
+  PUMPFUN_POST_COMPLETE_BUY: u64leDiscriminator([111, 176, 109, 139, 49, 108, 213, 251]),
   PUMPFUN_CREATE: u64leDiscriminator([27, 114, 169, 77, 222, 235, 99, 118]),
   PUMPFUN_TRADE: u64leDiscriminator([189, 219, 127, 211, 78, 230, 97, 238]),
   PUMPFUN_MIGRATE: u64leDiscriminator([189, 233, 93, 185, 92, 148, 234, 148]),

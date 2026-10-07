@@ -206,6 +206,12 @@ export function parsePumpfunGlobal(account: AccountData, metadata: EventMetadata
   const whitelisted_quote_mints = whitelistedQuoteMints.value;
 
   const global: PumpFunGlobal = {
+    creator_fee_configurable: d[1037]===1,
+    max_configurable_creator_fee_bps: readU64LE(d,1038)??0n,
+    holder_reward_claim_authority: readPubkey(d,1046)??"11111111111111111111111111111111",
+    is_holder_reward_enabled: d[1078]===1,
+    max_curve_depth: d[1079]??0,
+
     initialized,
     authority,
     fee_recipient,
@@ -291,6 +297,13 @@ export function parsePumpfunBondingCurve(account: AccountData, metadata: EventMe
   const is_holder_reward = (readU8(d, o) ?? 0) !== 0;
 
   const bonding_curve: PumpFunBondingCurve = {
+    creator_fee: readU64LE(d,117) ?? 0n,
+    protocol_fees: readU64LE(d,125) ?? 0n,
+    depth: readU8(d,133) ?? 0,
+    initial_virtual_quote_reserves: readU64LE(d,134) ?? 0n,
+    post_complete_base_out: readU64LE(d,142) ?? 0n,
+    post_complete_quote_in: readU64LE(d,150) ?? 0n,
+
     virtual_token_reserves,
     virtual_quote_reserves,
     real_token_reserves,
@@ -332,7 +345,10 @@ export function parsePumpfunFeeConfig(account: AccountData, metadata: EventMetad
   const stableFeeTiers = readFeeTiers(d, o);
   if (stableFeeTiers === null) return null;
 
+  const exotic = stableFeeTiers.next===d.length?{value:{lp_fee_bps:0n,protocol_fee_bps:0n,creator_fee_bps:0n}}:readFees(d,stableFeeTiers.next);
+  if(exotic===null)return null;
   const fee_config: PumpFunFeeConfig = {
+    exotic_flat_fees:exotic.value,
     bump,
     admin,
     flat_fees: flatFees.value,
