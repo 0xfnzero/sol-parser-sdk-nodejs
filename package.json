@@ -10,10 +10,7 @@
     "README_CN.md",
     "LICENSE",
     ".env.example",
-    "NATIVE_ALIGNMENT.md",
-    "NATIVE_MIGRATION.md",
-    "NATIVE_*_ALIGNMENT_*.md",
-    "NATIVE_*_EVIDENCE_*.json"
+    "NATIVE_MIGRATION.md"
   ],
   "repository": {
     "type": "git",
