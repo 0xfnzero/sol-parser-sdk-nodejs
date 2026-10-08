@@ -11,6 +11,7 @@ const Z = defaultPubkey();
 const DISC = {
   SWAP_BASE_IN: PROGRAM_LOG_DISC.RAYDIUM_CPMM_SWAP_BASE_IN,
   SWAP_BASE_OUT: PROGRAM_LOG_DISC.RAYDIUM_CPMM_SWAP_BASE_OUT,
+  INITIALIZE_PERMISSION: u64leDiscriminator([63, 55, 254, 65, 49, 178, 89, 121]),
   INITIALIZE: u64leDiscriminator([175, 175, 109, 31, 13, 152, 155, 237]),
   DEPOSIT: PROGRAM_LOG_DISC.RAYDIUM_CPMM_DEPOSIT,
   WITHDRAW: PROGRAM_LOG_DISC.RAYDIUM_CPMM_WITHDRAW,
@@ -68,15 +69,16 @@ export function parseRaydiumCpmmInstruction(
     };
   }
 
-  if (discEq(instructionData, DISC.INITIALIZE)) {
-    if (instructionData.length < 8 + 8 + 8 + 8) return null;
+  if (discEq(instructionData, DISC.INITIALIZE) || discEq(instructionData, DISC.INITIALIZE_PERMISSION)) {
+    const permission = discEq(instructionData, DISC.INITIALIZE_PERMISSION);
+    if (instructionData.length < (permission ? 33 : 32) || accounts.length < (permission ? 21 : 20)) return null;
     const init_amount0 = readU64LE(instructionData, 8) ?? 0n;
     const init_amount1 = readU64LE(instructionData, 16) ?? 0n;
     return {
       RaydiumCpmmInitialize: {
         metadata: meta,
-        pool: getAccount(accounts, 0) ?? Z,
-        creator: getAccount(accounts, 1) ?? Z,
+        pool: getAccount(accounts, permission ? 4 : 3) ?? Z,
+        creator: getAccount(accounts, permission ? 1 : 0) ?? Z,
         init_amount0,
         init_amount1,
       },
