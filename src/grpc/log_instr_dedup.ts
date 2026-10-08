@@ -96,6 +96,10 @@ function dedupeKey(
   }
 
   switch (name) {
+    case "PumpFunComplete":
+      return `PumpFunComplete|${data.mint}|${data.bonding_curve}|${data.user}`;
+    case "PumpFunPostCompleteBuy":
+      return `PumpFunPostCompleteBuy|${data.mint}|${data.bonding_curve}|${data.user}|${data.base_out}|${data.quote_in}`;
     case "PumpFunCreate":
       return `PumpFunCreate|${data.mint}`;
     case "PumpFunCreateV2":
