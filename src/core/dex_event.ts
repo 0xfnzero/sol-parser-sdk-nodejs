@@ -1224,6 +1224,7 @@ export interface MeteoraDbcSwapEvent {
   amount_1?: bigint;
   maximum_amount_in?: bigint;
   included_fee_input_amount?: bigint;
+  /** Curve remainder uses fee-excluded units with input fees; not gross unspent wallet funding. */
   amount_left?: bigint;
   quote_reserve_amount?: bigint;
   migration_threshold?: bigint;
