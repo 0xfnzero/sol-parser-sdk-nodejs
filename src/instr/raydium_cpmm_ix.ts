@@ -83,6 +83,7 @@ export function parseRaydiumCpmmInstruction(
     };
   }
 
+  // Instruction token amounts are deposit maxima / withdrawal minima, not executed fills.
   if (discEq(instructionData, DISC.DEPOSIT)) {
     if (instructionData.length < 8 + 8 + 8 + 8) return null;
     const lp_token_amount = readU64LE(instructionData, 8) ?? 0n;
@@ -91,8 +92,8 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmDeposit: {
         metadata: meta,
-        pool: getAccount(accounts, 0) ?? Z,
-        user: getAccount(accounts, 1) ?? Z,
+        pool: getAccount(accounts, 2) ?? Z,
+        user: getAccount(accounts, 0) ?? Z,
         lp_token_amount,
         token0_amount,
         token1_amount,
@@ -108,8 +109,8 @@ export function parseRaydiumCpmmInstruction(
     return {
       RaydiumCpmmWithdraw: {
         metadata: meta,
-        pool: getAccount(accounts, 0) ?? Z,
-        user: getAccount(accounts, 1) ?? Z,
+        pool: getAccount(accounts, 2) ?? Z,
+        user: getAccount(accounts, 0) ?? Z,
         lp_token_amount,
         token0_amount,
         token1_amount,

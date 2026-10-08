@@ -180,8 +180,8 @@ describe("Raydium CPMM instruction parity", () => {
     );
     expect(deposit && "RaydiumCpmmDeposit" in deposit).toBe(true);
     const depositData = deposit && "RaydiumCpmmDeposit" in deposit ? deposit.RaydiumCpmmDeposit : null;
-    expect(depositData?.pool).toBe("account_0");
-    expect(depositData?.user).toBe("account_1");
+    expect(depositData?.pool).toBe("account_2");
+    expect(depositData?.user).toBe("account_0");
     expect(depositData?.lp_token_amount).toBe(111n);
     expect(depositData?.token0_amount).toBe(222n);
     expect(depositData?.token1_amount).toBe(333n);
@@ -197,8 +197,8 @@ describe("Raydium CPMM instruction parity", () => {
     );
     expect(withdraw && "RaydiumCpmmWithdraw" in withdraw).toBe(true);
     const withdrawData = withdraw && "RaydiumCpmmWithdraw" in withdraw ? withdraw.RaydiumCpmmWithdraw : null;
-    expect(withdrawData?.pool).toBe("account_0");
-    expect(withdrawData?.user).toBe("account_1");
+    expect(withdrawData?.pool).toBe("account_2");
+    expect(withdrawData?.user).toBe("account_0");
     expect(withdrawData?.lp_token_amount).toBe(444n);
     expect(withdrawData?.token0_amount).toBe(555n);
     expect(withdrawData?.token1_amount).toBe(666n);
