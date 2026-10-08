@@ -124,6 +124,12 @@ function dedupeKey(
       return `PumpSwapLiquidityAdded|${data.pool}|${data.user}`;
     case "PumpSwapLiquidityRemoved":
       return `PumpSwapLiquidityRemoved|${data.pool}|${data.user}`;
+    case "RaydiumClmmIncreaseLiquidity":
+    case "RaydiumClmmDecreaseLiquidity": {
+      if (isDefaultPubkey(data.personal_position)) return null;
+      const base = `${name}|${data.personal_position}`;
+      return `${base}|${nextOccurrence(base, occurrenceCounts)}`;
+    }
     case "RaydiumClmmSwap": {
       const base = String(data.pool_state);
       return `RaydiumClmmSwap|${base}|${nextOccurrence(`RaydiumClmm|${base}`, occurrenceCounts)}`;
@@ -411,6 +417,11 @@ function mergeGrpcInstructionIntoLog(logEvent: DexEvent, ixEvent: DexEvent): voi
     case "PumpSwapLiquidityRemoved":
       if (ixName === "PumpSwapLiquidityRemoved") mergePumpSwapLiquidity(log, ix);
       break;
+    case "RaydiumClmmIncreaseLiquidity":
+    case "RaydiumClmmDecreaseLiquidity":
+      for (const key of ["pool", "user", "personal_position"]) fillString(log, key, ix);
+      for (const key of logName === "RaydiumClmmIncreaseLiquidity" ? ["amount0_max", "amount1_max"] : ["amount0_min", "amount1_min"]) log[key] = ix[key];
+      return;
     case "RaydiumClmmSwap":
       if (ixName === "RaydiumClmmSwap") mergeRaydiumClmmSwap(log, ix);
       break;
@@ -446,7 +457,7 @@ export function dedupeLogInstructionEvents(
   // Ordinal pairing is ambiguous when one source has lost an invocation.
   const instructionKeys = instructionEvents.map(ev => dedupeKey(ev, ixOccurrenceCounts));
   for (const [base, count] of logOccurrenceCounts) {
-    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell|OrcaWhirlpoolLiquidityIncreased|OrcaWhirlpoolLiquidityDecreased)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
+    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell|OrcaWhirlpoolLiquidityIncreased|OrcaWhirlpoolLiquidityDecreased|RaydiumClmmIncreaseLiquidity|RaydiumClmmDecreaseLiquidity)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
     const prefix = `${base.replace(/^PumpFun\|/, 'PumpFunTrade|')}|`;
     for (let occurrence = 0; occurrence < count; occurrence++) indexByKey.delete(`${prefix}${occurrence}`);
   }

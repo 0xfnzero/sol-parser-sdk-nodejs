@@ -1,3 +1,4 @@
+import { PublicKey } from "@solana/web3.js";
 /**
  * RPC 路径账户填充（`fillAccountsFromTransactionDataRpc`）。
  * `RaydiumClmmOpenPositionWithTokenExtNft` 与 `openPosition` 共用账户索引（见 `account_fill_raydium.ts`）。
@@ -19,7 +20,6 @@ import type {
   ConfirmedTransactionMeta,
   Message,
   MessageV0,
-  PublicKey,
 } from "@solana/web3.js";
 import {
   findMaxAccountsInvoke,
@@ -92,12 +92,17 @@ function tryFill(
   fn: (get: (i: number) => string) => void,
   anchor?: { pool: string; index: number },
   unambiguous = false,
+  allowedDiscriminators?: number[][],
 ): void {
   if (anchor || unambiguous) {
     const hasAnchor = anchor && anchor.pool && anchor.pool !== "11111111111111111111111111111111";
     if (!hasAnchor && !unambiguous) return;
     let selected: ((i: number) => string) | null = null;
     for (const invocation of programInvokes.get(programId) ?? []) {
+      if (allowedDiscriminators) {
+        const raw = getInstructionDataBytes(message, meta, invocation);
+        if (!raw || !allowedDiscriminators.some(disc => disc.every((v, i) => raw[i] === v))) continue;
+      }
       const candidate = makeInvokeAccountGetter(
         resolver,
         invocation,
@@ -324,6 +329,9 @@ export function fillAccountsFromTransactionDataRpc(
         fillRaydiumClmmClosePositionAccounts(ev.RaydiumClmmClosePosition, g),
     );
   } else if ("RaydiumClmmIncreaseLiquidity" in ev) {
+    if (ev.RaydiumClmmIncreaseLiquidity.position_nft_mint && ev.RaydiumClmmIncreaseLiquidity.position_nft_mint !== "11111111111111111111111111111111") {
+      ev.RaydiumClmmIncreaseLiquidity.personal_position = PublicKey.findProgramAddressSync([Buffer.from("position"), new PublicKey(ev.RaydiumClmmIncreaseLiquidity.position_nft_mint).toBuffer()], new PublicKey(RAYDIUM_CLMM_PROGRAM_ID))[0].toBase58();
+    }
     tryFill(
       RAYDIUM_CLMM_PROGRAM_ID,
       programInvokes,
@@ -335,8 +343,14 @@ export function fillAccountsFromTransactionDataRpc(
           ev.RaydiumClmmIncreaseLiquidity,
           g,
         ),
+      { pool: ev.RaydiumClmmIncreaseLiquidity.personal_position ?? "", index: 4 },
+      false,
+      [[133,29,89,223,69,238,176,10],[46,156,243,118,13,205,251,178]],
     );
   } else if ("RaydiumClmmDecreaseLiquidity" in ev) {
+    if (ev.RaydiumClmmDecreaseLiquidity.position_nft_mint && ev.RaydiumClmmDecreaseLiquidity.position_nft_mint !== "11111111111111111111111111111111") {
+      ev.RaydiumClmmDecreaseLiquidity.personal_position = PublicKey.findProgramAddressSync([Buffer.from("position"), new PublicKey(ev.RaydiumClmmDecreaseLiquidity.position_nft_mint).toBuffer()], new PublicKey(RAYDIUM_CLMM_PROGRAM_ID))[0].toBase58();
+    }
     tryFill(
       RAYDIUM_CLMM_PROGRAM_ID,
       programInvokes,
@@ -348,6 +362,9 @@ export function fillAccountsFromTransactionDataRpc(
           ev.RaydiumClmmDecreaseLiquidity,
           g,
         ),
+      { pool: ev.RaydiumClmmDecreaseLiquidity.personal_position ?? "", index: 2 },
+      false,
+      [[58,127,188,62,79,82,196,96],[160,38,208,111,104,91,44,1]],
     );
   } else if ("RaydiumCpmmSwap" in ev) {
     tryFill(

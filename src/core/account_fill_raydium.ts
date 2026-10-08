@@ -70,6 +70,7 @@ export function fillRaydiumClmmIncreaseLiquidityAccounts(
 ): void {
   const zero = Z();
   if (!e.user || e.user === zero) e.user = get(0);
+  if (!e.pool || e.pool === zero) e.pool = get(2);
 }
 
 export function fillRaydiumClmmDecreaseLiquidityAccounts(
@@ -78,6 +79,7 @@ export function fillRaydiumClmmDecreaseLiquidityAccounts(
 ): void {
   const zero = Z();
   if (!e.user || e.user === zero) e.user = get(0);
+  if (!e.pool || e.pool === zero) e.pool = get(3);
 }
 
 export function fillRaydiumCpmmSwapAccounts(

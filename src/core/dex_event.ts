@@ -592,6 +592,8 @@ export interface RaydiumClmmSwapEvent {
 export interface RaydiumClmmIncreaseLiquidityEvent {
   metadata: EventMetadata;
   pool: string;
+  /** Personal position PDA; distinct from the NFT token account and mint. */
+  personal_position?: string;
   position_nft_mint: string;
   user: string;
   liquidity: bigint;
@@ -607,6 +609,8 @@ export interface RaydiumClmmIncreaseLiquidityEvent {
 export interface RaydiumClmmDecreaseLiquidityEvent {
   metadata: EventMetadata;
   pool: string;
+  /** Personal position PDA; distinct from the NFT token account and mint. */
+  personal_position?: string;
   position_nft_mint: string;
   user: string;
   liquidity: bigint;

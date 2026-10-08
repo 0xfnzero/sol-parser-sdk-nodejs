@@ -73,7 +73,8 @@ export function parseRaydiumClmmInstruction(
       RaydiumClmmIncreaseLiquidity: {
         metadata: meta,
         pool: getAccount(accounts, 2) ?? Z,
-        position_nft_mint: getAccount(accounts, 1) ?? Z,
+        position_nft_mint: Z, // Account 1 is the NFT token account.
+        personal_position: getAccount(accounts, 4) ?? Z,
         user: getAccount(accounts, 0) ?? Z,
         liquidity,
         amount_0: 0n,
@@ -95,7 +96,8 @@ export function parseRaydiumClmmInstruction(
       RaydiumClmmDecreaseLiquidity: {
         metadata: meta,
         pool: getAccount(accounts, 3) ?? Z,
-        position_nft_mint: getAccount(accounts, 1) ?? Z,
+        position_nft_mint: Z, // Account 1 is the NFT token account.
+        personal_position: getAccount(accounts, 2) ?? Z,
         user: getAccount(accounts, 0) ?? Z,
         liquidity,
         decrease_amount_0: 0n,

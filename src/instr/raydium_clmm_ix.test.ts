@@ -4,7 +4,7 @@ import { parseRaydiumCpmmInstruction } from "./raydium_cpmm_ix.js";
 import { parseRaydiumClmmInstruction } from "./raydium_clmm_ix.js";
 
 const DEC_LIQ_V2_DISC = [58, 127, 188, 62, 79, 82, 196, 96];
-const DEC_LIQ_LOG_DISC = [160, 38, 208, 111, 104, 91, 44, 1];
+const DEC_LIQ_LEGACY_DISC = [160, 38, 208, 111, 104, 91, 44, 1];
 const CREATE_CUSTOMIZABLE_POOL_DISC = [43, 68, 212, 167, 89, 47, 164, 1];
 const OPEN_POSITION_DISC = [135, 128, 47, 77, 15, 152, 240, 49];
 const OPEN_POSITION_V2_DISC = [77, 184, 74, 214, 112, 86, 241, 199];
@@ -73,14 +73,15 @@ describe("Raydium CLMM instruction parity", () => {
     expect("RaydiumClmmDecreaseLiquidity" in ev!).toBe(true);
     const data = ev && "RaydiumClmmDecreaseLiquidity" in ev ? ev.RaydiumClmmDecreaseLiquidity : null;
     expect(data?.pool).toBe("account_3");
-    expect(data?.position_nft_mint).toBe("account_1");
+    expect(data?.position_nft_mint).toBe("11111111111111111111111111111111");
+    expect(data?.personal_position).toBe("account_2");
     expect(data?.user).toBe("account_0");
     expect(data?.liquidity).toBe((1n << 80n) + 111n);
     expect(data?.amount0_min).toBe(222n);
     expect(data?.amount1_min).toBe(333n);
 
     expect(parseRaydiumClmmInstruction(
-      clmmLiquidityInstruction(DEC_LIQ_LOG_DISC, 111n, 222n, 333n),
+      clmmLiquidityInstruction(DEC_LIQ_LEGACY_DISC, 111n, 222n, 333n),
       accounts(4),
       "sig",
       1,
