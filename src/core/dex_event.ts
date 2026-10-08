@@ -75,6 +75,8 @@ export type DexEvent =
   | { MeteoraDammV2RemoveLiquidity: MeteoraDammV2RemoveLiquidityEvent }
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
   | { MeteoraDammV2ClaimPositionFee: MeteoraDammV2ClaimPositionFeeEvent }
+  | { MeteoraDammV2ClaimReward: MeteoraDammV2ClaimRewardEvent }
+  | { MeteoraDlmmClaimReward: MeteoraDlmmClaimRewardEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
   | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
@@ -1972,4 +1974,24 @@ export interface MeteoraDammV2ClaimPositionFeeEvent {
   owner: string;
   fee_a_claimed: bigint;
   fee_b_claimed: bigint;
+}
+
+export interface MeteoraDammV2ClaimRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  position: string;
+  owner: string;
+  mint_reward: string;
+  reward_index: number;
+  total_reward: bigint;
+}
+
+export interface MeteoraDlmmClaimRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  position: string;
+  owner: string;
+  reward_index: bigint;
+  total_reward: bigint;
+  active_bin_id: number;
 }

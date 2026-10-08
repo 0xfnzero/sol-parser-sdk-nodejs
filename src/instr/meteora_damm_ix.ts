@@ -16,6 +16,7 @@ import type {
 import { defaultPubkey } from "../core/dex_event.js";
 import {
   parseClaimPositionFee,
+  parseClaimReward,
   parseCreateConfigFromData,
   parseCreateDynamicConfigFromData,
   parseLiquidityChangeFromData,
@@ -35,6 +36,7 @@ const CPI = {
   SWAP_LOG: disc8([27, 60, 21, 213, 138, 170, 187, 147]),
   SWAP2_LOG: disc8([189, 66, 51, 168, 38, 80, 117, 153]),
   CLAIM_POSITION_FEE_LOG: disc8([198, 182, 183, 52, 97, 12, 49, 56]),
+  CLAIM_REWARD_LOG: disc8([218, 86, 147, 200, 235, 188, 215, 231]),
   CREATE_POSITION_LOG: disc8([156, 15, 119, 198, 29, 181, 221, 55]),
   CLOSE_POSITION_LOG: disc8([20, 145, 144, 68, 143, 142, 214, 178]),
   ADD_LIQUIDITY_LOG: disc8([175, 242, 8, 157, 30, 247, 185, 169]),
@@ -454,6 +456,7 @@ export function parseMeteoraDammInstruction(
   if (discEq(cpiHead, CPI.SWAP_LOG)) return parseSwapCpi(cpiData, accounts, meta);
   if (discEq(cpiHead, CPI.SWAP2_LOG)) return parseSwap2Cpi(cpiData, accounts, meta);
   if (discEq(cpiHead, CPI.CLAIM_POSITION_FEE_LOG)) return parseClaimPositionFee(cpiData, meta);
+  if (discEq(cpiHead, CPI.CLAIM_REWARD_LOG)) return parseClaimReward(cpiData, meta);
   if (discEq(cpiHead, CPI.CREATE_POSITION_LOG)) {
     let o = 0;
     const pool = readPubkeyIx(cpiData, o);

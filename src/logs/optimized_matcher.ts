@@ -111,10 +111,12 @@ const DLMM_DISC = {
   CREATE_POSITION: u64leDiscriminator([144, 142, 252, 84, 157, 53, 37, 121]),
   CLOSE_POSITION: u64leDiscriminator([255, 196, 16, 107, 28, 202, 53, 128]),
   CLAIM_FEE: u64leDiscriminator([75, 122, 154, 48, 140, 74, 123, 163]),
+  CLAIM_REWARD2: u64leDiscriminator([27,143,244,33,80,43,110,146]),
   CLAIM_FEE2: u64leDiscriminator([232, 171, 242, 97, 58, 77, 35, 45]),
 } as const;
 
 function discriminatorToEventType(disc: bigint): EventType | null {
+  if (disc === DLMM_DISC.CLAIM_REWARD2) return "MeteoraDlmmClaimReward";
   const upgrade=pumpUpgradeEventType(disc);if(upgrade)return upgrade;
   if (disc === DISC.PUMPFUN_CREATE) return "PumpFunCreate";
   if (disc === DISC.PUMPFUN_TRADE) return "PumpFunTrade";
@@ -181,6 +183,7 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
   if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
   if (disc === DISC.METEORA_DAMM_CLAIM_POSITION_FEE) return "MeteoraDammV2ClaimPositionFee";
+  if (disc === DISC.METEORA_DAMM_CLAIM_REWARD) return "MeteoraDammV2ClaimReward";
   if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
   if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
     return "MeteoraDammV2UpdateDelegatePermission";
@@ -289,6 +292,7 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
     if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
     if (disc === DISC.METEORA_DAMM_CLAIM_POSITION_FEE) return "MeteoraDammV2ClaimPositionFee";
+    if (disc === DISC.METEORA_DAMM_CLAIM_REWARD) return "MeteoraDammV2ClaimReward";
     if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
     if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
       return "MeteoraDammV2UpdateDelegatePermission";
@@ -314,6 +318,7 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     if (disc === DLMM_DISC.INITIALIZE_BIN_ARRAY) return "MeteoraDlmmInitializeBinArray";
     if (disc === DLMM_DISC.CREATE_POSITION) return "MeteoraDlmmCreatePosition";
     if (disc === DLMM_DISC.CLOSE_POSITION) return "MeteoraDlmmClosePosition";
+    if (disc === DLMM_DISC.CLAIM_REWARD2) return "MeteoraDlmmClaimReward";
     if (disc === DLMM_DISC.CLAIM_FEE || disc === DLMM_DISC.CLAIM_FEE2) return "MeteoraDlmmClaimFee";
     return null;
   }
@@ -888,6 +893,7 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_INITIALIZE_POOL:
     case DISC.METEORA_DAMM_CREATE_POSITION:
     case DISC.METEORA_DAMM_CLAIM_POSITION_FEE:
+    case DISC.METEORA_DAMM_CLAIM_REWARD:
     case DISC.METEORA_DAMM_CLOSE_POSITION:
     case DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION:
     case DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD:

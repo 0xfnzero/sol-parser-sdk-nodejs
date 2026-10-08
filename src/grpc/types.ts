@@ -371,6 +371,8 @@ export type EventType =
   | "MeteoraDammV2InitializePool"
   | "MeteoraDammV2CreatePosition"
   | "MeteoraDammV2ClaimPositionFee"
+  | "MeteoraDammV2ClaimReward"
+  | "MeteoraDlmmClaimReward"
   | "MeteoraDammV2ClosePosition"
   | "MeteoraDammV2UpdateDelegatePermission"
   | "MeteoraDammV2WithdrawDeadLiquidityReward"
@@ -497,6 +499,8 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2CreatePosition",
   "MeteoraDammV2ClaimPositionFee",
+  "MeteoraDammV2ClaimReward",
+  "MeteoraDlmmClaimReward",
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
@@ -592,6 +596,7 @@ const METEORA_DAMM_V2_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDammV2RemoveLiquidity",
   "MeteoraDammV2CreatePosition",
   "MeteoraDammV2ClaimPositionFee",
+  "MeteoraDammV2ClaimReward",
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",
@@ -621,6 +626,7 @@ const METEORA_DLMM_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDlmmCreatePosition",
   "MeteoraDlmmClosePosition",
   "MeteoraDlmmClaimFee",
+  "MeteoraDlmmClaimReward",
 ];
 const RAYDIUM_CLMM_FILTER_TYPES: readonly EventType[] = [
   "RaydiumClmmSwap",

@@ -325,6 +325,10 @@ export function parseDlmmEventFromData(
     return { MeteoraDlmmClosePosition: ev };
   }
 
+  if (discriminator === disc([27,143,244,33,80,43,110,146])) {
+    if(data.length<116)return null;
+    return {MeteoraDlmmClaimReward:{metadata,pool:readPubkey(data,0)!,position:readPubkey(data,32)!,owner:readPubkey(data,64)!,reward_index:readU64LE(data,96)!,total_reward:readU64LE(data,104)!,active_bin_id:new DataView(data.buffer,data.byteOffset,data.byteLength).getInt32(112,true)}};
+  }
   if (discriminator === DLMM.CLAIM_FEE || discriminator === DLMM.CLAIM_FEE2 || discriminator === DLMM.LEGACY_CLAIM_FEE) {
     const requiredLength = discriminator === DLMM.CLAIM_FEE2 ? 116 : 112;
     if (data.length < requiredLength) return null;
