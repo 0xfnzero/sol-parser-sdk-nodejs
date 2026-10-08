@@ -139,6 +139,34 @@ export function fillAccountsFromTransactionDataRpc(
   programInvokes: Map<string, InvokePair[]>,
   resolver: { get(i: number): PublicKey | undefined },
 ): void {
+  const fillPumpTrade = (e: Parameters<typeof fillPumpfunTradeAccounts>[0]): void => {
+    if (!e.mint || e.mint === "11111111111111111111111111111111") return;
+    // Discriminator -> mint index, user index, direction, required IDL accounts.
+    const layouts: Record<string, [number, number, boolean, number]> = {
+      "102,6,61,18,1,218,235,234": [2, 6, true, 16],
+      "56,252,116,8,158,223,205,95": [2, 6, true, 16],
+      "51,230,133,164,1,127,131,173": [2, 6, false, 14],
+      "184,23,238,97,103,197,211,61": [1, 13, true, 27],
+      "194,171,28,70,104,77,91,47": [1, 13, true, 27],
+      "93,246,130,60,231,233,64,178": [1, 13, false, 26],
+      "7,5,29,196,245,23,101,80": [1, 8, true, 17],
+      "225,247,80,30,213,179,132,136": [1, 8, true, 17],
+      "28,146,222,119,38,196,105,213": [1, 8, false, 17],
+    };
+    let selected: ((i: number) => string) | undefined;
+    for (const invoke of programInvokes.get(PUMPFUN_PROGRAM_ID) ?? []) {
+      const raw = getInstructionDataBytes(message, meta, invoke);
+      const layout = raw && layouts[raw.slice(0, 8).join(",")];
+      if (!layout) continue;
+      const [mintIndex, userIndex, buy, minimum] = layout;
+      if (buy !== e.is_buy || countInstructionAccounts(message, meta, invoke) < minimum) continue;
+      const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
+      if (!get || get(mintIndex) !== e.mint || (e.user && e.user !== "11111111111111111111111111111111" && get(userIndex) !== e.user)) continue;
+      if (selected) return;
+      selected = get;
+    }
+    if (selected) fillPumpfunTradeAccounts(e, selected);
+  };
   const fillSwap = (
     e:
       | Parameters<typeof fillPumpswapBuyAccounts>[0]
@@ -210,21 +238,13 @@ export function fillAccountsFromTransactionDataRpc(
     }
   };
   if ("PumpFunTrade" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunTradeAccounts(ev.PumpFunTrade, g),
-    );
+    fillPumpTrade(ev.PumpFunTrade);
   } else if ("PumpFunBuy" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunTradeAccounts(ev.PumpFunBuy, g),
-    );
+    fillPumpTrade(ev.PumpFunBuy);
   } else if ("PumpFunSell" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunTradeAccounts(ev.PumpFunSell, g),
-    );
+    fillPumpTrade(ev.PumpFunSell);
   } else if ("PumpFunBuyExactSolIn" in ev) {
-    tryFill(PUMPFUN_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpfunTradeAccounts(ev.PumpFunBuyExactSolIn, g),
-    );
+    fillPumpTrade(ev.PumpFunBuyExactSolIn);
   } else if ("PumpFunCreate" in ev) {
     fillCreate(ev.PumpFunCreate);
   } else if ("PumpFunCreateV2" in ev) {
