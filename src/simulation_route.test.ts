@@ -390,3 +390,20 @@ for(const c of lifecycle.cases)it(`current bank lifecycle rollback ${c.name}`,()
   expect(c.response.result.value.accounts).toEqual([null]);
  }
 });
+
+const settlement=JSON.parse(fs.readFileSync(new URL('./fixtures/native_settlement_20261008.json',import.meta.url),'utf8'));
+for(const c of settlement.cases)it(`combined native settlement ${c.name}`,()=>{
+ const r=analyzeSimulationRoutes(Buffer.from(c.wire,'base64'),c.response);
+ const parsed=canonical(r) as any;
+ expect(parsed).toEqual(c.expected);
+ expect(r.succeeded).toBe(true);expect(r.legs.length).toBeGreaterThanOrEqual(2);
+ expect(c.validation.new_account_lamports).toBeGreaterThanOrEqual(c.validation.minimum_lamports);
+ expect(c.validation.base_net_credit).toBeGreaterThanOrEqual(c.validation.minimum_base_net_credit);
+ expect(c.validation.minimum_base_net_credit).toBeGreaterThan(0);
+ const closed=parsed.native_token_actions.filter((a:any)=>typeof a.action==='object'&&a.action.Close).map((a:any)=>a.account);
+ expect([...new Set(closed)].sort()).toEqual([...c.validation.closed_accounts].sort());
+ if(c.validation.existing_wsol_preserved){
+  const funding=parsed.native_token_actions.filter((a:any)=>typeof a.action==='object'&&a.action.Fund?.lamports==='777');
+  expect(funding.length).toBe(1);expect(closed).not.toContain(funding[0].account);
+ }
+});
