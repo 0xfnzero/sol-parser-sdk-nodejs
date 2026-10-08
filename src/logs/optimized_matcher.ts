@@ -194,6 +194,9 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD) {
     return "MeteoraDammV2WithdrawIneligibleReward";
   }
+  if (disc === DISC.METEORA_DAMM_FUND_REWARD) {
+    return "MeteoraDammV2FundReward";
+  }
   if (disc === DISC.METEORA_DAMM_CREATE_CONFIG) return "MeteoraDammV2CreateConfig";
   if (disc === DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG) return "MeteoraDammV2CreateDynamicConfig";
   return null;
@@ -305,6 +308,9 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     }
     if (disc === DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD) {
       return "MeteoraDammV2WithdrawIneligibleReward";
+    }
+    if (disc === DISC.METEORA_DAMM_FUND_REWARD) {
+      return "MeteoraDammV2FundReward";
     }
     if (disc === DISC.METEORA_DAMM_CREATE_CONFIG) return "MeteoraDammV2CreateConfig";
     if (disc === DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG) return "MeteoraDammV2CreateDynamicConfig";
@@ -468,6 +474,7 @@ function filterIncludesProgram(programId: string | undefined, filter: EventTypeF
       "MeteoraDammV2UpdateDelegatePermission",
       "MeteoraDammV2WithdrawDeadLiquidityReward",
       "MeteoraDammV2WithdrawIneligibleReward",
+      "MeteoraDammV2FundReward",
       "MeteoraDammV2CreateConfig",
       "MeteoraDammV2CreateDynamicConfig",
     ]);
@@ -905,6 +912,7 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION:
     case DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD:
     case DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD:
+    case DISC.METEORA_DAMM_FUND_REWARD:
     case DISC.METEORA_DAMM_CREATE_CONFIG:
     case DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG:
       return applyActualEventTypeFilter(

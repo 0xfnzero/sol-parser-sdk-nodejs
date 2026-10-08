@@ -14,6 +14,7 @@ import type {
   MeteoraDammV2UpdateDelegatePermissionEvent,
   MeteoraDammV2WithdrawDeadLiquidityRewardEvent,
   MeteoraDammV2WithdrawIneligibleRewardEvent,
+  MeteoraDammV2FundRewardEvent,
 } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
 import { decodeProgramDataLine } from "./program_data.js";
@@ -46,6 +47,7 @@ const CLOSE_POSITION = discOf([20, 145, 144, 68, 143, 142, 214, 178]);
 const UPDATE_DELEGATE_PERMISSION = discOf([66, 188, 75, 151, 150, 232, 87, 93]);
 const WITHDRAW_DEAD_LIQUIDITY_REWARD = discOf([228, 66, 150, 195, 42, 62, 163, 13]);
 const WITHDRAW_INELIGIBLE_REWARD = discOf([248, 215, 184, 78, 31, 180, 179, 168]);
+const FUND_REWARD = discOf([104, 233, 237, 122, 199, 191, 121, 85]);
 const CREATE_CONFIG = discOf([131, 207, 180, 174, 180, 73, 165, 54]);
 const CREATE_DYNAMIC_CONFIG = discOf([231, 197, 13, 164, 248, 213, 133, 152]);
 
@@ -580,6 +582,41 @@ export function parseWithdrawIneligibleRewardFromData(
   };
   return { MeteoraDammV2WithdrawIneligibleReward: ev };
 }
+export function parseFundRewardFromData(data: Uint8Array, meta: EventMetadata): DexEvent | null {
+  if (data.length < 153) return null;
+  const pool = readPubkey(data, 0);
+  if (pool === null) return null;
+  const funder = readPubkey(data, 32);
+  if (funder === null) return null;
+  const mint_reward = readPubkey(data, 64);
+  if (mint_reward === null) return null;
+  const reward_index = readU8(data, 96);
+  if (reward_index === null) return null;
+  const amount = readU64LE(data, 97);
+  if (amount === null) return null;
+  const transfer_fee_excluded_amount_in = readU64LE(data, 105);
+  if (transfer_fee_excluded_amount_in === null) return null;
+  const reward_duration_end = readU64LE(data, 113);
+  if (reward_duration_end === null) return null;
+  const pre_reward_rate = readU128LE(data, 121);
+  if (pre_reward_rate === null) return null;
+  const post_reward_rate = readU128LE(data, 137);
+  if (post_reward_rate === null) return null;
+  return {
+    MeteoraDammV2FundReward: {
+      metadata: meta,
+      pool,
+      funder,
+      mint_reward,
+      reward_index,
+      amount,
+      transfer_fee_excluded_amount_in,
+      reward_duration_end,
+      pre_reward_rate,
+      post_reward_rate,
+    },
+  };
+}
 
 function parseDynamicFeeParameters(
   data: Uint8Array,
@@ -745,6 +782,9 @@ export function parseMeteoraDammLog(
   }
   if (disc === WITHDRAW_INELIGIBLE_REWARD) {
     return parseWithdrawIneligibleRewardFromData(data, meta);
+  }
+  if (disc === FUND_REWARD) {
+    return parseFundRewardFromData(data, meta);
   }
   if (disc === CREATE_CONFIG) return parseCreateConfigFromData(data, meta);
   if (disc === CREATE_DYNAMIC_CONFIG) return parseCreateDynamicConfigFromData(data, meta);

@@ -96,6 +96,7 @@ describe("event type filters", () => {
       "MeteoraDammV2UpdateDelegatePermission",
       "MeteoraDammV2WithdrawDeadLiquidityReward",
       "MeteoraDammV2WithdrawIneligibleReward",
+      "MeteoraDammV2FundReward",
       "MeteoraDammV2CreateConfig",
       "MeteoraDammV2CreateDynamicConfig",
       "MeteoraDbcSwap",

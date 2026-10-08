@@ -82,6 +82,7 @@ export type DexEvent =
   | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
   | { MeteoraDammV2WithdrawDeadLiquidityReward: MeteoraDammV2WithdrawDeadLiquidityRewardEvent }
   | { MeteoraDammV2WithdrawIneligibleReward: MeteoraDammV2WithdrawIneligibleRewardEvent }
+  | { MeteoraDammV2FundReward: MeteoraDammV2FundRewardEvent }
   | { MeteoraDammV2CreateConfig: MeteoraDammV2CreateConfigEvent }
   | { MeteoraDammV2CreateDynamicConfig: MeteoraDammV2CreateDynamicConfigEvent }
   | { MeteoraDbcSwap: MeteoraDbcSwapEvent }
@@ -1203,6 +1204,20 @@ export interface MeteoraDammV2WithdrawIneligibleRewardEvent {
   pool: string;
   reward_mint: string;
   amount: bigint;
+}
+/** IDL `EvtFundReward`; amount is net new funding plus carried empty rewards.
+ * The post rate also includes unexpired rewards from the previous period. */
+export interface MeteoraDammV2FundRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  funder: string;
+  mint_reward: string;
+  reward_index: number;
+  amount: bigint;
+  transfer_fee_excluded_amount_in: bigint;
+  reward_duration_end: bigint;
+  pre_reward_rate: bigint;
+  post_reward_rate: bigint;
 }
 
 /** IDL `EvtCreateConfig` (includes DAMM v2 0.2.4 `permission`) */
