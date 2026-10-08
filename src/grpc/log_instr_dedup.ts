@@ -138,6 +138,11 @@ function dedupeKey(
         : `in|${data.amount_in}`;
       return `RaydiumAmmV4Swap|${base}|${nextOccurrence(`RaydiumAmmV4|${base}`, occurrenceCounts)}`;
     }
+    case "OrcaWhirlpoolLiquidityIncreased":
+    case "OrcaWhirlpoolLiquidityDecreased": {
+      const base = `${name}|${data.whirlpool}|${data.position}|${data.liquidity}`;
+      return `${base}|${nextOccurrence(base, occurrenceCounts)}`;
+    }
     case "OrcaWhirlpoolSwap": {
       const base = String(data.whirlpool);
       return `OrcaWhirlpoolSwap|${base}|${nextOccurrence(`OrcaWhirlpool|${base}`, occurrenceCounts)}`;
@@ -441,7 +446,7 @@ export function dedupeLogInstructionEvents(
   // Ordinal pairing is ambiguous when one source has lost an invocation.
   const instructionKeys = instructionEvents.map(ev => dedupeKey(ev, ixOccurrenceCounts));
   for (const [base, count] of logOccurrenceCounts) {
-    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
+    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell|OrcaWhirlpoolLiquidityIncreased|OrcaWhirlpoolLiquidityDecreased)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
     const prefix = `${base.replace(/^PumpFun\|/, 'PumpFunTrade|')}|`;
     for (let occurrence = 0; occurrence < count; occurrence++) indexByKey.delete(`${prefix}${occurrence}`);
   }

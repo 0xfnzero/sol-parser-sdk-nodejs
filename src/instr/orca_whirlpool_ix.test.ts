@@ -110,7 +110,7 @@ describe("Orca Whirlpool instruction parity", () => {
     );
     expect(inc && "OrcaWhirlpoolLiquidityIncreased" in inc).toBe(true);
     const incData = inc && "OrcaWhirlpoolLiquidityIncreased" in inc ? inc.OrcaWhirlpoolLiquidityIncreased : null;
-    expect(incData?.whirlpool).toBe("account_1");
+    expect(incData?.whirlpool).toBe("account_0");
     expect(incData?.position).toBe("account_3");
     expect(incData?.liquidity).toBe((1n << 80n) + 1n);
     expect(incData?.token_a_amount).toBe(222n);
@@ -127,7 +127,7 @@ describe("Orca Whirlpool instruction parity", () => {
     );
     expect(dec && "OrcaWhirlpoolLiquidityDecreased" in dec).toBe(true);
     const decData = dec && "OrcaWhirlpoolLiquidityDecreased" in dec ? dec.OrcaWhirlpoolLiquidityDecreased : null;
-    expect(decData?.whirlpool).toBe("account_1");
+    expect(decData?.whirlpool).toBe("account_0");
     expect(decData?.position).toBe("account_3");
     expect(decData?.liquidity).toBe((1n << 80n) + 2n);
     expect(decData?.token_a_amount).toBe(444n);

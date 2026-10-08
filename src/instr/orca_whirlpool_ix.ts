@@ -15,6 +15,8 @@ const DISC = {
   SWAP: u64leDiscriminator([248, 198, 158, 145, 225, 117, 135, 200]),
   SWAP_V2: u64leDiscriminator([43, 4, 237, 11, 26, 201, 30, 98]),
   INCREASE_LIQUIDITY: u64leDiscriminator([46, 156, 243, 118, 13, 205, 251, 178]),
+  INCREASE_LIQUIDITY_V2: u64leDiscriminator([133, 29, 89, 223, 69, 238, 176, 10]),
+  DECREASE_LIQUIDITY_V2: u64leDiscriminator([58, 127, 188, 62, 79, 82, 196, 96]),
   DECREASE_LIQUIDITY: u64leDiscriminator([160, 38, 208, 111, 104, 91, 44, 1]),
   INITIALIZE_POOL: u64leDiscriminator([17, 43, 80, 74, 168, 202, 6, 113]),
 };
@@ -65,17 +67,18 @@ export function parseOrcaWhirlpoolInstruction(
     };
   }
 
-  if (discEq(instructionData, DISC.INCREASE_LIQUIDITY)) {
-    // increase_liquidity_v2：liquidity_amount (u128), token_max_a, token_max_b
-    if (instructionData.length < 8 + 16 + 8 + 8) return null;
+  if (discEq(instructionData, DISC.INCREASE_LIQUIDITY) || discEq(instructionData, DISC.INCREASE_LIQUIDITY_V2)) {
+    const v2 = discEq(instructionData, DISC.INCREASE_LIQUIDITY_V2);
+    // increase_liquidity：liquidity_amount (u128), token_max_a, token_max_b
+    if (instructionData.length < 8 + 16 + 8 + 8 + Number(v2)) return null;
     const liquidity = readU128LE(instructionData, 8) ?? 0n;
     const token_max_a = readU64LE(instructionData, 24) ?? 0n;
     const token_max_b = readU64LE(instructionData, 32) ?? 0n;
     return {
       OrcaWhirlpoolLiquidityIncreased: {
         metadata: meta,
-        whirlpool: getAccount(accounts, 1) ?? Z,
-        position: getAccount(accounts, 3) ?? Z,
+        whirlpool: getAccount(accounts, 0) ?? Z,
+        position: getAccount(accounts, v2 ? 5 : 3) ?? Z,
         tick_lower_index: 0,
         tick_upper_index: 0,
         liquidity,
@@ -87,17 +90,18 @@ export function parseOrcaWhirlpoolInstruction(
     };
   }
 
-  if (discEq(instructionData, DISC.DECREASE_LIQUIDITY)) {
+  if (discEq(instructionData, DISC.DECREASE_LIQUIDITY) || discEq(instructionData, DISC.DECREASE_LIQUIDITY_V2)) {
+    const v2 = discEq(instructionData, DISC.DECREASE_LIQUIDITY_V2);
     // decrease_liquidity：liquidity_amount (u128), token_min_a, token_min_b
-    if (instructionData.length < 8 + 16 + 8 + 8) return null;
+    if (instructionData.length < 8 + 16 + 8 + 8 + Number(v2)) return null;
     const liquidity = readU128LE(instructionData, 8) ?? 0n;
     const token_min_a = readU64LE(instructionData, 24) ?? 0n;
     const token_min_b = readU64LE(instructionData, 32) ?? 0n;
     return {
       OrcaWhirlpoolLiquidityDecreased: {
         metadata: meta,
-        whirlpool: getAccount(accounts, 1) ?? Z,
-        position: getAccount(accounts, 3) ?? Z,
+        whirlpool: getAccount(accounts, 0) ?? Z,
+        position: getAccount(accounts, v2 ? 5 : 3) ?? Z,
         tick_lower_index: 0,
         tick_upper_index: 0,
         liquidity,
