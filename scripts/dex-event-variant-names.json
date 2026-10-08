@@ -32,6 +32,7 @@
     "PumpSwapLiquidityRemoved",
     "MeteoraDammV2Swap",
     "MeteoraDammV2CreatePosition",
+  "MeteoraDammV2ClaimPositionFee",
     "MeteoraDammV2ClosePosition",
     "MeteoraDammV2AddLiquidity",
     "MeteoraDammV2RemoveLiquidity",

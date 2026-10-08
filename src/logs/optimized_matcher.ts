@@ -180,6 +180,7 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.METEORA_DAMM_LIQUIDITY_CHANGE) return null;
   if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
   if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
+  if (disc === DISC.METEORA_DAMM_CLAIM_POSITION_FEE) return "MeteoraDammV2ClaimPositionFee";
   if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
   if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
     return "MeteoraDammV2UpdateDelegatePermission";
@@ -287,6 +288,7 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     if (disc === DISC.METEORA_DAMM_LIQUIDITY_CHANGE) return null;
     if (disc === DISC.METEORA_DAMM_INITIALIZE_POOL) return "MeteoraDammV2InitializePool";
     if (disc === DISC.METEORA_DAMM_CREATE_POSITION) return "MeteoraDammV2CreatePosition";
+    if (disc === DISC.METEORA_DAMM_CLAIM_POSITION_FEE) return "MeteoraDammV2ClaimPositionFee";
     if (disc === DISC.METEORA_DAMM_CLOSE_POSITION) return "MeteoraDammV2ClosePosition";
     if (disc === DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION) {
       return "MeteoraDammV2UpdateDelegatePermission";
@@ -885,6 +887,7 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_LIQUIDITY_CHANGE:
     case DISC.METEORA_DAMM_INITIALIZE_POOL:
     case DISC.METEORA_DAMM_CREATE_POSITION:
+    case DISC.METEORA_DAMM_CLAIM_POSITION_FEE:
     case DISC.METEORA_DAMM_CLOSE_POSITION:
     case DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION:
     case DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD:

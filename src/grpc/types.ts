@@ -370,6 +370,7 @@ export type EventType =
   | "MeteoraDammV2RemoveLiquidity"
   | "MeteoraDammV2InitializePool"
   | "MeteoraDammV2CreatePosition"
+  | "MeteoraDammV2ClaimPositionFee"
   | "MeteoraDammV2ClosePosition"
   | "MeteoraDammV2UpdateDelegatePermission"
   | "MeteoraDammV2WithdrawDeadLiquidityReward"
@@ -495,6 +496,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2RemoveLiquidity",
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2CreatePosition",
+  "MeteoraDammV2ClaimPositionFee",
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
@@ -589,6 +591,7 @@ const METEORA_DAMM_V2_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDammV2AddLiquidity",
   "MeteoraDammV2RemoveLiquidity",
   "MeteoraDammV2CreatePosition",
+  "MeteoraDammV2ClaimPositionFee",
   "MeteoraDammV2InitializePool",
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",

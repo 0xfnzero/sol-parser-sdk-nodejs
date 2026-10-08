@@ -74,6 +74,7 @@ export type DexEvent =
   | { MeteoraDammV2AddLiquidity: MeteoraDammV2AddLiquidityEvent }
   | { MeteoraDammV2RemoveLiquidity: MeteoraDammV2RemoveLiquidityEvent }
   | { MeteoraDammV2CreatePosition: MeteoraDammV2CreatePositionEvent }
+  | { MeteoraDammV2ClaimPositionFee: MeteoraDammV2ClaimPositionFeeEvent }
   | { MeteoraDammV2InitializePool: MeteoraDammV2InitializePoolEvent }
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
   | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
@@ -1958,3 +1959,13 @@ export type LaunchLabPoolCreateEvent = RaydiumLaunchlabPoolCreateEvent;
 export type StonkFunPoolCreateEvent = RaydiumLaunchlabPoolCreateEvent;
 export type LaunchLabTradeEvent = RaydiumLaunchlabTradeEvent;
 export type StonkFunTradeEvent = RaydiumLaunchlabTradeEvent;
+
+/** Official gross claim amounts; transfer fees can reduce recipient credit. */
+export interface MeteoraDammV2ClaimPositionFeeEvent {
+  metadata: EventMetadata;
+  pool: string;
+  position: string;
+  owner: string;
+  fee_a_claimed: bigint;
+  fee_b_claimed: bigint;
+}

@@ -39,6 +39,7 @@ const REMOVE_LIQUIDITY = discOf([87, 46, 88, 98, 175, 96, 34, 91]);
 const LIQUIDITY_CHANGE = discOf([197, 171, 78, 127, 224, 211, 87, 13]);
 const INITIALIZE_POOL = discOf([228, 50, 246, 85, 203, 66, 134, 37]);
 const CREATE_POSITION = discOf([156, 15, 119, 198, 29, 181, 221, 55]);
+const CLAIM_POSITION_FEE = discOf([198, 182, 183, 52, 97, 12, 49, 56]);
 const CLOSE_POSITION = discOf([20, 145, 144, 68, 143, 142, 214, 178]);
 const UPDATE_DELEGATE_PERMISSION = discOf([66, 188, 75, 151, 150, 232, 87, 93]);
 const WITHDRAW_DEAD_LIQUIDITY_REWARD = discOf([228, 66, 150, 195, 42, 62, 163, 13]);
@@ -710,6 +711,7 @@ export function parseMeteoraDammLog(
   if (disc === REMOVE_LIQUIDITY) return parseRemoveLiquidityFromData(data, meta);
   if (disc === LIQUIDITY_CHANGE) return parseLiquidityChangeFromData(data, meta);
   if (disc === INITIALIZE_POOL) return parseInitializePoolEvent(data, meta);
+  if (disc === CLAIM_POSITION_FEE) return parseClaimPositionFee(data, meta);
   if (disc === CREATE_POSITION) return parseCreatePositionEvent(data, meta);
   if (disc === CLOSE_POSITION) return parseClosePositionEvent(data, meta);
   if (disc === UPDATE_DELEGATE_PERMISSION) return parseUpdateDelegatePermissionFromData(data, meta);
@@ -719,4 +721,18 @@ export function parseMeteoraDammLog(
   if (disc === CREATE_CONFIG) return parseCreateConfigFromData(data, meta);
   if (disc === CREATE_DYNAMIC_CONFIG) return parseCreateDynamicConfigFromData(data, meta);
   return null;
+}
+
+export function parseClaimPositionFee(data: Uint8Array, meta: EventMetadata): DexEvent | null {
+  if (data.length < 112) return null;
+  return {
+    MeteoraDammV2ClaimPositionFee: {
+      metadata: meta,
+      pool: readPubkey(data, 0)!,
+      position: readPubkey(data, 32)!,
+      owner: readPubkey(data, 64)!,
+      fee_a_claimed: readU64LE(data, 96)!,
+      fee_b_claimed: readU64LE(data, 104)!,
+    },
+  };
 }
