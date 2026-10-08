@@ -1,8 +1,10 @@
+import { parseMeteoraDbcFromDiscriminator } from "../logs/meteora_dbc.js";
 import {parsePumpUpgradeEvent,pumpUpgradeEventType} from "../logs/pump_upgrade.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { makeMetadata } from "../core/metadata.js";
 import type { EventTypeFilter } from "../grpc/types.js";
 import {
+  eventTypeFilterIncludesMeteoraDbc,
   eventTypeFilterIncludesMeteoraDammV2,
   eventTypeFilterIncludesMeteoraDlmm,
   eventTypeFilterIncludesMeteoraPools,
@@ -18,6 +20,7 @@ import {
   eventTypeFilterShouldIncludeDexEvent,
 } from "../grpc/types.js";
 import {
+  METEORA_DBC_PROGRAM_ID,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
   METEORA_POOLS_PROGRAM_ID,
@@ -518,6 +521,11 @@ export function parseInnerInstructionUnified(
       blockTimeUs,
       grpcRecvUs
     );
+  } else if (programId === METEORA_DBC_PROGRAM_ID) {
+    if (filter && !eventTypeFilterIncludesMeteoraDbc(filter)) return null;
+    if (!discEq(disc, EVENT_CPI_PREFIX)) return null;
+    const dbcDisc = eventCpiDiscriminator(disc);
+    if (dbcDisc !== null) ev = parseMeteoraDbcFromDiscriminator(dbcDisc, data, metadata);
   } else if (programId === METEORA_DLMM_PROGRAM_ID) {
     if (filter && !eventTypeFilterIncludesMeteoraDlmm(filter)) return null;
     const eventDisc = eventCpiDiscriminator(disc);

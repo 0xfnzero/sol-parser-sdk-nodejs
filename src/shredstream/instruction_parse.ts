@@ -9,6 +9,7 @@ import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
 import { eventTypeFilterAllowsInstructionParsing, type EventTypeFilter } from "../grpc/types.js";
 import { parseInstructionUnified } from "../instr/mod.js";
 import {
+  METEORA_DBC_PROGRAM_ID,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
   METEORA_POOLS_PROGRAM_ID,
@@ -60,6 +61,7 @@ const UNKNOWN_PROGRAM_CANDIDATES = [
   RAYDIUM_AMM_V4_PROGRAM_ID,
   ORCA_WHIRLPOOL_PROGRAM_ID,
   METEORA_POOLS_PROGRAM_ID,
+  METEORA_DBC_PROGRAM_ID,
   METEORA_DAMM_V2_PROGRAM_ID,
   METEORA_DLMM_PROGRAM_ID,
 ] as const;

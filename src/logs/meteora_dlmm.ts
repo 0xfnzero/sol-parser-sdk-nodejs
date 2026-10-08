@@ -105,7 +105,7 @@ export function parseDlmmEventFromData(
   }
 
   if (discriminator === DLMM.SWAP2) {
-    if (data.length < 147) return null;
+    if (data.length < 147 || data[72]! > 1 || data[145]! > 1 || data[146]! > 1) return null;
     let o = 0;
     const pool = readPubkey(data, o)!;
     o += 32;
@@ -121,17 +121,23 @@ export function parseDlmmEventFromData(
     o += 16;
     const amount_in = bn64(readU64LE(data, o));
     o += 8;
-    o += 8; // amount_left
+    const amount_left = bn64(readU64LE(data, o));
+    o += 8;
     const amount_out = bn64(readU64LE(data, o));
     o += 8;
-    const fee = bn64(readU64LE(data, o));
+    const mm_fee = bn64(readU64LE(data, o));
     o += 8;
     const protocol_fee = bn64(readU64LE(data, o));
     o += 8;
-    o += 8; // limit_order_fee
+    const limit_order_fee = bn64(readU64LE(data, o));
+    o += 8;
     const host_fee = bn64(readU64LE(data, o));
+    const fee = mm_fee + protocol_fee + limit_order_fee;
+    if (fee > 0xffffffffffffffffn) return null;
     const ev: MeteoraDlmmSwapEvent = {
       metadata,
+      event_version: 2, amount_left, mm_fee, limit_order_fee,
+      fees_on_input: data[145] !== 0, fees_on_token_x: data[146] !== 0,
       token_x_mint: defaultPubkey(),
       token_y_mint: defaultPubkey(),
       user_token_in: defaultPubkey(),

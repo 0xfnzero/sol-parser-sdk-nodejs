@@ -783,6 +783,11 @@ export interface RaydiumCpmmSwapEvent {
   input_transfer_fee: bigint;
   output_transfer_fee: bigint;
   base_input: boolean;
+  input_mint?: string;
+  output_mint?: string;
+  trade_fee?: bigint;
+  creator_fee?: bigint;
+  creator_fee_on_input?: boolean;
 }
 
 export interface RaydiumCpmmDepositEvent {
@@ -1210,6 +1215,17 @@ export interface MeteoraDammV2CreateDynamicConfigEvent {
 }
 
 export interface MeteoraDbcSwapEvent {
+  event_version?: number;
+  swap_mode?: number;
+  amount_0?: bigint;
+  amount_1?: bigint;
+  maximum_amount_in?: bigint;
+  included_fee_input_amount?: bigint;
+  amount_left?: bigint;
+  quote_reserve_amount?: bigint;
+  migration_threshold?: bigint;
+  has_transfer_hook?: boolean;
+
   metadata: EventMetadata;
   pool: string;
   config: string;
@@ -1265,6 +1281,12 @@ export interface MeteoraDlmmSwapEvent {
   protocol_fee: bigint;
   fee_bps: bigint;
   host_fee: bigint;
+  event_version?: number;
+  amount_left?: bigint;
+  mm_fee?: bigint;
+  limit_order_fee?: bigint;
+  fees_on_input?: boolean;
+  fees_on_token_x?: boolean;
 }
 
 export interface MeteoraPoolsSetPoolFeesEvent {

@@ -299,7 +299,7 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     return null;
   }
   if (programId === METEORA_DBC_PROGRAM_ID) {
-    if (disc === METEORA_DBC_DISC.SWAP) return "MeteoraDbcSwap";
+    if (disc === METEORA_DBC_DISC.SWAP || disc === METEORA_DBC_DISC.SWAP2 || disc === METEORA_DBC_DISC.SWAP2_TRANSFER_HOOK) return "MeteoraDbcSwap";
     if (disc === METEORA_DBC_DISC.INITIALIZE_POOL) return "MeteoraDbcInitializePool";
     if (disc === METEORA_DBC_DISC.CURVE_COMPLETE) return "MeteoraDbcCurveComplete";
     return null;

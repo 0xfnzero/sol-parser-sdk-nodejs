@@ -137,7 +137,7 @@ describe("event type filters", () => {
 
   it("keeps Meteora DBC log-only events out of instruction prefilter", () => {
     expect(eventTypeFilterIncludesMeteoraDbc({ include_only: ["MeteoraDbcSwap"] })).toBe(true);
-    expect(eventTypeFilterAllowsInstructionParsing(["MeteoraDbcSwap"])).toBe(false);
+    expect(eventTypeFilterAllowsInstructionParsing(["MeteoraDbcSwap"])).toBe(true);
   });
 
   it("exposes Meteora Pools and DLMM protocol filter helpers", () => {

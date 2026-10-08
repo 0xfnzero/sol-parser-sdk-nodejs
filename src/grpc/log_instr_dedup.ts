@@ -461,5 +461,24 @@ export function dedupeLogInstructionEvents(
     mergeGrpcInstructionIntoLog(out[existing], ev);
   }
 
-  return out;
+  return preferCurrentDbcEvents(out);
+}
+
+// Old and current DBC events can describe the same execution. Keep occurrence counts.
+function preferCurrentDbcEvents(events: DexEvent[]): DexEvent[] {
+  const groups = new Map<string, [number[], number[]]>();
+  for (const [i, event] of events.entries()) {
+    if (!('MeteoraDbcSwap' in event)) continue;
+    const e = event.MeteoraDbcSwap;
+    const key = [e.pool,e.config,e.trade_direction,e.amount_in,e.output_amount,e.next_sqrt_price,e.trading_fee,e.protocol_fee,e.referral_fee,e.current_timestamp].join('|');
+    let group = groups.get(key);
+    if (!group) {group=[[],[]];groups.set(key,group);}
+    group[e.event_version===2?1:0].push(i);
+  }
+  const removed = new Set<number>();
+  for (const [old,current] of groups.values()) {
+    if (old.length !== current.length) continue;
+    old.forEach((index,i)=>{events[index]=events[current[i]!]!;removed.add(current[i]!);});
+  }
+  return removed.size ? events.filter((_,i)=>!removed.has(i)) : events;
 }

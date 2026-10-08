@@ -14,9 +14,8 @@ function bn64(v: ReturnType<typeof readU64LE>): bigint {
 
 /** Current Anchor `SwapEvent` payload (the 8-byte event discriminator is removed by the caller). */
 export function parseSwapEventFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  // pool_id + six u64 fields + base_input. Newer IDLs append mint/fee fields,
-  // which remain wire-compatible with this stable prefix.
-  if (data.length < 32 + (6 * 8) + 1) return null;
+  // Accept the complete legacy prefix or the complete current mint/fee suffix.
+  if (data.length < 81 || (data.length > 81 && data.length < 162) || data[80]! > 1 || (data.length >= 162 && data[161]! > 1)) return null;
   let o = 0;
   const pool_id = readPubkey(data, o);
   if (!pool_id) return null;
@@ -42,6 +41,11 @@ export function parseSwapEventFromData(data: Uint8Array, metadata: EventMetadata
   ) return null;
 
   const ev: RaydiumCpmmSwapEvent = {
+    input_mint: data.length >= 162 ? readPubkey(data,81)! : undefined,
+    output_mint: data.length >= 162 ? readPubkey(data,113)! : undefined,
+    trade_fee: data.length >= 162 ? readU64LE(data,145)! : undefined,
+    creator_fee: data.length >= 162 ? readU64LE(data,153)! : undefined,
+    creator_fee_on_input: data.length >= 162 ? data[161] !== 0 : undefined,
     metadata,
     pool_id,
     input_vault_before,
