@@ -62,10 +62,12 @@ function ixLane(ixName: unknown): number {
   switch (ixName) {
     case "sell":
     case "sell_v2":
+    case "sell_v3":
       return 1;
     case "buy_exact_sol_in":
     case "buy_exact_quote_in":
     case "buy_exact_quote_in_v2":
+    case "buy_exact_quote_in_v3":
       return 2;
     default:
       return 0;
