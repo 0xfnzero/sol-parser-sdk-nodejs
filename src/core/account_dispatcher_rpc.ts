@@ -138,6 +138,51 @@ export function fillAccountsFromTransactionDataRpc(
   programInvokes: Map<string, InvokePair[]>,
   resolver: { get(i: number): PublicKey | undefined },
 ): void {
+  const fillSwap = (
+    e:
+      | Parameters<typeof fillPumpswapBuyAccounts>[0]
+      | Parameters<typeof fillPumpswapSellAccounts>[0],
+    buy: boolean,
+  ): void => {
+    if (!e.pool || e.pool === "11111111111111111111111111111111") return;
+    const legacy = buy
+      ? ["102,6,61,18,1,218,235,234", "198,46,21,82,180,217,232,112"]
+      : ["51,230,133,164,1,127,131,173"];
+    const compact = buy
+      ? ["184,23,238,97,103,197,211,61", "194,171,28,70,104,77,91,47"]
+      : ["93,246,130,60,231,233,64,178"];
+    let selected: ((i: number) => string) | undefined;
+    for (const invoke of programInvokes.get(PUMPSWAP_PROGRAM_ID) ?? []) {
+      const raw = getInstructionDataBytes(message, meta, invoke);
+      const disc = raw?.slice(0, 8).join(",");
+      if (!disc || (!legacy.includes(disc) && !compact.includes(disc))) continue;
+      const minimum = compact.includes(disc) ? 17 : buy ? 23 : 21;
+      if (countInstructionAccounts(message, meta, invoke) < minimum) continue;
+      const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
+      if (
+        !get ||
+        get(0) !== e.pool ||
+        (e.user &&
+          e.user !== "11111111111111111111111111111111" &&
+          get(1) !== e.user)
+      )
+        continue;
+      if (selected) return;
+      selected = get;
+    }
+    if (selected) {
+      if (buy)
+        fillPumpswapBuyAccounts(
+          e as Parameters<typeof fillPumpswapBuyAccounts>[0],
+          selected,
+        );
+      else
+        fillPumpswapSellAccounts(
+          e as Parameters<typeof fillPumpswapSellAccounts>[0],
+          selected,
+        );
+    }
+  };
   const fillCreate = (e: Parameters<typeof fillPumpfunCreateAccounts>[0], v2Only = false): void => {
     let selected: {get: (i: number) => string; v2: boolean} | undefined;
     for (const invoke of programInvokes.get(PUMPFUN_PROGRAM_ID) ?? []) {
@@ -181,13 +226,9 @@ export function fillAccountsFromTransactionDataRpc(
       fillPumpfunMigrateAccounts(ev.PumpFunMigrate, g),
     );
   } else if ("PumpSwapBuy" in ev) {
-    tryFill(PUMPSWAP_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpswapBuyAccounts(ev.PumpSwapBuy, g),
-    );
+    fillSwap(ev.PumpSwapBuy, true);
   } else if ("PumpSwapSell" in ev) {
-    tryFill(PUMPSWAP_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
-      fillPumpswapSellAccounts(ev.PumpSwapSell, g),
-    );
+    fillSwap(ev.PumpSwapSell, false);
   } else if ("PumpSwapTrade" in ev) {
     tryFill(PUMPSWAP_PROGRAM_ID, programInvokes, message, meta, resolver, (g) =>
       fillPumpswapTradeAccounts(ev.PumpSwapTrade, g),
