@@ -2028,6 +2028,9 @@ export interface MeteoraDammV2ClaimPositionFeeEvent {
   fee_b_claimed: bigint;
 }
 
+/** Official accrued gross reward cleared from the position. A frozen-vault skip
+ * can emit a nonzero total_reward without a transfer; use token transfers and
+ * net balance changes to determine wallet credits. */
 export interface MeteoraDammV2ClaimRewardEvent {
   metadata: EventMetadata;
   pool: string;
