@@ -36,6 +36,7 @@ import {
 } from "./account_fill_pumpfun.js";
 import {
   fillPumpswapBuyAccounts,
+  fillPumpswapBoostBuyAccounts,
   fillPumpswapCreatePoolAccounts,
   fillPumpswapLiquidityAddedAccounts,
   fillPumpswapLiquidityRemovedAccounts,
@@ -151,12 +152,14 @@ export function fillAccountsFromTransactionDataRpc(
     const compact = buy
       ? ["184,23,238,97,103,197,211,61", "194,171,28,70,104,77,91,47"]
       : ["93,246,130,60,231,233,64,178"];
-    let selected: ((i: number) => string) | undefined;
+    let selected: { get: (i: number) => string; boost: boolean } | undefined;
     for (const invoke of programInvokes.get(PUMPSWAP_PROGRAM_ID) ?? []) {
       const raw = getInstructionDataBytes(message, meta, invoke);
       const disc = raw?.slice(0, 8).join(",");
-      if (!disc || (!legacy.includes(disc) && !compact.includes(disc))) continue;
-      const minimum = compact.includes(disc) ? 17 : buy ? 23 : 21;
+      const boost = buy && disc === "105,68,6,175,0,7,35,162";
+      if (!disc || (!boost && !legacy.includes(disc) && !compact.includes(disc)))
+        continue;
+      const minimum = boost ? 13 : compact.includes(disc) ? 17 : buy ? 23 : 21;
       if (countInstructionAccounts(message, meta, invoke) < minimum) continue;
       const get = makeInvokeAccountGetter(resolver, invoke, message, meta);
       if (
@@ -164,22 +167,27 @@ export function fillAccountsFromTransactionDataRpc(
         get(0) !== e.pool ||
         (e.user &&
           e.user !== "11111111111111111111111111111111" &&
-          get(1) !== e.user)
+          get(boost ? 7 : 1) !== e.user)
       )
         continue;
       if (selected) return;
-      selected = get;
+      selected = { get, boost };
     }
     if (selected) {
-      if (buy)
+      if (selected.boost)
+        fillPumpswapBoostBuyAccounts(
+          e as Parameters<typeof fillPumpswapBuyAccounts>[0],
+          selected.get,
+        );
+      else if (buy)
         fillPumpswapBuyAccounts(
           e as Parameters<typeof fillPumpswapBuyAccounts>[0],
-          selected,
+          selected.get,
         );
       else
         fillPumpswapSellAccounts(
           e as Parameters<typeof fillPumpswapSellAccounts>[0],
-          selected,
+          selected.get,
         );
     }
   };

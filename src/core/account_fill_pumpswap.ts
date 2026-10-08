@@ -80,6 +80,27 @@ function fillPumpswapTradeCommon(
   }
 }
 
+/** The boost layout has no user ATAs or fee accounts. Preserve decoded values. */
+export function fillPumpswapBoostBuyAccounts(
+  e: PumpSwapBuyEvent,
+  get: (i: number) => string,
+): void {
+  const zero = Z();
+  const roles = {
+    pool: 0,
+    base_mint: 3,
+    quote_mint: 4,
+    pool_base_token_account: 5,
+    pool_quote_token_account: 6,
+    base_token_program: 9,
+    quote_token_program: 10,
+  } as const;
+  for (const [field, index] of Object.entries(roles)) {
+    const key = field as keyof typeof roles;
+    if (!e[key] || e[key] === zero) e[key] = get(index);
+  }
+}
+
 export function fillPumpswapBuyAccounts(
   e: PumpSwapBuyEvent,
   get: (i: number) => string,
