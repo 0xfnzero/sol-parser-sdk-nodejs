@@ -438,8 +438,16 @@ export function dedupeLogInstructionEvents(
     out.push(ev);
   }
 
-  for (const ev of instructionEvents) {
-    const key = dedupeKey(ev, ixOccurrenceCounts);
+  // Ordinal pairing is ambiguous when one source has lost an invocation.
+  const instructionKeys = instructionEvents.map(ev => dedupeKey(ev, ixOccurrenceCounts));
+  for (const [base, count] of logOccurrenceCounts) {
+    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
+    const prefix = `${base.replace(/^PumpFun\|/, 'PumpFunTrade|')}|`;
+    for (let occurrence = 0; occurrence < count; occurrence++) indexByKey.delete(`${prefix}${occurrence}`);
+  }
+
+  for (const [i, ev] of instructionEvents.entries()) {
+    const key = instructionKeys[i];
     if (!key) {
       out.push(ev);
       continue;

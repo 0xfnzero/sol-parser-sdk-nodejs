@@ -214,3 +214,30 @@ it('retains repeated PumpSwap occurrences and supplements each log in order',()=
   expect(out.map(e=>{const body=(e as any)[name];return [body.user_base_token_account,body[executed]]})).toEqual([["100",90n],["200",180n]]);
  }
 });
+
+for (const name of ['PumpFunTrade', 'PumpSwapBuy', 'PumpSwapSell']) {
+  for (const [logCount, ixCount] of [[1, 2], [2, 1]]) {
+    it(`preserves ambiguous ${name} sources with ${logCount} logs and ${ixCount} instructions`, () => {
+      const field = name === 'PumpFunTrade' ? 'bonding_curve' : 'user_base_token_account';
+      const body = { mint: 'mint', pool: 'pool', user: 'user', is_buy: true, ix_name: 'buy_v3' };
+      const logs = Array.from({ length: logCount }, () => ({ [name]: { ...body, [field]: defaultPubkey() } } as unknown as DexEvent));
+      const instructions = Array.from({ length: ixCount }, (_, i) => ({ [name]: { ...body, [field]: `account${i}` } } as unknown as DexEvent));
+      const out = dedupeLogInstructionEvents(logs, instructions);
+      expect(out).toHaveLength(logCount + ixCount);
+      expect((out[0] as any)[name][field]).toBe(defaultPubkey());
+    });
+  }
+}
+
+it('limits mismatch protection to the affected Pump lane', () => {
+  const event = (ix_name: string, bonding_curve = defaultPubkey()) => ({
+    PumpFunTrade: { mint: 'mint', user: 'user', is_buy: true, ix_name, bonding_curve },
+  } as unknown as DexEvent);
+  const out = dedupeLogInstructionEvents(
+    [event('buy_v3'), event('buy_exact_quote_in_v3')],
+    [event('buy_v3', 'first'), event('buy_v3', 'second'), event('buy_exact_quote_in_v3', 'exact')]
+  );
+  expect(out).toHaveLength(4);
+  expect((out[0] as any).PumpFunTrade.bonding_curve).toBe(defaultPubkey());
+  expect((out[1] as any).PumpFunTrade.bonding_curve).toBe('exact');
+});
