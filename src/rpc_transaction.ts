@@ -61,7 +61,7 @@ type IndexedInstructionEvent = {
   outerIdx: number;
   innerIdx: number | null;
   stackHeight?: number;
-  isDlmmEventCpi: boolean;
+  isEventCpi: boolean;
   event: DexEvent;
 };
 
@@ -88,8 +88,8 @@ function bytesEqualAt(data: Uint8Array, expected: Uint8Array, offset: number): b
   return true;
 }
 
-function isDlmmEventCpi(programId: string, data: Uint8Array): boolean {
-  return programId === METEORA_DLMM_PROGRAM_ID && data.length >= 16 && (
+function isEventCpi(programId: string, data: Uint8Array): boolean {
+  return [METEORA_DLMM_PROGRAM_ID, PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID].includes(programId) && data.length >= 16 && (
     bytesEqualAt(data, EVENT_CPI_PREFIX, 0) ||
     bytesEqualAt(data, LEGACY_EVENT_CPI_SUFFIX, 8)
   );
@@ -361,6 +361,11 @@ function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
   return false;
 }
 
+function isPumpTrade(event: DexEvent): boolean {
+  const name = eventName(event);
+  return PUMPFUN_TRADE_EVENT_NAMES.has(name) || name === "PumpSwapBuy" || name === "PumpSwapSell";
+}
+
 function mergeInstructionEvents(events: IndexedInstructionEvent[]): DexEvent[] {
   if (events.length === 0) return [];
   events.sort((a, b) => {
@@ -377,11 +382,14 @@ function mergeInstructionEvents(events: IndexedInstructionEvent[]): DexEvent[] {
     stackHeight?: number;
     resultIdx: number;
   }> = [];
+  const pumpTargets: Array<{outerIdx: number; stackHeight?: number; resultIdx: number; consumed: boolean}> = [];
   for (const item of events) {
     if (item.innerIdx === null) {
       out.push(item.event);
       const resultIdx = out.length - 1;
       outerTarget = { outerIdx: item.outerIdx, resultIdx };
+      pumpTargets.length = 0;
+      if (isPumpTrade(item.event)) pumpTargets.push({outerIdx: item.outerIdx, stackHeight: item.stackHeight, resultIdx, consumed: false});
       dlmmTargets.length = 0;
       if (isDlmmEvent(item.event)) {
         dlmmTargets.push({
@@ -393,7 +401,35 @@ function mergeInstructionEvents(events: IndexedInstructionEvent[]): DexEvent[] {
       continue;
     }
 
-    if (item.isDlmmEventCpi) {
+    if (isPumpTrade(item.event) && (item.isEventCpi || !PUMPFUN_TRADE_EVENT_NAMES.has(eventName(item.event)) || eventPayload(item.event)?.ix_name)) {
+      if (item.isEventCpi) {
+        let target: typeof pumpTargets[number] | undefined;
+        for (let i = pumpTargets.length - 1; i >= 0; i--) {
+          const candidate = pumpTargets[i]!;
+          if (candidate.outerIdx === item.outerIdx && (candidate.stackHeight === undefined || item.stackHeight === undefined || item.stackHeight === candidate.stackHeight + 1)) {
+            target = candidate;
+            break;
+          }
+        }
+        if (target && !target.consumed) {
+          target.consumed = true;
+          if (mergeInstructionEvent(out[target.resultIdx]!, item.event)) continue;
+        }
+        out.push(item.event);
+      } else {
+        if (item.stackHeight === undefined) pumpTargets.length = 0;
+        else while (pumpTargets.length) {
+          const last = pumpTargets[pumpTargets.length - 1]!;
+          if (last.outerIdx !== item.outerIdx || (last.stackHeight !== undefined && last.stackHeight >= item.stackHeight)) pumpTargets.pop();
+          else break;
+        }
+        out.push(item.event);
+        pumpTargets.push({outerIdx: item.outerIdx, stackHeight: item.stackHeight, resultIdx: out.length - 1, consumed: false});
+      }
+      continue;
+    }
+
+    if (item.isEventCpi && isDlmmEvent(item.event)) {
       let merged = false;
       for (let i = dlmmTargets.length - 1; i >= 0; i--) {
         const target = dlmmTargets[i]!;
@@ -485,7 +521,7 @@ function parseOuterAndInnerInstructions(
       outerIdx,
       innerIdx: null,
       stackHeight: 1,
-      isDlmmEventCpi: false,
+      isEventCpi: false,
       event: ev,
     });
   }
@@ -528,7 +564,7 @@ function parseOuterAndInnerInstructions(
         outerIdx: group.index,
         innerIdx,
         stackHeight: (ix as CompiledInstruction & { stackHeight?: number }).stackHeight,
-        isDlmmEventCpi: isDlmmEventCpi(programId, data),
+        isEventCpi: isEventCpi(programId, data),
         event: ev,
       });
     }

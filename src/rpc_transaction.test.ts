@@ -283,3 +283,15 @@ describe("parseRpcTransaction parity", () => {
     expect(event?.width).toBe(70);
   });
 });
+
+it('pairs repeated Pump instructions with their own event CPI',()=>{
+ const keys=Array.from({length:18},(_,i)=>({pubkey:pk(i+1),isSigner:false,isWritable:true}));
+ keys[2]!.pubkey=pk(70);keys[6]!.pubkey=pk(71);
+ const tx=rpcTx([new TransactionInstruction({programId:new PublicKey(PUMPFUN_PROGRAM_ID),keys,data:Buffer.from(outerBuyIxData(123n,456n))})],[],innerTradeIxData('buy'));
+ const first=tx.meta.innerInstructions[0].instructions[0];
+ const second=innerTradeIxData('buy');new DataView(second.buffer,second.byteOffset).setBigUint64(56,30n,true);
+ tx.meta.innerInstructions[0].instructions=[{...first,stackHeight:2},{...first,data:outerBuyIxData(789n,999n),stackHeight:2},{...first,data:second,stackHeight:3}];
+ const parsed=parseRpcTransaction(tx,'synthetic-repeat');expect(parsed.ok).toBe(true);if(!parsed.ok)throw Error(parsed.error.message);
+ const bodies=parsed.events.map((e:any)=>e.PumpFunBuy);
+ expect(bodies).toHaveLength(2);expect(bodies.map((e:any)=>[e.amount,e.token_amount])).toEqual([[123n,20n],[789n,30n]]);
+});

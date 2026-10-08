@@ -22,7 +22,7 @@ describe('nested Pump trade identity', () => {
             expect(result.ok).toBe(true);
             if (!result.ok)
                 throw Error(result.error.message);
-            expect(result.events).toHaveLength(mismatch === 'none' ? 1 : 2);
+            expect(result.events).toHaveLength(2);
             const body = Object.values(result.events[0]!)[0] as any;
             expect(body.mint).toBe(c.mint);
             expect(body.user).toBe(c.user);
@@ -48,7 +48,7 @@ describe('nested PumpSwap trade identity', () => {
             expect(result.ok).toBe(true);
             if (!result.ok)
                 throw Error(result.error.message);
-            expect(result.events).toHaveLength(mismatch === 'none' ? 1 : 2);
+            expect(result.events).toHaveLength(2);
             const body = Object.values(result.events[0]!)[0] as any;
             expect(body.pool).toBe(c.events[0]!.pool);
             expect(body.user).toBe(c.events[0]!.user);

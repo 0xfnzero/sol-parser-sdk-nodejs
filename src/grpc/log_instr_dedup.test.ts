@@ -202,3 +202,15 @@ describe("dedupeLogInstructionEvents", () => {
     expect((out[0] as any).PumpFunCreateV2).not.toHaveProperty("can_edit_creator_fee");
   });
 });
+
+it('retains repeated PumpSwap occurrences and supplements each log in order',()=>{
+ for(const name of ['PumpSwapBuy','PumpSwapSell']) {
+  const executed=name==='PumpSwapBuy'?'quote_amount_in':'quote_amount_out';
+  const limit=name==='PumpSwapBuy'?'max_quote_amount_in':'min_quote_amount_out';
+  const logs=[90n,180n].map(n=>({[name]:{pool:'pool',user:'user',[executed]:n}} as unknown as DexEvent));
+  const instructions=[100n,200n].map(n=>({[name]:{pool:'pool',user:'user',user_base_token_account:String(n),[limit]:n}} as unknown as DexEvent));
+  expect(dedupeLogInstructionEvents([],instructions)).toHaveLength(2);
+  const out=dedupeLogInstructionEvents(logs,instructions);
+  expect(out.map(e=>{const body=(e as any)[name];return [body.user_base_token_account,body[executed]]})).toEqual([["100",90n],["200",180n]]);
+ }
+});

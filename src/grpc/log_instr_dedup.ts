@@ -110,10 +110,14 @@ function dedupeKey(
       return `RaydiumLaunchlabMigrateAmm|${data.old_pool}|${data.new_pool}|${data.user}`;
     case "PumpSwapTrade":
       return `PumpSwapTrade|${data.mint}|${data.user}|${Boolean(data.is_buy)}|${ixLane(data.ix_name)}`;
-    case "PumpSwapBuy":
-      return `PumpSwapBuy|${data.pool}|${data.user}`;
-    case "PumpSwapSell":
-      return `PumpSwapSell|${data.pool}|${data.user}`;
+    case "PumpSwapBuy": {
+      const base = `PumpSwapBuy|${data.pool}|${data.user}`;
+      return `${base}|${nextOccurrence(base, occurrenceCounts)}`;
+    }
+    case "PumpSwapSell": {
+      const base = `PumpSwapSell|${data.pool}|${data.user}`;
+      return `${base}|${nextOccurrence(base, occurrenceCounts)}`;
+    }
     case "PumpSwapCreatePool":
       return `PumpSwapCreatePool|${data.pool}|${data.base_mint}|${data.quote_mint}`;
     case "PumpSwapLiquidityAdded":
