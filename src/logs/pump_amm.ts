@@ -420,7 +420,7 @@ export function parseCreatePoolFromData(data: Uint8Array, metadata: EventMetadat
 }
 
 export function parseAddLiquidityFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const REQUIRED = 10 * 8 + 5 * 32;
+  const REQUIRED = 11 * 8 + 5 * 32;
   if (data.length < REQUIRED) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));
@@ -477,7 +477,7 @@ export function parseAddLiquidityFromData(data: Uint8Array, metadata: EventMetad
 }
 
 export function parseRemoveLiquidityFromData(data: Uint8Array, metadata: EventMetadata): DexEvent | null {
-  const REQUIRED = 10 * 8 + 5 * 32;
+  const REQUIRED = 11 * 8 + 5 * 32;
   if (data.length < REQUIRED) return null;
   let o = 0;
   const timestamp = bnI64(readI64LE(data, o));

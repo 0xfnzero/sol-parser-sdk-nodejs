@@ -310,7 +310,7 @@ export function parsePumpswapInstruction(
     return { PumpSwapCreatePool: ev };
   }
   if (discEq(head, PS.DEPOSIT)) {
-    if (accounts.length < 8) return null;
+    if (accounts.length < 15 || data.length < 24) return null;
     const g = (i: number) => getAccount(accounts, i) ?? Z;
     let lp_out = 0n;
     let max_base = 0n;
@@ -334,15 +334,15 @@ export function parsePumpswapInstruction(
       quote_amount_in: 0n,
       lp_mint_supply: 0n,
       pool: g(0),
-      user: g(1),
-      user_base_token_account: g(4),
-      user_quote_token_account: g(5),
-      user_pool_token_account: g(6),
+      user: g(2),
+      user_base_token_account: g(6),
+      user_quote_token_account: g(7),
+      user_pool_token_account: g(8),
     };
     return { PumpSwapLiquidityAdded: ev };
   }
   if (discEq(head, PS.WITHDRAW)) {
-    if (accounts.length < 8) return null;
+    if (accounts.length < 15 || data.length < 24) return null;
     const g = (i: number) => getAccount(accounts, i) ?? Z;
     let lp_in = 0n;
     let min_base = 0n;
@@ -366,10 +366,10 @@ export function parsePumpswapInstruction(
       quote_amount_out: 0n,
       lp_mint_supply: 0n,
       pool: g(0),
-      user: g(1),
-      user_base_token_account: g(4),
-      user_quote_token_account: g(5),
-      user_pool_token_account: g(6),
+      user: g(2),
+      user_base_token_account: g(6),
+      user_quote_token_account: g(7),
+      user_pool_token_account: g(8),
     };
     return { PumpSwapLiquidityRemoved: ev };
   }
