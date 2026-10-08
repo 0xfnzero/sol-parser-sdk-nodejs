@@ -378,3 +378,15 @@ for (const type of ['mintTo', 'burn', 'mintToChecked', 'burnChecked']) {
     }
   });
 }
+
+const lifecycle=JSON.parse(fs.readFileSync(new URL('./fixtures/account_lifecycle_20261008.json',import.meta.url),'utf8'));
+for(const c of lifecycle.cases)it(`current bank lifecycle rollback ${c.name}`,()=>{
+ const r=analyzeSimulationRoutes(Buffer.from(c.wire,'base64'),c.response);
+ expect(canonical(r)).toEqual(c.expected);
+ if(c.validation.status==='execution_verified'){expect(r.succeeded).toBe(true);expect(c.validation.bank_net_credit).toBeGreaterThan(0)}
+ else{
+  expect(r.succeeded).toBe(false);expect(r.legs.length).toBeGreaterThan(0);expect(r.legs.every(l=>l.actual_input_amount===null&&l.actual_output_amount===null)).toBe(true);
+  expect(c.response.result.value.err.InstructionError).toEqual([c.validation.expected_failure_index,c.validation.scenario==='close_funded_token_account'?{Custom:11}:'IllegalOwner']);
+  expect(c.response.result.value.accounts).toEqual([null]);
+ }
+});
