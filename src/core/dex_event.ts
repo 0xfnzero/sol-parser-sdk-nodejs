@@ -81,6 +81,7 @@ export type DexEvent =
   | { MeteoraDammV2ClosePosition: MeteoraDammV2ClosePositionEvent }
   | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
   | { MeteoraDammV2WithdrawDeadLiquidityReward: MeteoraDammV2WithdrawDeadLiquidityRewardEvent }
+  | { MeteoraDammV2WithdrawIneligibleReward: MeteoraDammV2WithdrawIneligibleRewardEvent }
   | { MeteoraDammV2CreateConfig: MeteoraDammV2CreateConfigEvent }
   | { MeteoraDammV2CreateDynamicConfig: MeteoraDammV2CreateDynamicConfigEvent }
   | { MeteoraDbcSwap: MeteoraDbcSwapEvent }
@@ -1191,6 +1192,13 @@ export interface MeteoraDammV2UpdateDelegatePermissionEvent {
 
 /** IDL `EvtWithdrawDeadLiquidityReward` */
 export interface MeteoraDammV2WithdrawDeadLiquidityRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  reward_mint: string;
+  amount: bigint;
+}
+/** IDL `EvtWithdrawIneligibleReward` */
+export interface MeteoraDammV2WithdrawIneligibleRewardEvent {
   metadata: EventMetadata;
   pool: string;
   reward_mint: string;

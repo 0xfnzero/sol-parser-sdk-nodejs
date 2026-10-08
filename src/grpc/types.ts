@@ -376,6 +376,7 @@ export type EventType =
   | "MeteoraDammV2ClosePosition"
   | "MeteoraDammV2UpdateDelegatePermission"
   | "MeteoraDammV2WithdrawDeadLiquidityReward"
+  | "MeteoraDammV2WithdrawIneligibleReward"
   | "MeteoraDammV2CreateConfig"
   | "MeteoraDammV2CreateDynamicConfig"
   // Meteora DBC
@@ -504,6 +505,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
+  "MeteoraDammV2WithdrawIneligibleReward",
   "MeteoraDammV2CreateConfig",
   "MeteoraDammV2CreateDynamicConfig",
   // Meteora DBC
@@ -601,6 +603,7 @@ const METEORA_DAMM_V2_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDammV2ClosePosition",
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
+  "MeteoraDammV2WithdrawIneligibleReward",
   "MeteoraDammV2CreateConfig",
   "MeteoraDammV2CreateDynamicConfig",
 ];

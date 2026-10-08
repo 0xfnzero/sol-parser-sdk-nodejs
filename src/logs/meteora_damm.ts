@@ -13,6 +13,7 @@ import type {
   MeteoraDammV2SwapEvent,
   MeteoraDammV2UpdateDelegatePermissionEvent,
   MeteoraDammV2WithdrawDeadLiquidityRewardEvent,
+  MeteoraDammV2WithdrawIneligibleRewardEvent,
 } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
 import { decodeProgramDataLine } from "./program_data.js";
@@ -44,6 +45,7 @@ const CLAIM_REWARD = discOf([218, 86, 147, 200, 235, 188, 215, 231]);
 const CLOSE_POSITION = discOf([20, 145, 144, 68, 143, 142, 214, 178]);
 const UPDATE_DELEGATE_PERMISSION = discOf([66, 188, 75, 151, 150, 232, 87, 93]);
 const WITHDRAW_DEAD_LIQUIDITY_REWARD = discOf([228, 66, 150, 195, 42, 62, 163, 13]);
+const WITHDRAW_INELIGIBLE_REWARD = discOf([248, 215, 184, 78, 31, 180, 179, 168]);
 const CREATE_CONFIG = discOf([131, 207, 180, 174, 180, 73, 165, 54]);
 const CREATE_DYNAMIC_CONFIG = discOf([231, 197, 13, 164, 248, 213, 133, 152]);
 
@@ -557,6 +559,27 @@ export function parseWithdrawDeadLiquidityRewardFromData(
   };
   return { MeteoraDammV2WithdrawDeadLiquidityReward: ev };
 }
+export function parseWithdrawIneligibleRewardFromData(
+  data: Uint8Array,
+  meta: EventMetadata
+): DexEvent | null {
+  let o = 0;
+  const pool = readPubkey(data, o);
+  if (!pool) return null;
+  o += 32;
+  const reward_mint = readPubkey(data, o);
+  if (!reward_mint) return null;
+  o += 32;
+  const amount = readU64LE(data, o);
+  if (amount === null) return null;
+  const ev: MeteoraDammV2WithdrawIneligibleRewardEvent = {
+    metadata: meta,
+    pool,
+    reward_mint,
+    amount,
+  };
+  return { MeteoraDammV2WithdrawIneligibleReward: ev };
+}
 
 function parseDynamicFeeParameters(
   data: Uint8Array,
@@ -719,6 +742,9 @@ export function parseMeteoraDammLog(
   if (disc === UPDATE_DELEGATE_PERMISSION) return parseUpdateDelegatePermissionFromData(data, meta);
   if (disc === WITHDRAW_DEAD_LIQUIDITY_REWARD) {
     return parseWithdrawDeadLiquidityRewardFromData(data, meta);
+  }
+  if (disc === WITHDRAW_INELIGIBLE_REWARD) {
+    return parseWithdrawIneligibleRewardFromData(data, meta);
   }
   if (disc === CREATE_CONFIG) return parseCreateConfigFromData(data, meta);
   if (disc === CREATE_DYNAMIC_CONFIG) return parseCreateDynamicConfigFromData(data, meta);
