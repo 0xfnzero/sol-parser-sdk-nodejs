@@ -82,6 +82,9 @@ export type DexEvent =
   | { MeteoraDammV2UpdateDelegatePermission: MeteoraDammV2UpdateDelegatePermissionEvent }
   | { MeteoraDammV2WithdrawDeadLiquidityReward: MeteoraDammV2WithdrawDeadLiquidityRewardEvent }
   | { MeteoraDammV2WithdrawIneligibleReward: MeteoraDammV2WithdrawIneligibleRewardEvent }
+  | { MeteoraDammV2UpdateRewardFunder: MeteoraDammV2UpdateRewardFunderEvent }
+  | { MeteoraDammV2UpdateRewardDuration: MeteoraDammV2UpdateRewardDurationEvent }
+  | { MeteoraDammV2InitializeReward: MeteoraDammV2InitializeRewardEvent }
   | { MeteoraDammV2FundReward: MeteoraDammV2FundRewardEvent }
   | { MeteoraDammV2CreateConfig: MeteoraDammV2CreateConfigEvent }
   | { MeteoraDammV2CreateDynamicConfig: MeteoraDammV2CreateDynamicConfigEvent }
@@ -1204,6 +1207,32 @@ export interface MeteoraDammV2WithdrawIneligibleRewardEvent {
   pool: string;
   reward_mint: string;
   amount: bigint;
+}
+/** Official IDL `EvtUpdateRewardFunder`. */
+export interface MeteoraDammV2UpdateRewardFunderEvent {
+  metadata: EventMetadata;
+  pool: string;
+  reward_index: number;
+  old_funder: string;
+  new_funder: string;
+}
+/** Official IDL `EvtUpdateRewardDuration`. */
+export interface MeteoraDammV2UpdateRewardDurationEvent {
+  metadata: EventMetadata;
+  pool: string;
+  reward_index: number;
+  old_reward_duration: bigint;
+  new_reward_duration: bigint;
+}
+/** Official IDL `EvtInitializeReward`. */
+export interface MeteoraDammV2InitializeRewardEvent {
+  metadata: EventMetadata;
+  pool: string;
+  reward_mint: string;
+  funder: string;
+  creator: string;
+  reward_index: number;
+  reward_duration: bigint;
 }
 /** IDL `EvtFundReward`; amount is net new funding plus carried empty rewards.
  * The post rate also includes unexpired rewards from the previous period. */

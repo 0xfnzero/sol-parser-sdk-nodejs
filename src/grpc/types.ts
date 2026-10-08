@@ -377,6 +377,9 @@ export type EventType =
   | "MeteoraDammV2UpdateDelegatePermission"
   | "MeteoraDammV2WithdrawDeadLiquidityReward"
   | "MeteoraDammV2WithdrawIneligibleReward"
+  | "MeteoraDammV2UpdateRewardFunder"
+  | "MeteoraDammV2UpdateRewardDuration"
+  | "MeteoraDammV2InitializeReward"
   | "MeteoraDammV2FundReward"
   | "MeteoraDammV2CreateConfig"
   | "MeteoraDammV2CreateDynamicConfig"
@@ -507,6 +510,9 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
   "MeteoraDammV2WithdrawIneligibleReward",
+  "MeteoraDammV2UpdateRewardFunder",
+  "MeteoraDammV2UpdateRewardDuration",
+  "MeteoraDammV2InitializeReward",
   "MeteoraDammV2FundReward",
   "MeteoraDammV2CreateConfig",
   "MeteoraDammV2CreateDynamicConfig",
@@ -606,6 +612,9 @@ const METEORA_DAMM_V2_FILTER_TYPES: readonly EventType[] = [
   "MeteoraDammV2UpdateDelegatePermission",
   "MeteoraDammV2WithdrawDeadLiquidityReward",
   "MeteoraDammV2WithdrawIneligibleReward",
+  "MeteoraDammV2UpdateRewardFunder",
+  "MeteoraDammV2UpdateRewardDuration",
+  "MeteoraDammV2InitializeReward",
   "MeteoraDammV2FundReward",
   "MeteoraDammV2CreateConfig",
   "MeteoraDammV2CreateDynamicConfig",

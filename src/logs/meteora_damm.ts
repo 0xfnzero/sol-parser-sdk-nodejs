@@ -14,6 +14,9 @@ import type {
   MeteoraDammV2UpdateDelegatePermissionEvent,
   MeteoraDammV2WithdrawDeadLiquidityRewardEvent,
   MeteoraDammV2WithdrawIneligibleRewardEvent,
+  MeteoraDammV2UpdateRewardFunderEvent,
+  MeteoraDammV2UpdateRewardDurationEvent,
+  MeteoraDammV2InitializeRewardEvent,
   MeteoraDammV2FundRewardEvent,
 } from "../core/dex_event.js";
 import { defaultPubkey } from "../core/dex_event.js";
@@ -47,6 +50,9 @@ const CLOSE_POSITION = discOf([20, 145, 144, 68, 143, 142, 214, 178]);
 const UPDATE_DELEGATE_PERMISSION = discOf([66, 188, 75, 151, 150, 232, 87, 93]);
 const WITHDRAW_DEAD_LIQUIDITY_REWARD = discOf([228, 66, 150, 195, 42, 62, 163, 13]);
 const WITHDRAW_INELIGIBLE_REWARD = discOf([248, 215, 184, 78, 31, 180, 179, 168]);
+const UPDATE_REWARD_FUNDER = discOf([76, 154, 208, 13, 40, 115, 246, 146]);
+const UPDATE_REWARD_DURATION = discOf([149, 135, 65, 231, 129, 153, 65, 57]);
+const INITIALIZE_REWARD = discOf([129, 91, 188, 3, 246, 52, 185, 249]);
 const FUND_REWARD = discOf([104, 233, 237, 122, 199, 191, 121, 85]);
 const CREATE_CONFIG = discOf([131, 207, 180, 174, 180, 73, 165, 54]);
 const CREATE_DYNAMIC_CONFIG = discOf([231, 197, 13, 164, 248, 213, 133, 152]);
@@ -582,6 +588,72 @@ export function parseWithdrawIneligibleRewardFromData(
   };
   return { MeteoraDammV2WithdrawIneligibleReward: ev };
 }
+export function parseUpdateRewardFunderFromData(data: Uint8Array, meta: EventMetadata): DexEvent | null {
+  if (data.length < 97) return null;
+  const pool = readPubkey(data, 0);
+  if (pool === null) return null;
+  const reward_index = readU8(data, 32);
+  if (reward_index === null) return null;
+  const old_funder = readPubkey(data, 33);
+  if (old_funder === null) return null;
+  const new_funder = readPubkey(data, 65);
+  if (new_funder === null) return null;
+  return {
+    MeteoraDammV2UpdateRewardFunder: {
+      metadata: meta,
+      pool,
+      reward_index,
+      old_funder,
+      new_funder,
+    },
+  };
+}
+export function parseUpdateRewardDurationFromData(data: Uint8Array, meta: EventMetadata): DexEvent | null {
+  if (data.length < 49) return null;
+  const pool = readPubkey(data, 0);
+  if (pool === null) return null;
+  const reward_index = readU8(data, 32);
+  if (reward_index === null) return null;
+  const old_reward_duration = readU64LE(data, 33);
+  if (old_reward_duration === null) return null;
+  const new_reward_duration = readU64LE(data, 41);
+  if (new_reward_duration === null) return null;
+  return {
+    MeteoraDammV2UpdateRewardDuration: {
+      metadata: meta,
+      pool,
+      reward_index,
+      old_reward_duration,
+      new_reward_duration,
+    },
+  };
+}
+export function parseInitializeRewardFromData(data: Uint8Array, meta: EventMetadata): DexEvent | null {
+  if (data.length < 137) return null;
+  const pool = readPubkey(data, 0);
+  if (pool === null) return null;
+  const reward_mint = readPubkey(data, 32);
+  if (reward_mint === null) return null;
+  const funder = readPubkey(data, 64);
+  if (funder === null) return null;
+  const creator = readPubkey(data, 96);
+  if (creator === null) return null;
+  const reward_index = readU8(data, 128);
+  if (reward_index === null) return null;
+  const reward_duration = readU64LE(data, 129);
+  if (reward_duration === null) return null;
+  return {
+    MeteoraDammV2InitializeReward: {
+      metadata: meta,
+      pool,
+      reward_mint,
+      funder,
+      creator,
+      reward_index,
+      reward_duration,
+    },
+  };
+}
 export function parseFundRewardFromData(data: Uint8Array, meta: EventMetadata): DexEvent | null {
   if (data.length < 153) return null;
   const pool = readPubkey(data, 0);
@@ -782,6 +854,15 @@ export function parseMeteoraDammLog(
   }
   if (disc === WITHDRAW_INELIGIBLE_REWARD) {
     return parseWithdrawIneligibleRewardFromData(data, meta);
+  }
+  if (disc === UPDATE_REWARD_FUNDER) {
+    return parseUpdateRewardFunderFromData(data, meta);
+  }
+  if (disc === UPDATE_REWARD_DURATION) {
+    return parseUpdateRewardDurationFromData(data, meta);
+  }
+  if (disc === INITIALIZE_REWARD) {
+    return parseInitializeRewardFromData(data, meta);
   }
   if (disc === FUND_REWARD) {
     return parseFundRewardFromData(data, meta);

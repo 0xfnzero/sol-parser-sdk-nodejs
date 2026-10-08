@@ -194,6 +194,15 @@ function discriminatorToEventType(disc: bigint): EventType | null {
   if (disc === DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD) {
     return "MeteoraDammV2WithdrawIneligibleReward";
   }
+  if (disc === DISC.METEORA_DAMM_UPDATE_REWARD_FUNDER) {
+    return "MeteoraDammV2UpdateRewardFunder";
+  }
+  if (disc === DISC.METEORA_DAMM_UPDATE_REWARD_DURATION) {
+    return "MeteoraDammV2UpdateRewardDuration";
+  }
+  if (disc === DISC.METEORA_DAMM_INITIALIZE_REWARD) {
+    return "MeteoraDammV2InitializeReward";
+  }
   if (disc === DISC.METEORA_DAMM_FUND_REWARD) {
     return "MeteoraDammV2FundReward";
   }
@@ -308,6 +317,15 @@ function programScopedDiscriminatorToEventType(programId: string | undefined, di
     }
     if (disc === DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD) {
       return "MeteoraDammV2WithdrawIneligibleReward";
+    }
+    if (disc === DISC.METEORA_DAMM_UPDATE_REWARD_FUNDER) {
+      return "MeteoraDammV2UpdateRewardFunder";
+    }
+    if (disc === DISC.METEORA_DAMM_UPDATE_REWARD_DURATION) {
+      return "MeteoraDammV2UpdateRewardDuration";
+    }
+    if (disc === DISC.METEORA_DAMM_INITIALIZE_REWARD) {
+      return "MeteoraDammV2InitializeReward";
     }
     if (disc === DISC.METEORA_DAMM_FUND_REWARD) {
       return "MeteoraDammV2FundReward";
@@ -474,6 +492,9 @@ function filterIncludesProgram(programId: string | undefined, filter: EventTypeF
       "MeteoraDammV2UpdateDelegatePermission",
       "MeteoraDammV2WithdrawDeadLiquidityReward",
       "MeteoraDammV2WithdrawIneligibleReward",
+      "MeteoraDammV2UpdateRewardFunder",
+      "MeteoraDammV2UpdateRewardDuration",
+      "MeteoraDammV2InitializeReward",
       "MeteoraDammV2FundReward",
       "MeteoraDammV2CreateConfig",
       "MeteoraDammV2CreateDynamicConfig",
@@ -912,6 +933,9 @@ export function parseLogOptimized(
     case DISC.METEORA_DAMM_UPDATE_DELEGATE_PERMISSION:
     case DISC.METEORA_DAMM_WITHDRAW_DEAD_LIQUIDITY_REWARD:
     case DISC.METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD:
+    case DISC.METEORA_DAMM_UPDATE_REWARD_FUNDER:
+    case DISC.METEORA_DAMM_UPDATE_REWARD_DURATION:
+    case DISC.METEORA_DAMM_INITIALIZE_REWARD:
     case DISC.METEORA_DAMM_FUND_REWARD:
     case DISC.METEORA_DAMM_CREATE_CONFIG:
     case DISC.METEORA_DAMM_CREATE_DYNAMIC_CONFIG:

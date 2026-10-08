@@ -24,6 +24,9 @@ import {
   parseUpdateDelegatePermissionFromData,
   parseWithdrawDeadLiquidityRewardFromData,
   parseWithdrawIneligibleRewardFromData,
+  parseUpdateRewardFunderFromData,
+  parseUpdateRewardDurationFromData,
+  parseInitializeRewardFromData,
   parseFundRewardFromData,
 } from "../logs/meteora_damm.js";
 import { getAccount, ixMeta, readBool, readPubkeyIx, readU128LE, readU64LE, readU8 } from "./utils.js";
@@ -47,6 +50,9 @@ const CPI = {
   UPDATE_DELEGATE_PERMISSION_LOG: disc8([66, 188, 75, 151, 150, 232, 87, 93]),
   WITHDRAW_DEAD_LIQUIDITY_REWARD_LOG: disc8([228, 66, 150, 195, 42, 62, 163, 13]),
   WITHDRAW_INELIGIBLE_REWARD_LOG: disc8([248, 215, 184, 78, 31, 180, 179, 168]),
+  UPDATE_REWARD_FUNDER_LOG: disc8([76, 154, 208, 13, 40, 115, 246, 146]),
+  UPDATE_REWARD_DURATION_LOG: disc8([149, 135, 65, 231, 129, 153, 65, 57]),
+  INITIALIZE_REWARD_LOG: disc8([129, 91, 188, 3, 246, 52, 185, 249]),
   FUND_REWARD_LOG: disc8([104, 233, 237, 122, 199, 191, 121, 85]),
   CREATE_CONFIG_LOG: disc8([131, 207, 180, 174, 180, 73, 165, 54]),
   CREATE_DYNAMIC_CONFIG_LOG: disc8([231, 197, 13, 164, 248, 213, 133, 152]),
@@ -592,6 +598,15 @@ export function parseMeteoraDammInstruction(
   }
   if (discEq(cpiHead, CPI.WITHDRAW_INELIGIBLE_REWARD_LOG)) {
     return parseWithdrawIneligibleRewardFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.UPDATE_REWARD_FUNDER_LOG)) {
+    return parseUpdateRewardFunderFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.UPDATE_REWARD_DURATION_LOG)) {
+    return parseUpdateRewardDurationFromData(cpiData, meta);
+  }
+  if (discEq(cpiHead, CPI.INITIALIZE_REWARD_LOG)) {
+    return parseInitializeRewardFromData(cpiData, meta);
   }
   if (discEq(cpiHead, CPI.FUND_REWARD_LOG)) {
     return parseFundRewardFromData(cpiData, meta);
