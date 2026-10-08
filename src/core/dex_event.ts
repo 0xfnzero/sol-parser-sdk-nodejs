@@ -1002,6 +1002,9 @@ export interface OrcaWhirlpoolPoolInitializedEvent {
 
 export interface MeteoraPoolsSwapEvent {
   metadata: EventMetadata;
+  /** Instruction intent; executed amounts remain in in_amount/out_amount. */
+  amount_in?: bigint;
+  minimum_out_amount?: bigint;
   in_amount: bigint;
   out_amount: bigint;
   trade_fee: bigint;

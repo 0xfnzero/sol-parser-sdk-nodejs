@@ -46,8 +46,10 @@ describe("Meteora Pools and DLMM instruction parity", () => {
     expect(ev).toBeTruthy();
     expect("MeteoraPoolsSwap" in ev!).toBe(true);
     const data = ev && "MeteoraPoolsSwap" in ev ? ev.MeteoraPoolsSwap : null;
-    expect(data?.in_amount).toBe(111n);
-    expect(data?.out_amount).toBe(222n);
+    expect(data?.amount_in).toBe(111n);
+    expect(data?.minimum_out_amount).toBe(222n);
+    expect(data?.in_amount).toBe(0n);
+    expect(data?.out_amount).toBe(0n);
 
     expect(
       parseInstructionUnified(

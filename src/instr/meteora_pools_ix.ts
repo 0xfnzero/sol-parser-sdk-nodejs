@@ -36,8 +36,10 @@ export function parseMeteoraPoolsInstruction(
     return {
       MeteoraPoolsSwap: {
         metadata,
-        in_amount: readU64LE(instructionData, 8) ?? 0n,
-        out_amount: readU64LE(instructionData, 16) ?? 0n,
+        amount_in: readU64LE(instructionData, 8) ?? 0n,
+        minimum_out_amount: readU64LE(instructionData, 16) ?? 0n,
+        in_amount: 0n,
+        out_amount: 0n,
         trade_fee: 0n,
         admin_fee: 0n,
         host_fee: 0n,

@@ -29,3 +29,21 @@ for(const c of fixture.cases){
   expect(dedupeLogInstructionEvents([], [old,old,parse(data)!])).toHaveLength(3);
  });
 }
+
+const live=JSON.parse(readFileSync(new URL('../fixtures/dbc_live_simulations_20261008.json',import.meta.url),'utf8'));
+for(const c of live.cases)it(`real DBC bank event ${c.name}`,()=>{
+ const events:DexEvent[]=[];
+ for(const row of c.events){
+  const event=parseInnerInstructionUnified(Buffer.from(row.data,'base64'),[],'simulation',c.slot,0,undefined,0,eventTypeFilterIncludeOnly(['MeteoraDbcSwap']),c.program)!;
+  expect(event).not.toBeNull();
+  const e=(event as any).MeteoraDbcSwap;
+  for(const key of ['output_amount','actual_input_amount','swap_mode','event_version','trade_direction','amount_0','amount_1'])expect(String(e[key] ?? 0)).toBe(String(row.expected[key]));
+  events.push(event);
+ }
+ const current=dedupeLogInstructionEvents([],events);
+ expect(current).toHaveLength(c.dedup_count);
+ if(c.error===null){
+  expect(current.length).toBeGreaterThan(0);
+  if(current.length===1)expect(String((current[current.length-1] as any).MeteoraDbcSwap.output_amount)).toBe(String(c.bank_output_balances[0]));
+ }else expect(current).toHaveLength(0);
+});

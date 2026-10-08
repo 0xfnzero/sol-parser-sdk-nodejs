@@ -25,7 +25,7 @@ function unsigned(value: unknown, bits: number): bigint {
 
 /** Original wire plus simulateTransaction response. Parsed SPL transfers and ATA setup.
  * Unsupported parsed CPI fail explicitly; raw/compiled CPI are preserved.
- * V0 ALT requires the existing compiled route API and loadedAddresses.
+ * V0 requires caller-resolved addresses in result.value.loadedAddresses.
  */
 export function analyzeSimulationRoutes(
   wire: Uint8Array,
@@ -33,10 +33,6 @@ export function analyzeSimulationRoutes(
   graduatedPools: readonly string[] = [],
 ): TransactionRoute {
   const tx = decodeWireTransaction(wire).transaction;
-  if (tx.message.addressTableLookups.length)
-    throw Error(
-      "V0 ALT addresses unavailable; use compiled route input with loadedAddresses",
-    );
   const root = response as any,
     value = root?.result?.value;
   if (
@@ -52,7 +48,22 @@ export function analyzeSimulationRoutes(
     !Array.isArray(value.innerInstructions)
   )
     throw Error("Invalid simulation inner instructions");
-  const keys = tx.message.accountKeys;
+  const lookups = tx.message.addressTableLookups;
+  const loaded = value.loadedAddresses ?? { writable: [], readonly: [] };
+  if (lookups.length && value.loadedAddresses == null)
+    throw Error("V0 ALT addresses unavailable; provide loadedAddresses");
+  if (!loaded || typeof loaded !== "object" || Array.isArray(loaded))
+    throw Error("Invalid simulation loaded addresses");
+  for (const side of ["writable", "readonly"] as const) {
+    const expected = lookups.reduce((n, lookup) => n + lookup[side === "writable" ? "writableIndexes" : "readonlyIndexes"].length, 0);
+    if (!Array.isArray(loaded[side]) || loaded[side].length !== expected)
+      throw Error("Simulation loaded address count does not match wire lookups");
+    for (const key of loaded[side]) {
+      if (typeof key !== "string" || bs58.decode(key).length !== 32)
+        throw Error("Invalid simulation loaded public key");
+    }
+  }
+  const keys = [...tx.message.accountKeys, ...loaded.writable, ...loaded.readonly];
   const index = (key: unknown): number => {
     if (typeof key !== "string") throw Error("Missing simulation account key");
     const n = keys.indexOf(key);

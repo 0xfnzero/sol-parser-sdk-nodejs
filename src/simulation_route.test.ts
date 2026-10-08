@@ -176,28 +176,32 @@ it("preserves compiled CPI evidence without parsed conversion", () => {
     c.expected,
   );
 });
-it("rejects V0 ALT without querying for lookup addresses", () => {
-  const original = JSON.parse(
-    fs.readFileSync(
-      new URL("./fixtures/stonkfun_routes_0_7_7.json", import.meta.url),
-      "utf8",
-    ),
-  );
-  const c = original.cases.find((c: any) => {
-    const tx = c.transaction.result ?? c.transaction;
-    return (
-      decodeWireTransaction(Buffer.from(tx.transaction[0], "base64"))
-        .transaction.message.addressTableLookups.length > 0
-    );
-  });
-  expect(c).toBeDefined();
-  const tx = c.transaction.result ?? c.transaction;
-  expect(() =>
-    analyzeSimulationRoutes(
-      Buffer.from(tx.transaction[0], "base64"),
-      corpus.cases[0].response,
-    ),
-  ).toThrow(/ALT/);
+const altCase = JSON.parse(fs.readFileSync(new URL("./fixtures/simulation_alt_20261008.json", import.meta.url), "utf8")).cases[0];
+it("resolves actual V0 ALT two-leg simulation without mutating evidence", () => {
+  const response = structuredClone(altCase.response);
+  const route = analyzeSimulationRoutes(Buffer.from(altCase.wire, "base64"), response);
+  expect(canonical(route)).toEqual(altCase.expected);
+  expect(route.succeeded).toBe(true);
+  expect(route.legs).toHaveLength(2);
+  expect(response).toEqual(altCase.response);
+});
+for (const kind of ["missing", "short_writable", "extra_writable", "short_readonly", "extra_readonly", "invalid_key"]) it(`rejects ALT resolution ${kind}`, () => {
+  const response = structuredClone(altCase.response), value = response.result.value;
+  if (kind === "missing") delete value.loadedAddresses;
+  else if (kind === "invalid_key") value.loadedAddresses.writable[0] = "1";
+  else {
+    const [action, side] = kind.split("_");
+    const addresses = value.loadedAddresses[side!];
+    if (action === "short") addresses.pop(); else addresses.push(addresses[0]);
+  }
+  expect(() => analyzeSimulationRoutes(Buffer.from(altCase.wire, "base64"), response)).toThrow();
+});
+it("accepts empty and rejects extra loaded addresses on static wire", () => {
+  const c = corpus.cases[0], response = structuredClone(c.response);
+  response.result.value.loadedAddresses = {writable: [], readonly: []};
+  expect(canonical(analyzeSimulationRoutes(Buffer.from(c.wire, "base64"), response))).toEqual(c.expected);
+  response.result.value.loadedAddresses.readonly.push(altCase.response.result.value.loadedAddresses.readonly[0]);
+  expect(() => analyzeSimulationRoutes(Buffer.from(c.wire, "base64"), response)).toThrow();
 });
 for (const c of corpus.cases)
   it(`simulation evidence ${c.name}`, () => {
