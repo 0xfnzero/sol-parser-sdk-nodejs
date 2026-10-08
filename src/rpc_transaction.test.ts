@@ -133,6 +133,9 @@ describe("parseRpcTransaction parity", () => {
       isSigner: false,
       isWritable: true,
     }));
+    // Instruction and CPI describe the same mint/user.
+    keys[2]!.pubkey = pk(70);
+    keys[6]!.pubkey = pk(71);
     const tx = rpcTx(
       [new TransactionInstruction({ programId, keys, data: Buffer.from(outerBuyIxData(123n, 456n)) })],
       [],

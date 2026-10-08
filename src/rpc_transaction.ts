@@ -319,6 +319,10 @@ function mergeDlmmInstruction(baseName: string, base: Record<string, any>, inner
   if (context) Object.assign(base, context);
 }
 
+function pumpIdentityKeyConflicts(a: unknown, b: unknown): boolean {
+  return !isDefaultValue(a) && !isDefaultValue(b) && a !== b;
+}
+
 function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
   const baseName = eventName(base);
   const innerName = eventName(inner);
@@ -327,6 +331,7 @@ function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
   if (!baseData || !innerData) return false;
 
   if (PUMPFUN_TRADE_EVENT_NAMES.has(baseName) && PUMPFUN_TRADE_EVENT_NAMES.has(innerName)) {
+    if (baseData.is_buy !== innerData.is_buy || pumpIdentityKeyConflicts(baseData.mint, innerData.mint) || pumpIdentityKeyConflicts(baseData.user, innerData.user)) return false;
     mergePumpfunTradeInstruction(baseData, innerData);
     return true;
   }
@@ -340,7 +345,7 @@ function mergeInstructionEvent(base: DexEvent, inner: DexEvent): boolean {
     (baseName === "PumpSwapBuy" && innerName === "PumpSwapBuy") ||
     (baseName === "PumpSwapSell" && innerName === "PumpSwapSell")
   ) {
-    if(baseData.pool && innerData.pool && baseData.pool!==innerData.pool)return false;
+    if (pumpIdentityKeyConflicts(baseData.pool, innerData.pool) || pumpIdentityKeyConflicts(baseData.user, innerData.user)) return false;
     mergePumpSwapBuySellInstruction(baseData, innerData);
     return true;
   }
