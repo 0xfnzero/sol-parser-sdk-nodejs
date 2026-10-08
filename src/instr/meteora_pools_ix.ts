@@ -10,7 +10,8 @@ const DISC = {
   SWAP: u64leDiscriminator([248, 198, 158, 145, 225, 117, 135, 200]),
   ADD_LIQUIDITY: u64leDiscriminator([181, 157, 89, 67, 143, 182, 52, 72]),
   REMOVE_LIQUIDITY: u64leDiscriminator([80, 85, 209, 72, 24, 206, 177, 108]),
-  CREATE_POOL: u64leDiscriminator([95, 180, 10, 172, 84, 174, 232, 40]),
+  CREATE_POOL: u64leDiscriminator([7, 166, 138, 171, 206, 171, 236, 244]),
+  CREATE_POOL_CONFIG2: u64leDiscriminator([48, 149, 220, 130, 61, 11, 9, 178]),
 } as const;
 
 function discEq(data: Uint8Array, disc: bigint): boolean {
@@ -71,15 +72,19 @@ export function parseMeteoraPoolsInstruction(
     };
   }
 
-  if (discEq(instructionData, DISC.CREATE_POOL)) {
-    if (instructionData.length < 8 + 1 + 6 * 8 || accounts.length <= 9) return null;
+  if (discEq(instructionData, DISC.CREATE_POOL) || discEq(instructionData, DISC.CREATE_POOL_CONFIG2)) {
+    if (instructionData.length < 24 || accounts.length < 5) return null;
+    if (discEq(instructionData, DISC.CREATE_POOL_CONFIG2)) {
+      const tag = readU8(instructionData, 24);
+      if (tag === null || (tag !== 0 && tag !== 1) || (tag === 1 && instructionData.length < 33)) return null;
+    }
     return {
       MeteoraPoolsPoolCreated: {
         metadata,
-        lp_mint: getAccount(accounts, 4) ?? Z,
-        token_a_mint: getAccount(accounts, 8) ?? Z,
-        token_b_mint: getAccount(accounts, 9) ?? Z,
-        pool_type: readU8(instructionData, 8) ?? 0,
+        lp_mint: getAccount(accounts, 2) ?? Z,
+        token_a_mint: getAccount(accounts, 3) ?? Z,
+        token_b_mint: getAccount(accounts, 4) ?? Z,
+        pool_type: 1, // PoolType::Permissionless, independent of CurveType.
         pool: pool ?? Z,
       },
     };

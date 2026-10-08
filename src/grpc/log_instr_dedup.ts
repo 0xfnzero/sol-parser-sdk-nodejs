@@ -104,6 +104,8 @@ function dedupeKey(
       return `PumpFunMigrate|${data.mint}|${data.pool}|${data.user}`;
     case "RaydiumLaunchlabTrade":
       return `RaydiumLaunchlabTrade|${data.pool_state}|${data.user}|${Boolean(data.is_buy)}`;
+    case "MeteoraPoolsPoolCreated":
+      return isDefaultPubkey(data.pool) ? null : `MeteoraPoolsPoolCreated|${data.pool}`;
     case "RaydiumLaunchlabPoolCreate":
       return `RaydiumLaunchlabPoolCreate|${data.pool_state}`;
     case "RaydiumLaunchlabMigrateAmm":
@@ -427,6 +429,9 @@ function mergeGrpcInstructionIntoLog(logEvent: DexEvent, ixEvent: DexEvent): voi
       break;
     case "RaydiumAmmV4Swap":
       if (ixName === "RaydiumAmmV4Swap") mergeRaydiumAmmV4Swap(log, ix);
+      break;
+    case "MeteoraPoolsPoolCreated":
+      if (ixName === "MeteoraPoolsPoolCreated") for (const key of ["pool", "lp_mint", "token_a_mint", "token_b_mint"]) fillString(log, key, ix);
       break;
     case "RaydiumLaunchlabPoolCreate":
       if (ixName === "RaydiumLaunchlabPoolCreate") mergeRaydiumLaunchlabPoolCreate(log, ix);
