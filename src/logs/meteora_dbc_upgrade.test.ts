@@ -47,3 +47,13 @@ for(const c of live.cases)it(`real DBC bank event ${c.name}`,()=>{
   if(current.length===1)expect(String((current[current.length-1] as any).MeteoraDbcSwap.output_amount)).toBe(String(c.bank_output_balances[0]));
  }else expect(current).toHaveLength(0);
 });
+
+const referral=JSON.parse(readFileSync(new URL('../fixtures/dbc_referral_live_20261008.json',import.meta.url),'utf8'));
+for(const c of referral.cases)it(`referral event bank credit ${c.name}`,()=>{
+ const events:DexEvent[]=c.events.map((row:any)=>{
+  const e=parseInnerInstructionUnified(Buffer.from(row.data,'base64'),[],'simulation',1,0,undefined,0,eventTypeFilterIncludeOnly(['MeteoraDbcSwap']),c.program)!;
+  expect(String((e as any).MeteoraDbcSwap.referral_fee)).toBe(String(row.expected_referral_fee));expect((e as any).MeteoraDbcSwap.has_referral).toBe(row.expected_has_referral);return e;
+ });
+ const current=dedupeLogInstructionEvents([],events);expect(current).toHaveLength(c.dedup_count);
+ if(c.error===null)expect(current.reduce((total,e)=>total+(e as any).MeteoraDbcSwap.referral_fee,0n)).toBe(BigInt(c.referral_bank_credit));else expect(current).toHaveLength(0);
+});
