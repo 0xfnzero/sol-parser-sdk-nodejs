@@ -168,28 +168,23 @@ export function decodeWireTransaction(
   }
   if (
     header[0]! > keys.length ||
-    header[1]! > header[0]! ||
+    header[1]! >= header[0]! ||
     header[2]! > keys.length - header[0]!
   )
     throw new Error("Invalid message header");
   if (version === 1) {
-    if (header[1]! >= header[0]!)
-      throw new Error("V1 requires a writable fee payer");
     if (new Set(keys.map((k) => bs58.encode(k))).size !== keys.length)
       throw new Error("Duplicate V1 accounts");
-    for (const ix of instructions)
-      if (
-        ix.programIdIndex === 0 ||
-        ix.programIdIndex >= keys.length ||
-        ix.accounts.some((i) => i >= keys.length)
-      )
-        throw new Error("Invalid V1 instruction index");
   }
-  const accountCount = keys.length + lookups.reduce(
-    (n, l) => n + l.writableIndexes.length + l.readonlyIndexes.length, 0);
+  let accountCount = keys.length;
+  for (const lookup of lookups) {
+    const count = lookup.writableIndexes.length + lookup.readonlyIndexes.length;
+    if (!count) throw new Error("Empty address table lookup");
+    accountCount += count;
+  }
   if (accountCount > 256) throw new Error("Too many resolved account keys");
   for (const ix of instructions)
-    if (ix.programIdIndex >= keys.length || ix.accounts.some(i => i >= accountCount))
+    if (ix.programIdIndex === 0 || ix.programIdIndex >= keys.length || ix.accounts.some(i => i >= accountCount))
       throw new Error("Invalid instruction index");
   if (requireComplete && r.pos !== data.length)
     throw new Error("Trailing transaction bytes");

@@ -136,7 +136,7 @@ export function parseRaydiumClmmInstruction(
   }
 
   if (discEq(instructionData, DISC.CREATE_CUSTOMIZABLE_POOL)) {
-    if (instructionData.length < 8 + 16) return null;
+    if (instructionData.length !== 26 || accounts.length < 13 || instructionData[24]! > 2 || instructionData[25]! > 1) return null;
     const sqrt_price_x64 = readU128LE(instructionData, 8) ?? 0n;
     return {
       RaydiumClmmCreatePool: {

@@ -772,6 +772,66 @@
       12,
       49,
       56
+    ],
+    "METEORA_DAMM_CLAIM_REWARD": [
+      218,
+      86,
+      147,
+      200,
+      235,
+      188,
+      215,
+      231
+    ],
+    "METEORA_DAMM_WITHDRAW_INELIGIBLE_REWARD": [
+      248,
+      215,
+      184,
+      78,
+      31,
+      180,
+      179,
+      168
+    ],
+    "METEORA_DAMM_UPDATE_REWARD_FUNDER": [
+      76,
+      154,
+      208,
+      13,
+      40,
+      115,
+      246,
+      146
+    ],
+    "METEORA_DAMM_UPDATE_REWARD_DURATION": [
+      149,
+      135,
+      65,
+      231,
+      129,
+      153,
+      65,
+      57
+    ],
+    "METEORA_DAMM_INITIALIZE_REWARD": [
+      129,
+      91,
+      188,
+      3,
+      246,
+      52,
+      185,
+      249
+    ],
+    "METEORA_DAMM_FUND_REWARD": [
+      104,
+      233,
+      237,
+      122,
+      199,
+      191,
+      121,
+      85
     ]
   }
 }

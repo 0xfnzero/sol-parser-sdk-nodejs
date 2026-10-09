@@ -22,16 +22,22 @@
 
 Parser SDK language versions and related Rust SDKs:
 
-| Language | Repository | Description |
-|----------|------------|-------------|
+| Language | Repository | Description | Version |
+|----------|------------|-------------|---------|
 | Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX transaction and account event parsing |
 | Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | TypeScript/JavaScript for Node.js |
 | Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | Async/await native support |
 | Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | Go transaction and account event parsing |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing |
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Solana DEX trade construction and transaction execution |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Raw Solana shred decoding and ShredStream DEX event parsing | `v4.0.3` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Solana DEX trade construction and transaction execution | `v6.0.0` |
 
 ---
+
+## v0.5.18 — Signed transaction and hot-path hardening
+
+Hardens signed transaction sanitization, loaded-address boundaries, ordered stream filtering and parser lifecycle. Aligns CLMM and DEX instruction/event layouts, nested CPI route attribution and liquidity/reward accounting. Adds independently signed wire fixtures, ALT failure cases and offline bank regressions.
+
+Validation includes local CPU benchmarks and offline signed-bank scenarios. Measured hot paths use cached inputs without RPC. Benchmarks do not establish production network or transaction-landing latency. No funded mainnet transactions were broadcast.
 
 ## What This SDK Is For
 
@@ -107,7 +113,7 @@ Parser SDK language versions and related Rust SDKs:
 **From npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.17
+npm install sol-parser-sdk@0.5.18
 ```
 
 **From source** (folder may be named `sol-parser-sdk-ts` in a monorepo)
@@ -274,7 +280,7 @@ The client decodes gRPC `entries` bytes in **TypeScript** (same layout as the Go
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```
 
-Without RPC, V0 ALT-loaded account indexes are represented with default pubkey placeholders and parsed best-effort. `shredstream_pumpfun_json.ts` can also use Solana **`RPC_URL`** (or `--rpc`) to expand ALTs when exact loaded-account fields are required.
+Without `connection` or prewarmed ALT snapshots, V0 ALT-loaded indexes retain the static-account, default-pubkey best-effort behavior. With `connection` or `address_lookup_tables`, parsing uses complete cached ALT snapshots only: a cache miss skips the entire transaction, increments `getReceiveStats().altCacheMissTransactions`, and is never replayed. `connection` performs RPC only during explicit `await client.preloadAddressLookupTables(altAddresses)` before subscribing and in the independent background refresher (default 1000 ms, at most one request in flight). Supply already loaded tables via `config.address_lookup_tables` to avoid cold misses. The cache and pending refresh queue each retain at most 2048 tables; refreshed snapshots apply only to later messages. `shredstream_pumpfun_json.ts` uses **`RPC_URL`** (or `--rpc`) for this background refresh; its entry parsing never waits for RPC.
 
 ---
 
@@ -302,7 +308,7 @@ From the **package root** after `npm install`. Examples use `npx tsx` and load `
 | Meteora DAMM V2 events | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream** (HTTP, not Yellowstone gRPC; see **step 5** above) | | |
 | Ultra-low-latency subscribe + queue / latency stats. URL: `--url` / `SHREDSTREAM_URL` / `.env` (default `http://127.0.0.1:10800`). | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
-| PumpFun `DexEvent` JSON from ShredStream; static ALT fallback works without RPC, and Solana **RPC** (`RPC_URL` or `--rpc`) expands full ALT accounts when needed. | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
+| PumpFun `DexEvent` JSON from ShredStream; RPC (`RPC_URL` or `--rpc`) refreshes ALT snapshots outside parsing. Cold cache misses are skipped, counted, and not replayed; prewarm required tables. | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **Multi-protocol** | | |
 | Subscribe to all DEX protocols | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **Utility** | | |

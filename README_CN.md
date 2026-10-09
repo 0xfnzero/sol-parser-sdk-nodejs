@@ -22,14 +22,14 @@
 
 解析 SDK 的各语言版本及相关 Rust SDK：
 
-| 语言 | 仓库 | 描述 |
+| 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
 | Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 |
 | Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 |
 | Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | 原生 async/await 支持 |
 | Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | Go 交易与账户事件解析 |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 |
-| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Solana DEX 交易构建与交易执行 |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.3` |
+| **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Solana DEX 交易构建与交易执行 | `v6.0.0` |
 
 ---
 
@@ -47,6 +47,12 @@
 ---
 
 ## 发布说明
+
+## v0.5.18 — Signed transaction and hot-path hardening
+
+Hardens signed transaction sanitization, loaded-address boundaries, ordered stream filtering and parser lifecycle. Aligns CLMM and DEX instruction/event layouts, nested CPI route attribution and liquidity/reward accounting. Adds independently signed wire fixtures, ALT failure cases and offline bank regressions.
+
+Validation includes local CPU benchmarks and offline signed-bank scenarios. Measured hot paths use cached inputs without RPC. Benchmarks do not establish production network or transaction-landing latency. No funded mainnet transactions were broadcast.
 
 ### v0.5.17
 
@@ -107,7 +113,7 @@
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.17
+npm install sol-parser-sdk@0.5.18
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -267,7 +273,7 @@ mint 或 quote mint 映射到 pool，再将 `PumpSwapLiquidityAdded.user` 与该
 npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 ```
 
-无 RPC 时，V0 ALT-loaded 账户索引用默认 pubkey 占位并继续 best-effort 解析。若需要精确的 ALT 加载账户字段，`shredstream_pumpfun_json.ts` 也可以使用 Solana **`RPC_URL`**（或 `--rpc`）展开 ALT。
+未配置 `connection` 或预热 ALT 快照时，保留静态账户表及默认 pubkey 占位的 best-effort 行为。配置 `connection` 或 `address_lookup_tables` 后，解析只读取完整的 ALT 缓存快照：缓存 miss 跳过整笔交易，累计 `getReceiveStats().altCacheMissTransactions`，不会重放。`connection` 仅用于订阅前显式调用 `await client.preloadAddressLookupTables(altAddresses)` 预热，以及独立后台刷新任务（默认间隔 1000 毫秒，最多一个请求在途）；也可通过 `config.address_lookup_tables` 注入已加载的快照。缓存和待刷新队列各最多保留 2048 张表，刷新结果只供后续消息使用。`shredstream_pumpfun_json.ts` 的 **`RPC_URL`**（或 `--rpc`）用于后台刷新，Entry 解析不等待 RPC。
 
 ---
 
@@ -295,7 +301,7 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) |
 | **ShredStream**（HTTP，**非** Yellowstone gRPC；端点见上文步骤 5） | | |
 | 超低延迟订阅、队列与延迟统计。端点：`--url` / `SHREDSTREAM_URL` / `.env`（默认 `http://127.0.0.1:10800`）。 | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) |
-| ShredStream → PumpFun `DexEvent` JSON；无 RPC 时可静态 ALT fallback，配置 Solana **RPC**（`RPC_URL` 或 `--rpc`）时可展开完整 ALT 账户。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
+| ShredStream → PumpFun `DexEvent` JSON；RPC（`RPC_URL` 或 `--rpc`）只后台刷新 ALT，冷缓存 miss 跳过并计数、不重放；应预热所需表。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) |
 | **多协议** | | |
 | 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) |
 | **工具** | | |

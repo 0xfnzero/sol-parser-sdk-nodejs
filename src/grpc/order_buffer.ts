@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { exactU64 } from "../core/metadata.js";
 import type { DexEvent } from "../core/dex_event.js";
 import { metadataForDexEvent } from "../core/dex_event.js";
@@ -25,11 +26,17 @@ export class OrderDispatcher {
   private readonly microBatchUs: number;
   private readonly slots = new Map<bigint, TxBatch[]>();
   private readonly streamingWatermarks = new Map<bigint, bigint>();
+  private readonly streamingPending = new Set<bigint>();
   private microBatch: TxBatch[] = [];
   private microBatchStartUs = 0;
-  private lastFlushMs = Date.now();
+  private lastFlushMs = performance.now();
   private currentSlot = 0n;
   private seq = 0;
+  private orderedWatermark: { slot: bigint; txIndex: bigint } | null = null;
+  private orderedLateDrops = 0;
+
+  /** Each rejected late transaction marks an Ordered continuity break. */
+  get orderedLateTransactions(): number { return this.orderedLateDrops; }
 
   constructor(config: ClientConfig) {
     this.mode = config.order_mode;
@@ -68,12 +75,12 @@ export class OrderDispatcher {
   }
 
   flushDue(emit: (event: DexEvent) => void): void {
-    const nowMs = Date.now();
+    const nowMs = performance.now();
     if ((this.mode === "Ordered" || this.mode === "StreamingOrdered") && nowMs - this.lastFlushMs > this.timeoutMs) {
       this.flushAllSlots(emit);
     }
     if (this.mode === "MicroBatch") {
-      const nowUs = Math.floor(nowMs * 1000);
+      const nowUs = nowMs * 1000;
       if (this.microBatch.length > 0 && nowUs - this.microBatchStartUs >= this.microBatchUs) {
         this.flushMicroBatch(emit);
       }
@@ -86,6 +93,16 @@ export class OrderDispatcher {
   }
 
   private pushOrdered(batch: TxBatch, emit: (event: DexEvent) => void): void {
+    const last = this.orderedWatermark;
+    if (batch.slot < this.currentSlot || (last && (batch.slot < last.slot ||
+      (batch.slot === last.slot && batch.txIndex <= last.txIndex)))) {
+      this.orderedLateDrops++;
+      const dropped = this.orderedLateDrops;
+      if (dropped <= 10 || Number.isInteger(Math.log2(dropped))) {
+        console.warn(`Ordered continuity break: dropped late transaction (${batch.slot},${batch.txIndex}); total=${dropped}`);
+      }
+      return;
+    }
     if (batch.slot > this.currentSlot && this.currentSlot > 0) {
       this.flushBefore(batch.slot, emit);
     }
@@ -94,13 +111,17 @@ export class OrderDispatcher {
   }
 
   private pushStreaming(batch: TxBatch, emit: (event: DexEvent) => void): void {
+    if (batch.slot < this.currentSlot) return;
     if (batch.slot > this.currentSlot && this.currentSlot > 0) {
       this.flushBefore(batch.slot, emit);
       for (const slot of [...this.streamingWatermarks.keys()]) {
         if (slot < batch.slot) this.streamingWatermarks.delete(slot);
       }
     }
-    if (batch.slot > this.currentSlot) this.currentSlot = batch.slot;
+    if (batch.slot > this.currentSlot) {
+      this.currentSlot = batch.slot;
+      this.streamingPending.clear();
+    }
 
     const expected = this.streamingWatermarks.get(batch.slot) ?? 0n;
     if (batch.txIndex === expected) {
@@ -109,23 +130,25 @@ export class OrderDispatcher {
       const buffered = this.slots.get(batch.slot);
       if (buffered) {
         buffered.sort(compareBatch);
-        let pos = buffered.findIndex((b) => b.txIndex === watermark);
-        while (pos >= 0) {
-          const [next] = buffered.splice(pos, 1);
-          this.emitBatch(next, emit);
-          watermark += 1n;
-          pos = buffered.findIndex((b) => b.txIndex === watermark);
+        let released = 0;
+        while (released < buffered.length && buffered[released]!.txIndex === watermark) {
+          this.emitBatch(buffered[released]!, emit);
+          this.streamingPending.delete(watermark);
+          released++;
+          watermark++;
         }
-        if (buffered.length === 0) this.slots.delete(batch.slot);
+        if (released === buffered.length) this.slots.delete(batch.slot);
+        else if (released) buffered.splice(0, released);
       }
       this.streamingWatermarks.set(batch.slot, watermark);
-    } else if (batch.txIndex > expected) {
+    } else if (batch.txIndex > expected && !this.streamingPending.has(batch.txIndex)) {
+      this.streamingPending.add(batch.txIndex);
       this.pushSlotBatch(batch);
     }
   }
 
   private pushMicroBatch(batch: TxBatch, emit: (event: DexEvent) => void): void {
-    const nowUs = Math.floor(Date.now() * 1000);
+    const nowUs = performance.now() * 1000;
     if (this.microBatch.length === 0) this.microBatchStartUs = nowUs;
     this.microBatch.push(batch);
     if (nowUs - this.microBatchStartUs >= this.microBatchUs) {
@@ -148,7 +171,7 @@ export class OrderDispatcher {
       this.slots.delete(s);
       this.streamingWatermarks.delete(s);
     }
-    this.lastFlushMs = Date.now();
+    this.lastFlushMs = performance.now();
   }
 
   private flushAllSlots(emit: (event: DexEvent) => void): void {
@@ -157,9 +180,17 @@ export class OrderDispatcher {
       batches.sort(compareBatch);
       for (const batch of batches) this.emitBatch(batch, emit);
       this.slots.delete(s);
-      this.streamingWatermarks.delete(s);
+      if (this.mode === "StreamingOrdered" && batches.length) {
+        const next = batches[batches.length - 1]!.txIndex + 1n;
+        this.streamingWatermarks.set(s, next > (this.streamingWatermarks.get(s) ?? 0n)
+          ? next : this.streamingWatermarks.get(s)!);
+      } else this.streamingWatermarks.delete(s);
     }
-    this.lastFlushMs = Date.now();
+    this.streamingPending.clear();
+    for (const slot of this.streamingWatermarks.keys()) {
+      if (this.mode !== "StreamingOrdered" || slot !== this.currentSlot) this.streamingWatermarks.delete(slot);
+    }
+    this.lastFlushMs = performance.now();
   }
 
   private flushMicroBatch(emit: (event: DexEvent) => void): void {
@@ -168,10 +199,11 @@ export class OrderDispatcher {
     for (const batch of this.microBatch) this.emitBatch(batch, emit);
     this.microBatch = [];
     this.microBatchStartUs = 0;
-    this.lastFlushMs = Date.now();
+    this.lastFlushMs = performance.now();
   }
 
   private emitBatch(batch: TxBatch, emit: (event: DexEvent) => void): void {
+    if (this.mode === "Ordered") this.orderedWatermark = { slot: batch.slot, txIndex: batch.txIndex };
     for (const event of batch.events) emit(event);
   }
 }

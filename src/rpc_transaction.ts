@@ -585,16 +585,44 @@ function recentBlockhashBytes(recentBlockhash: string): Uint8Array | undefined {
 
 function detectPumpfunCreateInLogs(
   logMessages: readonly string[],
-  _signature: string,
-  _slot: number | bigint | string,
-  _txIndex: number | bigint | string,
-  _blockTimeUs: number | bigint | string | undefined,
-  _grpcRecvUs: number | bigint | string,
-  _recentBlockhash: Uint8Array | undefined
+  signature: string,
+  slot: number | bigint | string,
+  txIndex: number | bigint | string,
+  blockTimeUs: number | bigint | string | undefined,
+  grpcRecvUs: number | bigint | string,
+  recentBlockhash: Uint8Array | undefined
 ): boolean {
-  return logMessages.some((log) => log.includes("Program data: G3KpTd7rY3Y"));
+  const stack: string[] = [];
+  for (const log of logMessages) {
+    const invoke = parseInvokeInfo(log);
+    if (invoke && log === `Program ${invoke.programId} invoke [${invoke.depth}]`) {
+      stack.length = Math.min(stack.length, invoke.depth - 1);
+      stack.push(invoke.programId);
+      continue;
+    }
+    // The last base64 character of the discriminator also contains payload bits.
+    if (stack[stack.length - 1] === PUMPFUN_PROGRAM_ID &&
+        log.startsWith("Program data: G3KpTd7rY3")) {
+      const encoded = log.slice("Program data: ".length);
+      if (Buffer.from(encoded, "base64").toString("base64") === encoded) {
+        // Ignore the caller's output filter: a real create still classifies buys
+        // when Create events are excluded. Decode only rare create candidates.
+        const event = parseLogOptimizedWithProgramId(
+          log, signature, slot, txIndex, blockTimeUs, grpcRecvUs,
+          undefined, false, recentBlockhash, PUMPFUN_PROGRAM_ID
+        );
+        if (event && ("PumpFunCreate" in event || "PumpFunCreateV2" in event)) return true;
+      }
+    }
+    const completed = parseProgramCompleteInfo(log);
+    if (completed && (log === `Program ${completed} success` ||
+        log.startsWith(`Program ${completed} failed: `))) {
+      const index = stack.lastIndexOf(completed);
+      if (index >= 0) stack.length = index;
+    }
+  }
+  return false;
 }
-
 function applyRpcFills(
   events: DexEvent[],
   msg: Message | MessageV0,

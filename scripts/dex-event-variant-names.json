@@ -32,9 +32,9 @@
     "PumpSwapLiquidityRemoved",
     "MeteoraDammV2Swap",
     "MeteoraDammV2CreatePosition",
-  "MeteoraDammV2ClaimPositionFee",
-  "MeteoraDammV2ClaimReward",
-  "MeteoraDlmmClaimReward",
+    "MeteoraDammV2ClaimPositionFee",
+    "MeteoraDammV2ClaimReward",
+    "MeteoraDlmmClaimReward",
     "MeteoraDammV2ClosePosition",
     "MeteoraDammV2AddLiquidity",
     "MeteoraDammV2RemoveLiquidity",
@@ -115,6 +115,11 @@
     "PumpFunComplete",
     "PumpFunPostCompleteBuy",
     "PumpFunSweepBondingCurveFee",
-    "PumpSwapSweepPoolFee"
+    "PumpSwapSweepPoolFee",
+    "MeteoraDammV2FundReward",
+    "MeteoraDammV2InitializeReward",
+    "MeteoraDammV2UpdateRewardDuration",
+    "MeteoraDammV2UpdateRewardFunder",
+    "MeteoraDammV2WithdrawIneligibleReward"
   ]
 }

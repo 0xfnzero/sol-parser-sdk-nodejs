@@ -49,7 +49,7 @@ function openPositionInstruction(disc: number[], lower: number, upper: number, l
 }
 
 function createCustomizablePoolInstruction(sqrtPriceX64: bigint): Uint8Array {
-  const data = new Uint8Array(8 + 16);
+  const data = new Uint8Array(8 + 18);
   data.set(CREATE_CUSTOMIZABLE_POOL_DISC, 0);
   const view = new DataView(data.buffer);
   view.setBigUint64(8, sqrtPriceX64 & ((1n << 64n) - 1n), true);
@@ -148,7 +148,7 @@ describe("Raydium CLMM instruction parity", () => {
     const sqrtPriceX64 = (1n << 80n) + 999n;
     const ev = parseRaydiumClmmInstruction(
       createCustomizablePoolInstruction(sqrtPriceX64),
-      accounts(7),
+      accounts(13),
       "sig",
       1,
       0,
@@ -220,4 +220,19 @@ describe("Raydium CPMM instruction parity", () => {
     expect(swapData?.output_amount).toBe(0n);
     expect(swapData?.base_input).toBe(true);
   });
+});
+
+
+it("rejects invalid customizable pool IDL boundaries", () => {
+  const valid = createCustomizablePoolInstruction(123n);
+  const parse = (data: Uint8Array, n = 13) => parseRaydiumClmmInstruction(data, accounts(n), "sig", 1, 0, undefined, 10);
+  for (let fee = 0; fee < 3; fee++) for (let dynamic = 0; dynamic < 2; dynamic++) {
+    valid[24] = fee; valid[25] = dynamic;
+    expect(parse(valid)).not.toBeNull();
+  }
+  const enumBad = valid.slice(); enumBad[24] = 3;
+  const boolBad = valid.slice(); boolBad[25] = 2;
+  for (const data of [valid.slice(0, 24), valid.slice(0, 25), new Uint8Array([...valid, 0]), enumBad, boolBad]) expect(parse(data)).toBeNull();
+  expect(parse(valid, 12)).toBeNull();
+  expect(parse(valid)).not.toBeNull();
 });

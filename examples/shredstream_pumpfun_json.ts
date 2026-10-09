@@ -10,7 +10,10 @@
  *
  * 环境变量:
  *   SHREDSTREAM_URL / SHRED_URL — ShredStream 端点（可被 CLI 覆盖）
- *   RPC_URL — 主网 RPC（用于拉取 ALT；公开端点易 429，请换自有节点或 Helius/QuickNode 等）
+ *   RPC_URL — 只供后台 ALT 刷新和显式预热使用，Entry 解析不发送或等待 RPC
+ *   ALT 冷 miss 跳过整笔交易，统计 altCacheMissTransactions，不回放；可在 subscribe 前
+ *   调用 client.preloadAddressLookupTables(altAddresses)，或通过 config.address_lookup_tables 注入快照。
+ *   不配置 connection/快照的其他客户端仍保留静态账户 best-effort 行为。
  *   MAX_EVENTS — 打印条数后退出；默认 0 = 持续打印直到 Ctrl+C
  *   SHREDSTREAM_DEBUG=1 — 在客户端侧打印每条 Entry 的解码统计
  *   SHREDSTREAM_STATS_SEC=N — 每 N 秒打印一次入队/过滤统计（区分「没数据」与「有数据但非 PumpFun」）
@@ -65,7 +68,7 @@ async function main(): Promise<void> {
     "",
     "选项:",
     "  --url, -u, --endpoint=   ShredStream 端点",
-    "  --rpc, -r, --rpc=        主网 HTTP RPC（拉取 ALT；覆盖 RPC_URL）",
+    "  --rpc, -r, --rpc=        主网 HTTP RPC（后台 ALT 刷新；覆盖 RPC_URL）",
     "  -h, --help                显示本说明",
     "",
     "环境: SHREDSTREAM_URL / SHRED_URL、RPC_URL、MAX_EVENTS、SHREDSTREAM_STATS_SEC 等（见文件头注释）",
@@ -105,7 +108,8 @@ async function main(): Promise<void> {
           console.error(
             `[stats] printed_pumpfun=${printed} popped_all_dex=${poppedDex} queue_len=${queue.len()} ` +
               `grpc_entries=${s.entryMessagesReceived} decode_fail=${s.entryDecodeFailures} ` +
-              `txs_decoded=${s.transactionsDecoded} dex_queued=${s.dexEventsQueued}`
+              `txs_decoded=${s.transactionsDecoded} dex_queued=${s.dexEventsQueued} ` +
+              `alt_cache_miss_txs=${s.altCacheMissTransactions} alt_refresh_errors=${client.getAltRefreshFailures()}`
           );
         }, STATS_SEC * 1000)
       : null;

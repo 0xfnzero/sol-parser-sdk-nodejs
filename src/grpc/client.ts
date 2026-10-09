@@ -722,6 +722,8 @@ export class YellowstoneGrpc {
     };
     let flushTimer: ReturnType<typeof setInterval> | undefined;
     if (order.needsTimer) {
+      // Idle flushes are limited by Node timers (at least 1 ms); arrivals
+      // still check the monotonic microsecond window in OrderDispatcher.
       const intervalMs =
         this.config.order_mode === "MicroBatch"
           ? Math.max(1, Math.ceil(this.config.micro_batch_us / 1000))

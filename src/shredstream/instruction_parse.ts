@@ -1,7 +1,7 @@
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
  * `ShredWasmTx` 来自线格式交易经 `@solana/web3.js` 反序列化（见 `wire_to_shred_tx.ts`），非 WASM。
- * 有 `ShredStreamConfig.connection` 时可展开 V0 ALT；无 RPC 时用静态账户表 + 默认 pubkey best-effort。
+ * 客户端通过预热 ALT 缓存展开 V0 账户；connection 只供独立刷新使用。
  */
 import type { MessageHeader } from "@solana/web3.js";
 import { defaultPubkey, type DexEvent } from "../core/dex_event.js";

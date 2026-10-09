@@ -1,4 +1,4 @@
-import type { Connection } from "@solana/web3.js";
+import type { AddressLookupTableAccount, Connection } from "@solana/web3.js";
 
 /**
  * 与 Rust `sol-parser-sdk/src/shredstream/config.rs` 字段一一对应。
@@ -8,7 +8,7 @@ import type { Connection } from "@solana/web3.js";
  * （`request_timeout_ms` 保留与 Rust `config.rs` 一致，流式路径不填 deadline）。
  * `reconnect_delay_ms` / `max_reconnect_attempts` 由 `client.rs` 重连循环使用。
  *
- * **TS 扩展**：`connection` 用于拉取链上 ALT，补全 V0 交易账户表以解析外层指令（主网 Pump 等必需）。
+ * **TS 扩展**：ALT 使用预热快照和独立刷新任务；解析热路径不发送 RPC。
  */
 export interface ShredStreamConfig {
   /** 连接超时（毫秒）→ tonic `Endpoint::connect_timeout` / gRPC `waitForReady` */
@@ -21,8 +21,12 @@ export interface ShredStreamConfig {
   reconnect_delay_ms: number;
   /** 最大重连次数（0 表示无限重连） */
   max_reconnect_attempts: number;
-  /** 可选：主网 RPC，用于解析 V0 地址查找表（ALT） */
+  /** 可选：只供显式预热及后台 ALT 刷新使用，解析热路径不发送 RPC。 */
   connection?: Connection;
+  /** 可选：订阅前已加载的 ALT 快照；未命中时跳过整笔 V0 交易并累计计数。 */
+  address_lookup_tables?: readonly AddressLookupTableAccount[];
+  /** 独立 ALT 刷新间隔（毫秒），默认 1000；最多一个刷新请求在途。 */
+  alt_refresh_interval_ms?: number;
 }
 
 export function defaultShredStreamConfig(): ShredStreamConfig {

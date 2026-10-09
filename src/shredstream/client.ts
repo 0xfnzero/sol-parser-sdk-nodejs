@@ -13,7 +13,7 @@ import {
   dexEventsFromShredWasmTxWithFullKeys,
   type ShredWasmTx,
 } from "./instruction_parse.js";
-import { fullAccountKeyStringsFromShredTx, loadAddressLookupTableAccounts } from "./alt_lookup.js";
+import { AddressLookupTableCache } from "./alt_cache.js";
 import {
   type ShredStreamConfig,
   defaultShredStreamConfig,
@@ -55,8 +55,17 @@ function grpcCredentialsForEndpoint(endpoint: string): grpc.ChannelCredentials {
   return grpc.credentials.createInsecure();
 }
 
-function sleepMs(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+function sleepMs(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    signal.addEventListener("abort", finish, { once: true });
+  });
 }
 
 
@@ -66,6 +75,8 @@ export type ShredStreamReceiveStats = {
   entryDecodeFailures: number;
   transactionsDecoded: number;
   dexEventsQueued: number;
+  /** V0 transactions skipped because a complete cached ALT snapshot was unavailable. */
+  altCacheMissTransactions: number;
 };
 
 function shredDebugEnabled(): boolean {
@@ -118,19 +129,23 @@ export class ShredStreamClient {
   private readonly endpoint: string;
   private readonly config: ShredStreamConfig;
   private readonly ServiceClient: grpc.ServiceClientConstructor;
+  private lifecycleTail: Promise<void> = Promise.resolve();
   private loopAbort: AbortController | null = null;
   private loopPromise: Promise<void> | null = null;
   private activeCall: grpc.ClientReadableStream<unknown> | null = null;
+  private readonly altCache: AddressLookupTableCache;
   private receiveStats: ShredStreamReceiveStats = {
     entryMessagesReceived: 0,
     entryDecodeFailures: 0,
     transactionsDecoded: 0,
     dexEventsQueued: 0,
+    altCacheMissTransactions: 0,
   };
 
   private constructor(endpoint: string, config: ShredStreamConfig) {
     this.endpoint = endpoint;
     this.config = config;
+    this.altCache = new AddressLookupTableCache(config.connection, config.address_lookup_tables, config.alt_refresh_interval_ms);
     const root = loadProtoDefinition();
     const shred = root.shredstream as grpc.GrpcObject;
     this.ServiceClient = shred.ShredstreamProxy as grpc.ServiceClientConstructor;
@@ -169,6 +184,14 @@ export class ShredStreamClient {
     return { ...this.receiveStats };
   }
 
+  /** Prewarm required ALTs before subscribe(); this explicit call may perform RPC. */
+  async preloadAddressLookupTables(addresses: readonly string[]): Promise<void> {
+    await this.altCache.preload(addresses);
+  }
+
+  /** Background refresh failures; cache misses are reported separately in receive stats. */
+  getAltRefreshFailures(): number { return this.altCache.refreshFailures; }
+
   /**
    * 与 Rust `new_with_config` 中 `ShredstreamProxyClient::connect_with_config(endpoint, &config)` 一致：
    * `connection_timeout_ms` / `request_timeout_ms` / `max_decoding_message_size` 见 `shredstream/proto/mod.rs`。
@@ -196,19 +219,26 @@ export class ShredStreamClient {
    * 重连循环使用订阅时刻的配置快照（与 Rust 在 `tokio::spawn` 前 `config.clone()` 一致）。
    */
   async subscribe(eventTypeFilter?: EventTypeFilter): Promise<ShredEventQueue> {
-    await this.stop();
-    this.receiveStats = {
-      entryMessagesReceived: 0,
-      entryDecodeFailures: 0,
-      transactionsDecoded: 0,
-      dexEventsQueued: 0,
-    };
-    const queue = new ShredEventQueue();
-    const ac = new AbortController();
-    this.loopAbort = ac;
-    const configSnapshot: ShredStreamConfig = { ...this.config };
-    this.loopPromise = this.runReconnectLoop(queue, ac.signal, configSnapshot, eventTypeFilter);
-    return queue;
+    return this.serializeLifecycle(async () => {
+      await this.stopUnlocked();
+      this.receiveStats = {
+        entryMessagesReceived: 0,
+        entryDecodeFailures: 0,
+        transactionsDecoded: 0,
+        dexEventsQueued: 0,
+        altCacheMissTransactions: 0,
+      };
+      const queue = new ShredEventQueue();
+      const ac = new AbortController();
+      this.loopAbort = ac;
+      const configSnapshot: ShredStreamConfig = { ...this.config };
+      this.altCache.start();
+      this.loopPromise = this.runReconnectLoop(queue, ac.signal, configSnapshot, eventTypeFilter)
+        .finally(() => {
+          if (this.loopAbort === ac) this.altCache.stop();
+        });
+      return queue;
+    });
   }
 
   /** 与 Rust `subscribe_with_filter` 对齐：在解析热路径按事件类型预过滤。 */
@@ -218,6 +248,17 @@ export class ShredStreamClient {
 
   /** 停止订阅并中止当前流 */
   async stop(): Promise<void> {
+    await this.serializeLifecycle(() => this.stopUnlocked());
+  }
+
+  private serializeLifecycle<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.lifecycleTail.then(operation);
+    this.lifecycleTail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  private async stopUnlocked(): Promise<void> {
+    this.altCache.stop();
     this.loopAbort?.abort();
     this.loopAbort = null;
     this.activeCall?.cancel();
@@ -253,7 +294,7 @@ export class ShredStreamClient {
         if (signal.aborted) break;
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`ShredStream error: ${msg} - retry in ${delay}ms`);
-        await sleepMs(delay);
+        await sleepMs(delay, signal);
         if (signal.aborted) break;
         delay = Math.min(delay * 2, 60_000);
       }
@@ -282,7 +323,14 @@ export class ShredStreamClient {
       const finish = (fn: () => void) => {
         if (settled) return;
         settled = true;
+        signal.removeEventListener("abort", abort);
+        if (this.activeCall === call) this.activeCall = null;
+        client.close();
         fn();
+      };
+      const abort = () => {
+        call.cancel();
+        finish(resolve);
       };
 
       const call = client.subscribeEntries({}, new grpc.Metadata()) as grpc.ClientReadableStream<{
@@ -290,19 +338,19 @@ export class ShredStreamClient {
         entries: Buffer | Uint8Array;
       }>;
       this.activeCall = call;
+      signal.addEventListener("abort", abort, { once: true });
 
       console.info("ShredStream connected, receiving entries...");
 
       call.on("data", (entry) => {
-        if (signal.aborted) return;
+        if (signal.aborted || settled) return;
         try {
-          void this.processEntryMessage(entry, queue, eventTypeFilter);
+          this.processEntryMessage(entry, queue, eventTypeFilter);
         } catch (err) {
           console.error("processEntryMessage:", err);
         }
       });
       call.on("error", (err: Error & { code?: number }) => {
-        client.close();
         if (signal.aborted || err.code === grpc.status.CANCELLED) {
           finish(() => resolve());
           return;
@@ -311,17 +359,16 @@ export class ShredStreamClient {
         finish(() => reject(err));
       });
       call.on("end", () => {
-        client.close();
         finish(() => resolve());
       });
     });
   }
 
-  private async processEntryMessage(
+  private processEntryMessage(
     entry: { slot: string | number | bigint; entries: Buffer | Uint8Array },
     queue: ShredEventQueue,
     eventTypeFilter?: EventTypeFilter
-  ): Promise<void> {
+  ): void {
     this.receiveStats.entryMessagesReceived += 1;
     const recvUs = nowUs();
     const slotNum = toSlotNumber(entry.slot);
@@ -338,29 +385,10 @@ export class ShredStreamClient {
       return;
     }
 
-    const conn = this.config.connection;
-    if (conn) {
-      try {
-        await this.processEntryMessageWithAlt(
-          decoded,
-          slotNum,
-          recvUs,
-          queue,
-          bytes.length,
-          conn,
-          eventTypeFilter
-        );
-      } catch (e) {
-        console.warn(`[shredstream] ALT/RPC 解析失败 slot=${slotNum}:`, e);
-        this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length, eventTypeFilter);
-      }
-      return;
-    }
-
     this.processEntryMessageSync(decoded, slotNum, recvUs, queue, bytes.length, eventTypeFilter);
   }
 
-  /** 无 RPC：仅用静态账户表 */
+  /** Synchronous parsing: static keys or complete prewarmed ALT snapshots only. */
   private processEntryMessageSync(
     decoded: ShredWasmTx[][],
     slotNum: number | bigint | string,
@@ -381,7 +409,15 @@ export class ShredStreamClient {
         const tx = txs[i];
         const txIndex = globalTxIndex++;
         if (!tx?.signature) continue;
-        const events = dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, eventTypeFilter);
+        const useCache = this.config.connection || this.config.address_lookup_tables;
+        const fullKeys = useCache ? this.altCache.resolve(tx) : tx.accounts;
+        if (!fullKeys) {
+          this.receiveStats.altCacheMissTransactions++;
+          continue;
+        }
+        const events = useCache
+          ? dexEventsFromShredWasmTxWithFullKeys(tx, fullKeys, slotNum, txIndex, recvUs, eventTypeFilter)
+          : dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, eventTypeFilter);
         evTotal += events.length;
         for (const ev of events) {
           setGrpcRecvUsMut(ev, recvUs);
@@ -400,63 +436,7 @@ export class ShredStreamClient {
     }
   }
 
-  /** 拉取 ALT 后完整账户表解析 */
-  private async processEntryMessageWithAlt(
-    decoded: ShredWasmTx[][],
-    slotNum: number | bigint | string,
-    recvUs: number,
-    queue: ShredEventQueue,
-    entriesBytesLen: number,
-    conn: import("@solana/web3.js").Connection,
-    eventTypeFilter?: EventTypeFilter
-  ): Promise<void> {
-    const altKeys = new Set<string>();
-    for (const outer of decoded) {
-      for (const tx of outer) {
-        for (const l of tx.addressTableLookups ?? []) {
-          altKeys.add(l.accountKey);
-        }
-      }
-    }
-    const altMap = await loadAddressLookupTableAccounts(conn, [...altKeys]);
 
-    let txTotal = 0;
-    let evTotal = 0;
-    let globalTxIndex = 0;
-
-    for (const outer of decoded) {
-      const txs = outer;
-      txTotal += txs.length;
-      for (let i = 0; i < txs.length; i++) {
-        const tx = txs[i];
-        const txIndex = globalTxIndex++;
-        if (!tx?.signature) continue;
-        const fullKeys = fullAccountKeyStringsFromShredTx(tx, altMap);
-        const events = dexEventsFromShredWasmTxWithFullKeys(
-          tx,
-          fullKeys,
-          slotNum,
-          txIndex,
-          recvUs,
-          eventTypeFilter
-        );
-        evTotal += events.length;
-        for (const ev of events) {
-          setGrpcRecvUsMut(ev, recvUs);
-          queue.push(ev);
-        }
-      }
-    }
-
-    this.receiveStats.transactionsDecoded += txTotal;
-    this.receiveStats.dexEventsQueued += evTotal;
-
-    if (shredDebugEnabled()) {
-      console.info(
-        `[shredstream] slot=${slotNum} entries_bytes=${entriesBytesLen} solana_entries=${decoded.length} txs=${txTotal} dex_events=${evTotal} alt_tables=${altKeys.size}`
-      );
-    }
-  }
 }
 
 function toSlotNumber(slot: string | number | bigint): bigint {

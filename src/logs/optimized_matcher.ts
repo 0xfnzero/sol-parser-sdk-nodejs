@@ -619,16 +619,24 @@ export function parseLogOptimized(
     const metadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
     return parseAmmRayLogSwap(log, metadata);
   }
-  const buf = decodeProgramDataLine(log);
-  if (!buf) return null;
-  const disc = readDiscriminatorU64(buf);
-  if (disc === null) return null;
-  const data = buf.subarray(8);
-  const rb =
-    recentBlockhash && recentBlockhash.length > 0 ? bs58.encode(recentBlockhash) : undefined;
-  const metadata: EventMetadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
-
-  if(pumpUpgradeEventType(disc,programId)) return applyActualEventTypeFilter(parsePumpUpgradeEvent(disc,data,metadata,programId),eventTypeFilter);
+  // Canonical base64 exposes eight discriminator bytes in its first twelve characters.
+  // Fall back to the original decoder for permissive/noncanonical encodings.
+  let buf: Uint8Array | null = null;
+  let disc: bigint | null = null;
+  if (eventTypeFilter) {
+    const start = log.indexOf("Program data: ");
+    if (start < 0) return null;
+    const prefix = log.slice(start + 14, start + 26);
+    if (/^[A-Za-z0-9+/]{12}$/.test(prefix)) {
+      disc = readDiscriminatorU64(Buffer.from(prefix, "base64"));
+    }
+  }
+  if (disc === null) {
+    buf = decodeProgramDataLine(log);
+    if (!buf) return null;
+    disc = readDiscriminatorU64(buf);
+    if (disc === null) return null;
+  }
   const isUnscopedSharedDiscriminator = !programId &&
     (disc === DISC.PUMPFUN_TRADE || disc === DISC.RAYDIUM_CPMM_SWAP_BASE_IN);
   const et = programScopedDiscriminatorToEventType(programId, disc);
@@ -642,6 +650,15 @@ export function parseLogOptimized(
     if (programId) {
       if (!filterIncludesProgram(programId, eventTypeFilter)) return null;
     } else if (!filterAllowsUnscopedDiscriminator(eventTypeFilter, disc)) return null;
+  }
+
+  buf ??= decodeProgramDataLine(log);
+  if (!buf) return null;
+  const data = buf.subarray(8);
+  const rb = recentBlockhash && recentBlockhash.length > 0 ? bs58.encode(recentBlockhash) : undefined;
+  const metadata = makeMetadata(signature, slot, txIndex, blockTimeUs, grpcRecvUs, rb);
+  if (pumpUpgradeEventType(disc, programId)) {
+    return applyActualEventTypeFilter(parsePumpUpgradeEvent(disc, data, metadata, programId), eventTypeFilter);
   }
 
   if (programId === RAYDIUM_LAUNCHLAB_PROGRAM_ID) {

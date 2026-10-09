@@ -2,12 +2,12 @@ import { PublicKey, TransactionInstruction, TransactionMessage, VersionedTransac
 import { describe, expect, it } from "vitest";
 import { PUMPFUN_PROGRAM_ID } from "./grpc/program_ids.js";
 import { METEORA_DLMM_PROGRAM_ID } from "./instr/program_ids.js";
+import { eventTypeFilterIncludeOnly } from "./grpc/types.js";
 import { parseRpcTransaction } from "./rpc_transaction.js";
 
 const PUMPFUN_BUY = [102, 6, 61, 18, 1, 218, 235, 234] as const;
 const PUMPFUN_TRADE = [189, 219, 127, 211, 78, 230, 97, 238] as const;
 const EVENT_CPI_SUFFIX = [155, 167, 108, 32, 122, 76, 173, 64] as const;
-const PUMPFUN_CREATE_PREFIX = "Program data: G3KpTd7rY3Y";
 const DLMM_SWAP = [248, 198, 158, 145, 225, 117, 135, 200] as const;
 const DLMM_SWAP2_EVENT = [46, 116, 82, 215, 148, 27, 84, 77] as const;
 const ANCHOR_EVENT_CPI = [228, 69, 165, 46, 81, 203, 154, 29] as const;
@@ -97,6 +97,13 @@ function pumpfunTradeLog(ixName: string): string {
   return `Program data: ${Buffer.from(Uint8Array.from([...PUMPFUN_TRADE, ...pumpfunTradePayload(ixName)])).toString("base64")}`;
 }
 
+function pumpfunCreateLogForDetection(name = "x"): string {
+  const out: number[] = [27, 114, 169, 77, 222, 235, 99, 118];
+  for (const value of [name, "SDK", "https://example.invalid"]) pushString(out, value);
+  for (const seed of [70, 80, 90]) pushPubkey(out, pk(seed));
+  return `Program data: ${Buffer.from(out).toString("base64")}`;
+}
+
 function rpcTx(instructions: TransactionInstruction[], logMessages: string[], innerData?: Uint8Array) {
   const payerKey = pk(240);
   const message = new TransactionMessage({
@@ -163,12 +170,12 @@ describe("parseRpcTransaction parity", () => {
       [
         `Program ${PUMPFUN_PROGRAM_ID} invoke [1]`,
         pumpfunTradeLog("buy"),
-        PUMPFUN_CREATE_PREFIX,
+        pumpfunCreateLogForDetection(),
         `Program ${PUMPFUN_PROGRAM_ID} success`,
       ],
     );
 
-    const parsed = parseRpcTransaction(tx, "sig", undefined, { grpcRecvUs: 99, txIndex: 7 });
+    const parsed = parseRpcTransaction(tx, "sig", eventTypeFilterIncludeOnly(["PumpFunBuy"]), { grpcRecvUs: 99, txIndex: 7 });
     expect(parsed.ok).toBe(true);
     const events = parsed.ok ? parsed.events : [];
     expect(events).toHaveLength(1);
@@ -294,4 +301,34 @@ it('pairs repeated Pump instructions with their own event CPI',()=>{
  const parsed=parseRpcTransaction(tx,'synthetic-repeat');expect(parsed.ok).toBe(true);if(!parsed.ok)throw Error(parsed.error.message);
  const bodies=parsed.events.map((e:any)=>e.PumpFunBuy);
  expect(bodies).toHaveLength(2);expect(bodies.map((e:any)=>[e.amount,e.token_amount])).toEqual([[123n,20n],[789n,30n]]);
+});
+
+
+describe("Pump create detection uses decoded runtime-scoped logs", () => {
+  const foreign = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+  const create = pumpfunCreateLogForDetection();
+  const scope = (program: string, line: string) => [`Program ${program} invoke [1]`, line, `Program ${program} success`];
+  const cases: Array<[string, string[], boolean]> = [
+    ["quoted Memo marker", scope(foreign, 'Program log: Memo: "Program data: G3KpTd7rY3Y"'), false],
+    ["foreign canonical data", scope(foreign, create), false],
+    ["unscoped canonical data", [create], false],
+    ["truncated discriminator", scope(PUMPFUN_PROGRAM_ID, "Program data: G3KpTd7rY3Y"), false],
+    ["malformed base64", scope(PUMPFUN_PROGRAM_ID, create + "!"), false],
+    ["nested Pump", [`Program ${foreign} invoke [1]`, `Program ${PUMPFUN_PROGRAM_ID} invoke [2]`, create, `Program ${PUMPFUN_PROGRAM_ID} success`, `Program ${foreign} success`], true],
+    ["Pump event CPI", [`Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, `Program ${PUMPFUN_PROGRAM_ID} invoke [2]`, create, `Program ${PUMPFUN_PROGRAM_ID} success`, `Program ${PUMPFUN_PROGRAM_ID} success`], true],
+    ["foreign child in Pump", [`Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, `Program ${foreign} invoke [2]`, create, `Program ${foreign} success`, `Program ${PUMPFUN_PROGRAM_ID} success`], false],
+    ["Pump scope restored after failed child", [`Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, `Program ${foreign} invoke [2]`, create, `Program ${foreign} failed: custom program error: 1`, create, `Program ${PUMPFUN_PROGRAM_ID} success`], true],
+    ["failed Pump scope removed", [`Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, `Program ${PUMPFUN_PROGRAM_ID} failed: custom program error: 1`, create], false],
+    ["quoted invocation cannot establish scope", [`Program log: Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, create], false],
+    ...[0, 1, 2, 3].map(length => [`valid create name length ${length}`, scope(PUMPFUN_PROGRAM_ID, pumpfunCreateLogForDetection("x".repeat(length))), true] as [string, string[], boolean]),
+  ];
+  it.each(cases)("%s preserves trade-only output filters", (_name, prefix, expected) => {
+    const tx = rpcTx([], [...prefix, ...scope(PUMPFUN_PROGRAM_ID, pumpfunTradeLog("buy"))]);
+    const parsed = parseRpcTransaction(tx, "sig", eventTypeFilterIncludeOnly(["PumpFunBuy"]));
+    expect(parsed.ok).toBe(true);
+    const events = parsed.ok ? parsed.events : [];
+    expect(events).toHaveLength(1);
+    const buy = "PumpFunBuy" in events[0]! ? events[0]!.PumpFunBuy : null;
+    expect(buy?.is_created_buy).toBe(expected);
+  });
 });

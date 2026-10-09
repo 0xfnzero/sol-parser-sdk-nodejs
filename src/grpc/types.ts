@@ -3,6 +3,9 @@ import type { SubscribeRequestFilterAccountsFilter } from "./protocol/geyser.js"
 import type { DexEvent } from "../core/dex_event.js";
 
 /** gRPC 订阅顺序模式 */
+/** Ordered sorts buffered transactions until a newer slot or timeout. Late data
+ * for a closed slot or at/before the emitted watermark is dropped with a
+ * continuity-break warning; upstream completeness cannot be guaranteed. */
 export type OrderMode = "Unordered" | "Ordered" | "StreamingOrdered" | "MicroBatch";
 
 /** 与 Rust `grpc::types::Protocol` 一致 */
