@@ -3,6 +3,10 @@ import type { EventMetadata } from '../core/metadata.js';
 import type { EventTypeFilter } from '../grpc/types.js';
 export interface PumpRouteHop {base_mint:string;quote_mint:string;venue:string;base_vault:string;quote_vault:string}
 export interface PumpRouteIntentEvent {
+  /** Intended direction relative to the wrapper hop's base mint, not a fill. */
+  is_buy?: boolean|null;
+  /** Official underlying instruction encoded in the wrapper; null when unknown. */
+  ix_name?: string|null;
   metadata:EventMetadata;kind:'MultiHopSwap'|'MultiHopCurveSwap'|'RapidBuy'|'BuyPumpDelta';program:string;
   instruction_index:number;user:string;input_account:string;output_account:string;
   amount_in:bigint|null;min_amount_out:bigint|null;hops:PumpRouteHop[];instruction_data:number[];
@@ -53,5 +57,7 @@ export function parsePumpRoute(program:string,data:Uint8Array,a:readonly string[
  const hops:PumpRouteHop[]=[];
  if(fixed){for(let i=fixed;i<a.length;i+=5)hops.push(hop(a.slice(i,i+5)));}
  else hops.push(hop((program===RAPID?[7,2,16,17,18]:[2,3,11,12,13]).map(i=>a[i]!)));
- return {metadata,kind,program,instruction_index:index,user:a[user]!,input_account:a[input]!,output_account:a[output]!,amount_in:amount,min_amount_out:minimum,hops,instruction_data:Array.from(data)};
+ return {metadata,kind,program,instruction_index:index,user:a[user]!,input_account:a[input]!,output_account:a[output]!,amount_in:amount,min_amount_out:minimum,hops,instruction_data:Array.from(data),
+  is_buy:kind==='RapidBuy'||kind==='BuyPumpDelta'?true:null,
+  ix_name:kind==='RapidBuy'?'buy_exact_quote_in_v2':null};
 }

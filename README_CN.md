@@ -24,11 +24,11 @@
 
 | 语言 | 仓库 | 描述 | 版本 |
 |------|------|------|
-| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.14` |
-| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.5.20` |
-| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | 原生 async/await 支持 | `v0.5.13` |
-| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | Go 交易与账户事件解析 | `v0.5.13` |
-| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.5` |
+| Rust | [sol-parser-sdk](https://github.com/0xfnzero/sol-parser-sdk) | Solana DEX 交易与账户事件解析 | `v0.7.15` |
+| Node.js | [sol-parser-sdk-nodejs](https://github.com/0xfnzero/sol-parser-sdk-nodejs) | TypeScript/JavaScript，Node.js 支持 | `v0.5.21` |
+| Python | [sol-parser-sdk-python](https://github.com/0xfnzero/sol-parser-sdk-python) | 原生 async/await 支持 | `v0.5.14` |
+| Go | [sol-parser-sdk-golang](https://github.com/0xfnzero/sol-parser-sdk-golang) | Go 交易与账户事件解析 | `v0.5.14` |
+| **Rust** | [sol-shred-sdk](https://github.com/0xfnzero/sol-shred-sdk) | Solana 原始 shred 解码与 ShredStream DEX 事件解析 | `v4.0.6` |
 | **Rust** | [sol-trade-sdk](https://github.com/0xfnzero/sol-trade-sdk) | Solana DEX 交易构建与交易执行 | `v6.0.2` |
 
 ---
@@ -47,6 +47,12 @@
 ---
 
 ## 发布说明
+
+## v0.5.21 — Pump 路由方向与指令名称
+
+路由事件沿用 `is_buy`、`ix_name` 命名。RapidBuy 为买入意图，指令名为官方 IDL 的 `buy_exact_quote_in_v2`；BuyPumpDelta 仅确定买入方向。多跳路由方向和无法确定的方法保持为空。币种读取 `hops[].base_mint` / `quote_mint`。这些字段不代表已成交；过滤器不会把路由事件转换为交易事件。
+
+旧 JSON 缺少新字段时保持未知。Rust 结构体字面量须补齐新字段；Go 新字段为指针，Node.js/Python 未知值为 null/None。Streamer 新增 `DexEvent::PumpRouteIntentEvent` 并保留路由字段，支持协议与事件过滤。
 
 ## v0.5.20 — Pump routes and offline replay
 
@@ -125,7 +131,7 @@ Validation includes local CPU benchmarks and offline signed-bank scenarios. Meas
 **npm**
 
 ```bash
-npm install sol-parser-sdk@0.5.20
+npm install sol-parser-sdk@0.5.21
 ```
 
 **源码**（monorepo 里目录可能是 `sol-parser-sdk-ts`）
@@ -296,29 +302,29 @@ npx tsx examples/shredstream_example.ts -- --url=http://127.0.0.1:10800
 | 描述 | 运行命令 | 源码 |
 |------|----------|------|
 | **本包脚本** | | |
-| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 `DexEvent`） | `npx tsx scripts/test-grpc-ts.ts` | [test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) | `v0.5.20` |
-| 调试：打印 `metaRaw` / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) | `v0.5.20` |
+| gRPC 集成测试（PumpFun + PumpSwap，账户填充后的 `DexEvent`） | `npx tsx scripts/test-grpc-ts.ts` | [test-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/test-grpc-ts.ts) | `v0.5.21` |
+| 调试：打印 `metaRaw` / 日志结构 | `npx tsx scripts/debug-grpc-ts.ts` | [debug-grpc-ts.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/scripts/debug-grpc-ts.ts) | `v0.5.21` |
 | **PumpFun** | | |
-| CREATE + dev BUY/SELL 长时间低延迟订阅 | `npx tsx examples/devtrades_low_latency.ts` | [devtrades_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_low_latency.ts) | `v0.5.20` |
-| PumpFun + 全量 PumpSwap 开发者交易/加池 | `npm run example:grpc:devtrades:pumpswap` | [devtrades_pumpfun_pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_pumpfun_pumpswap_low_latency.ts) | `v0.5.20` |
-| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) | `v0.5.20` |
-| PumpFun 事件 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) | `v0.5.20` |
-| PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) | `v0.5.20` |
-| PumpFun 快速连接测试 | `npx tsx examples/pumpfun_quick_test.ts` | [pumpfun_quick_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.ts) | `v0.5.20` |
+| CREATE + dev BUY/SELL 长时间低延迟订阅 | `npx tsx examples/devtrades_low_latency.ts` | [devtrades_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_low_latency.ts) | `v0.5.21` |
+| PumpFun + 全量 PumpSwap 开发者交易/加池 | `npm run example:grpc:devtrades:pumpswap` | [devtrades_pumpfun_pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/devtrades_pumpfun_pumpswap_low_latency.ts) | `v0.5.21` |
+| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpfun_grpc_json.ts` | [pumpfun_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_grpc_json.ts) | `v0.5.21` |
+| PumpFun 事件 + 性能指标 | `npx tsx examples/pumpfun_with_metrics.ts` | [pumpfun_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_with_metrics.ts) | `v0.5.21` |
+| PumpFun 交易类型过滤 | `npx tsx examples/pumpfun_trade_filter.ts` | [pumpfun_trade_filter.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_trade_filter.ts) | `v0.5.21` |
+| PumpFun 快速连接测试 | `npx tsx examples/pumpfun_quick_test.ts` | [pumpfun_quick_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpfun_quick_test.ts) | `v0.5.21` |
 | **PumpSwap** | | |
-| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpswap_grpc_json.ts` | [pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) | `v0.5.20` |
-| PumpSwap 事件 + 性能指标 | `npx tsx examples/pumpswap_with_metrics.ts` | [pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) | `v0.5.20` |
-| PumpSwap 交易、创建池及流动性事件（超低延迟） | `npm run example:grpc:pumpswap` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) | `v0.5.20` |
+| gRPC 输出完整 JSON `DexEvent` | `npx tsx examples/pumpswap_grpc_json.ts` | [pumpswap_grpc_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_grpc_json.ts) | `v0.5.21` |
+| PumpSwap 事件 + 性能指标 | `npx tsx examples/pumpswap_with_metrics.ts` | [pumpswap_with_metrics.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_with_metrics.ts) | `v0.5.21` |
+| PumpSwap 交易、创建池及流动性事件（超低延迟） | `npm run example:grpc:pumpswap` | [pumpswap_low_latency.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/pumpswap_low_latency.ts) | `v0.5.21` |
 | **Meteora DAMM** | | |
-| Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) | `v0.5.20` |
+| Meteora DAMM V2 事件 | `npx tsx examples/meteora_damm_grpc.ts` | [meteora_damm_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/meteora_damm_grpc.ts) | `v0.5.21` |
 | **ShredStream**（HTTP，**非** Yellowstone gRPC；端点见上文步骤 5） | | |
-| 超低延迟订阅、队列与延迟统计。端点：`--url` / `SHREDSTREAM_URL` / `.env`（默认 `http://127.0.0.1:10800`）。 | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) | `v0.5.20` |
-| ShredStream → PumpFun `DexEvent` JSON；RPC（`RPC_URL` 或 `--rpc`）只后台刷新 ALT，冷缓存 miss 跳过并计数、不重放；应预热所需表。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) | `v0.5.20` |
+| 超低延迟订阅、队列与延迟统计。端点：`--url` / `SHREDSTREAM_URL` / `.env`（默认 `http://127.0.0.1:10800`）。 | `npx tsx examples/shredstream_example.ts` | [shredstream_example.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_example.ts) | `v0.5.21` |
+| ShredStream → PumpFun `DexEvent` JSON；RPC（`RPC_URL` 或 `--rpc`）只后台刷新 ALT，冷缓存 miss 跳过并计数、不重放；应预热所需表。 | `npx tsx examples/shredstream_pumpfun_json.ts` | [shredstream_pumpfun_json.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/shredstream_pumpfun_json.ts) | `v0.5.21` |
 | **多协议** | | |
-| 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) | `v0.5.20` |
+| 同时订阅所有 DEX 协议 | `npx tsx examples/multi_protocol_grpc.ts` | [multi_protocol_grpc.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/multi_protocol_grpc.ts) | `v0.5.21` |
 | **工具** | | |
-| 验证 onUpdate 同步错误不会打断 gRPC 流 | `npx tsx examples/grpc_onupdate_error_test.ts` | [grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) | `v0.5.20` |
-| 按签名解析交易（`parseTransactionFromRpc`；非 gRPC）。在 `.env` 或环境中设置 `TX_SIGNATURE`。 | `npx tsx examples/parse_tx_by_signature.ts` | [parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) | `v0.5.20` |
+| 验证 onUpdate 同步错误不会打断 gRPC 流 | `npx tsx examples/grpc_onupdate_error_test.ts` | [grpc_onupdate_error_test.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/grpc_onupdate_error_test.ts) | `v0.5.21` |
+| 按签名解析交易（`parseTransactionFromRpc`；非 gRPC）。在 `.env` 或环境中设置 `TX_SIGNATURE`。 | `npx tsx examples/parse_tx_by_signature.ts` | [parse_tx_by_signature.ts](https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/examples/parse_tx_by_signature.ts) | `v0.5.21` |
 
 **`npm run` 别名**（与上表 ShredStream 行同一源码文件，每行一条）：
 

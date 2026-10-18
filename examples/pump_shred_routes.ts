@@ -29,6 +29,10 @@ export function runReplay():number {
    const keys=[...tx.accounts,...f.loaded_writable,...f.loaded_readonly];
    events.forEach((event,i)=>{
     assert('PumpRouteIntent' in event);const e=event.PumpRouteIntent,w=f.expected[i];
+    assert.equal(e.is_buy,e.kind==='RapidBuy'||e.kind==='BuyPumpDelta'?true:null);
+    assert.equal(e.ix_name,e.kind==='RapidBuy'?'buy_exact_quote_in_v2':null);
+    const hints=JSON.parse(JSON.stringify({is_buy:e.is_buy,ix_name:e.ix_name}));
+    assert.equal(hints.is_buy,e.is_buy);assert.equal(hints.ix_name,e.ix_name);
     assert.equal(e.kind,w.kind);assert.equal(e.user,w.user);assert.equal(e.input_account,w.input);assert.equal(e.output_account,w.output);
     assert.equal(e.amount_in,w.amount_in===null?null:BigInt(w.amount_in));assert.equal(e.min_amount_out,w.min_amount_out===null?null:BigInt(w.min_amount_out));
     assert.equal(e.instruction_index,w.instruction_index);assert.deepEqual(e.hops.map(h=>Object.values(h)),w.hops);
