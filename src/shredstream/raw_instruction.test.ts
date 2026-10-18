@@ -9,11 +9,13 @@ it("preserves all signed outer instructions without CPI metadata",()=>{
  for(const f of fixtures){
   const tx=wireBytesToShredWasmTx(Buffer.from(f.wire,"base64"))!;
   const all=[...tx.accounts,...f.loaded_writable,...f.loaded_readonly];
-  const events=dexEventsFromShredWasmTxWithLoadedAddresses(tx,f.loaded_writable,f.loaded_readonly,f.slot,0,0,eventTypeFilterIncludeOnly(["RawInstruction"]));
+  const events=dexEventsFromShredWasmTxWithLoadedAddresses(tx,f.loaded_writable,f.loaded_readonly,f.slot,71,123456,eventTypeFilterIncludeOnly(["RawInstruction"]));
   expect(events).toHaveLength(tx.instructions!.length);
   events.forEach((e,index)=>{
    if(!("RawInstruction" in e))throw Error("raw");
    const ix=tx.instructions![index],r=e.RawInstruction;
+   expect(r.metadata.tx_index).toBe(71n);
+   expect(r.metadata.grpc_recv_us).toBe(123456n);
    expect(r.program_id).toBe(all[ix.programIdIndex]);
    expect(r.accounts).toEqual(Array.from(ix.accounts,i=>all[i]));
    expect(r.account_indices).toEqual(Array.from(ix.accounts));

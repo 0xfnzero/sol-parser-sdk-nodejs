@@ -2,9 +2,11 @@
 export interface EventMetadata {
   signature: string;
   slot: bigint;
-  /** gRPC：与 Yellowstone `SubscribeUpdateTransactionInfo.index` 一致（Rust `info.index`）。Shred 等其它路径含义见各实现说明。 */
+  /** Caller-supplied position: Yellowstone node index, or message-local Entries position.
+   * Entries numbering restarts for each message. Deduplicate Shred transactions by signature. */
   tx_index: bigint;
   block_time_us: bigint;
+  /** Local receive timestamp in microseconds, not chain execution order. */
   grpc_recv_us: bigint;
   /** Time waiting in the local pre-parser queue, measured with a monotonic clock. */
   local_queue_latency_us?: number;
