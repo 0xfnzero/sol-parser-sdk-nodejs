@@ -1,6 +1,6 @@
 {
   "name": "sol-parser-sdk",
-  "version": "0.5.19",
+  "version": "0.5.20",
   "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,7 +38,10 @@
     "example:shredstream:subscribe": "tsx examples/shredstream_example.ts",
     "example:shredstream:pumpfun-json": "tsx examples/shredstream_pumpfun_json.ts",
     "example:shredstream": "tsx examples/shredstream_example.ts",
-    "example:shredstream:pumpfun": "tsx examples/shredstream_pumpfun_json.ts"
+    "example:shredstream:pumpfun": "tsx examples/shredstream_pumpfun_json.ts",
+    "example:pump:replay": "tsx examples/pump_shred_routes.ts",
+    "example:pump:bank": "tsx examples/pump_offline_bank.ts",
+    "check:pump-examples": "tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --esModuleInterop --skipLibCheck examples/pump_shred_routes.ts examples/pump_offline_bank.ts examples/hotpath_benchmark.ts"
   },
   "keywords": [
     "solana",
@@ -49,8 +52,10 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@solana/kit": "8.5.0",
     "@types/node": "^22.19.17",
     "dotenv": "^17.4.1",
+    "litesvm": "1.6.0",
     "tsx": "^4.21.0",
     "typescript": "^5.6.3",
     "vitest": "^2.1.9"

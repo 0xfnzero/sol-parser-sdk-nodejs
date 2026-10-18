@@ -31,6 +31,14 @@ export interface DecodedWireTransaction {
   message: WireMessage;
   version: "legacy" | 0 | 1;
 }
+type DecodedInstruction<T> = Omit<WireInstruction, "data"> & { data: T };
+type DecodedMessage<T> = Omit<
+  WireMessage,
+  "recentBlockhash" | "instructions"
+> & { recentBlockhash: T; instructions: DecodedInstruction<T>[] };
+type DecodedTransaction<T> = Omit<DecodedWireTransaction, "message"> & {
+  message: DecodedMessage<T>;
+};
 class Reader {
   pos: number;
   constructor(
@@ -42,7 +50,8 @@ class Reader {
   take(n: number): Uint8Array {
     if (!Number.isSafeInteger(n) || n < 0 || this.pos + n > this.data.length)
       throw new Error("Truncated transaction");
-    const value = this.data.slice(this.pos, this.pos + n);
+    // Views stay internal; public text output encodes synchronously and binary output copies.
+    const value = this.data.subarray(this.pos, this.pos + n);
     this.pos += n;
     return value;
   }
@@ -72,11 +81,12 @@ class Reader {
     throw new Error("Invalid short-u16");
   }
 }
-export function decodeWireTransaction(
+function decodeWireTransactionInternal<T extends string | Uint8Array>(
+  encode: (value: Uint8Array) => T,
   data: Uint8Array,
   offset = 0,
   requireComplete = true,
-): { transaction: DecodedWireTransaction; length: number } {
+): { transaction: DecodedTransaction<T>; length: number } {
   if (!Number.isInteger(offset) || offset < 0 || offset >= data.length)
     throw new Error("Invalid wire offset");
   const r = new Reader(data, offset);
@@ -85,7 +95,7 @@ export function decodeWireTransaction(
   let header: Uint8Array;
   let keys: Uint8Array[];
   let hash: Uint8Array;
-  let instructions: WireInstruction[] = [];
+  let instructions: DecodedInstruction<T>[] = [];
   const lookups: WireMessage["addressTableLookups"] = [];
   let config: WireMessage["config"];
   if (data[offset] === 129) {
@@ -120,7 +130,7 @@ export function decodeWireTransaction(
     instructions = headers.map(([programIdIndex, n, length]) => ({
       programIdIndex,
       accounts: Array.from(r.take(n)),
-      data: bs58.encode(r.take(length)),
+      data: encode(r.take(length)),
     }));
     signatures = Array.from({ length: header[0]! }, () => r.take(64));
     if (r.pos - offset > 4096)
@@ -147,7 +157,7 @@ export function decodeWireTransaction(
       instructions.push({
         programIdIndex,
         accounts,
-        data: bs58.encode(payload),
+        data: encode(payload),
       });
     }
     if (version === 0) {
@@ -172,8 +182,9 @@ export function decodeWireTransaction(
     header[2]! > keys.length - header[0]!
   )
     throw new Error("Invalid message header");
+  const accountKeys = keys.map((k) => bs58.encode(k));
   if (version === 1) {
-    if (new Set(keys.map((k) => bs58.encode(k))).size !== keys.length)
+    if (new Set(accountKeys).size !== keys.length)
       throw new Error("Duplicate V1 accounts");
   }
   let accountCount = keys.length;
@@ -184,22 +195,26 @@ export function decodeWireTransaction(
   }
   if (accountCount > 256) throw new Error("Too many resolved account keys");
   for (const ix of instructions)
-    if (ix.programIdIndex === 0 || ix.programIdIndex >= keys.length || ix.accounts.some(i => i >= accountCount))
+    if (
+      ix.programIdIndex === 0 ||
+      ix.programIdIndex >= keys.length ||
+      ix.accounts.some((i) => i >= accountCount)
+    )
       throw new Error("Invalid instruction index");
   if (requireComplete && r.pos !== data.length)
     throw new Error("Trailing transaction bytes");
-  const message: WireMessage = {
+  const message = {
     header: {
       numRequiredSignatures: header[0]!,
       numReadonlySignedAccounts: header[1]!,
       numReadonlyUnsignedAccounts: header[2]!,
     },
-    accountKeys: keys.map((k) => bs58.encode(k)),
-    recentBlockhash: bs58.encode(hash),
+    accountKeys,
+    recentBlockhash: encode(hash),
     instructions,
     addressTableLookups: lookups,
+    ...(config ? { config } : {}),
   };
-  if (config) message.config = config;
   return {
     transaction: {
       signatures: signatures.map((s) => bs58.encode(s)),
@@ -208,4 +223,31 @@ export function decodeWireTransaction(
     },
     length: r.pos - offset,
   };
+}
+
+/** Public string representation retained for RPC/log consumers. */
+export function decodeWireTransaction(
+  data: Uint8Array,
+  offset = 0,
+  requireComplete = true,
+): { transaction: DecodedWireTransaction; length: number } {
+  return decodeWireTransactionInternal(
+    bs58.encode,
+    data,
+    offset,
+    requireComplete,
+  );
+}
+/** Internal Shred adapter path avoids Base58 round trips; returned payload bytes are owned copies. */
+export function decodeWireTransactionBytes(
+  data: Uint8Array,
+  offset = 0,
+  requireComplete = true,
+): { transaction: DecodedTransaction<Uint8Array>; length: number } {
+  return decodeWireTransactionInternal(
+    (bytes) => Uint8Array.from(bytes),
+    data,
+    offset,
+    requireComplete,
+  );
 }

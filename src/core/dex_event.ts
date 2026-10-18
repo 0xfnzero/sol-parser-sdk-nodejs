@@ -1,9 +1,11 @@
+import type {PumpRouteIntentEvent} from "../instr/pump_routes.js";
 import type {PumpFunPostCompleteBuyEvent,PumpFunSweepBondingCurveFeeEvent,PumpFunCompleteEvent,PumpSwapSweepPoolFeeEvent} from "../logs/pump_upgrade.js";
 import type {RawAccountSnapshotEvent,LiquidityAccountSnapshotEvent} from '../liquidity_snapshot.js';
 import type { EventMetadata } from "./metadata.js";
 
 /** 统一 DEX 事件：外部标签 JSON（单键对象）；键名清单见 `scripts/dex-event-variant-names.json` */
 export type DexEvent =
+  | {PumpRouteIntent: PumpRouteIntentEvent}
   | {PumpFunPostCompleteBuy: PumpFunPostCompleteBuyEvent}
   | {PumpFunSweepBondingCurveFee: PumpFunSweepBondingCurveFeeEvent}
   | {PumpFunComplete: PumpFunCompleteEvent}

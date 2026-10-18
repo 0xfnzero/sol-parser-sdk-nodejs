@@ -1,10 +1,13 @@
+import bs58 from "bs58";
+import {makeMetadata} from "../core/metadata.js";
+import {allowsPumpRoute, mayParsePumpRoute, parsePumpRoute} from "../instr/pump_routes.js";
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
  * `ShredWasmTx` 来自线格式交易经 `@solana/web3.js` 反序列化（见 `wire_to_shred_tx.ts`），非 WASM。
  * 客户端通过预热 ALT 缓存展开 V0 账户；connection 只供独立刷新使用。
  */
 import type { MessageHeader } from "@solana/web3.js";
-import { defaultPubkey, type DexEvent } from "../core/dex_event.js";
+import { defaultPubkey, metadataForDexEvent, type DexEvent } from "../core/dex_event.js";
 import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
 import { eventTypeFilterAllowsInstructionParsing, type EventTypeFilter } from "../grpc/types.js";
 import { parseInstructionUnified } from "../instr/mod.js";
@@ -85,13 +88,14 @@ function ixAccountStrings(fullAccountKeys: string[], accBytes: Uint8Array): stri
 /**
  * 使用已解析的完整账户表（静态+ALT）解析外层指令。
  */
-export function dexEventsFromShredWasmTxWithFullKeys(
+function parseShredKeys(
   tx: ShredWasmTx,
   fullAccountKeys: string[],
   slot: number | bigint | string,
   txIndex: number | bigint | string,
   grpcRecvUs: number | bigint | string,
-  eventTypeFilter?: EventTypeFilter
+  eventTypeFilter?: EventTypeFilter,
+  bestEffort = false
 ): DexEvent[] {
   const ixs = tx.instructions;
   if (!ixs?.length || fullAccountKeys.length === 0) return [];
@@ -99,11 +103,22 @@ export function dexEventsFromShredWasmTxWithFullKeys(
 
   const out: DexEvent[] = [];
 
-  for (const rawIx of ixs) {
+  for (const [instructionIndex, rawIx] of ixs.entries()) {
     const pidIdx = rawIx.programIdIndex;
-    if (!Number.isFinite(pidIdx) || pidIdx < 0) continue;
+    if (!Number.isInteger(pidIdx) || pidIdx < 0) continue;
     const accBytes = asU8(rawIx.accounts);
     const data = asU8(rawIx.data);
+    const resolved = pidIdx < fullAccountKeys.length && accBytes.every(i => i < fullAccountKeys.length);
+    if (!resolved && !bestEffort) continue;
+    const pid = fullAccountKeys[pidIdx];
+    if (pid && mayParsePumpRoute(pid, data)) {
+      if (resolved && allowsPumpRoute(eventTypeFilter, pid)) {
+        const metadata = makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs);
+        const intent = parsePumpRoute(pid, data, Array.from(accBytes, i => fullAccountKeys[i]!), metadata, instructionIndex, eventTypeFilter);
+        if (intent) out.push({PumpRouteIntent: intent});
+      }
+      continue;
+    }
     const accountStrs = ixAccountStrings(fullAccountKeys, accBytes);
 
     if (pidIdx >= fullAccountKeys.length) {
@@ -142,11 +157,18 @@ export function dexEventsFromShredWasmTxWithFullKeys(
     if (ev) out.push(ev);
   }
 
+  if (tx.recentBlockhash && out.length) {
+    const recentBlockhash=bs58.encode(tx.recentBlockhash);
+    for (const event of out) {
+      const metadata = metadataForDexEvent(event);
+      if (metadata) metadata.recent_blockhash = recentBlockhash;
+    }
+  }
   enrichPumpfunSameTxPostMerge(out);
   return out;
 }
 
-/** 仅静态账户表（无 RPC 时；V0+ALT 缺失账户以默认 pubkey 占位） */
+/** 仅静态账户表（无 RPC；跳过未解析账户的指令） */
 export function dexEventsFromShredWasmTx(
   tx: ShredWasmTx,
   slot: number | bigint | string,
@@ -154,5 +176,25 @@ export function dexEventsFromShredWasmTx(
   grpcRecvUs: number | bigint | string,
   eventTypeFilter?: EventTypeFilter
 ): DexEvent[] {
-  return dexEventsFromShredWasmTxWithFullKeys(tx, tx.accounts, slot, txIndex, grpcRecvUs, eventTypeFilter);
+  return parseShredKeys(tx, tx.accounts, slot, txIndex, grpcRecvUs, eventTypeFilter);
+}
+
+/** Full-key entry point rejects inconsistent ALT counts and indices before emitting anything. */
+export function dexEventsFromShredWasmTxWithFullKeys(tx: ShredWasmTx, keys: string[], slot: number|bigint|string,
+  txIndex:number|bigint|string, recvUs:number|bigint|string, filter?:EventTypeFilter):DexEvent[] {
+  const loaded = (tx.addressTableLookups ?? []).reduce((n,l) => n + l.writableIndexes.length + l.readonlyIndexes.length,0);
+  if (keys.length !== tx.accounts.length + loaded || tx.accounts.some((k,i) => keys[i] !== k)
+      || tx.instructions?.some(ix => !Number.isInteger(ix.programIdIndex) || ix.programIdIndex < 0 || ix.programIdIndex >= keys.length || ix.accounts.some(i => i >= keys.length)))
+    throw new RangeError('Inconsistent ALT keys or instruction index');
+  return parseShredKeys(tx,keys,slot,txIndex,recvUs,filter);
+}
+/** Explicit legacy placeholder/discriminator fallback; route adapters always require resolved keys. */
+export function dexEventsFromShredWasmTxBestEffort(tx:ShredWasmTx,slot:number|bigint|string,txIndex:number|bigint|string,recvUs:number|bigint|string,filter?:EventTypeFilter):DexEvent[] {
+  return parseShredKeys(tx,tx.accounts,slot,txIndex,recvUs,filter,true);
+}
+/** Separate writable/readonly validation avoids ambiguous counts between the two classes. */
+export function dexEventsFromShredWasmTxWithLoadedAddresses(tx:ShredWasmTx,writable:readonly string[],readonly:readonly string[],slot:number|bigint|string,txIndex:number|bigint|string,recvUs:number|bigint|string,filter?:EventTypeFilter):DexEvent[] {
+  const lookups=tx.addressTableLookups??[];
+  if(writable.length!==lookups.reduce((n,l)=>n+l.writableIndexes.length,0)||readonly.length!==lookups.reduce((n,l)=>n+l.readonlyIndexes.length,0))throw new RangeError('ALT address counts do not match transaction');
+  return dexEventsFromShredWasmTxWithFullKeys(tx,[...tx.accounts,...writable,...readonly],slot,txIndex,recvUs,filter);
 }

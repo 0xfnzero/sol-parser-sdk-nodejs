@@ -320,6 +320,8 @@ export {
   ShredStreamClient,
   ShredEventQueue,
   dexEventsFromShredWasmTx,
+  dexEventsFromShredWasmTxBestEffort,
+  dexEventsFromShredWasmTxWithLoadedAddresses,
   dexEventsFromShredWasmTxWithFullKeys,
   fullAccountKeyStringsFromShredTx,
   loadAddressLookupTableAccounts,
@@ -363,3 +365,5 @@ export type {
 } from "./core/dex_event.js";
 
 export * from "./logs/pump_upgrade.js";
+
+export * from "./instr/pump_routes.js";

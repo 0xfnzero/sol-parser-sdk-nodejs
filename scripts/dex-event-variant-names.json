@@ -120,6 +120,7 @@
     "MeteoraDammV2InitializeReward",
     "MeteoraDammV2UpdateRewardDuration",
     "MeteoraDammV2UpdateRewardFunder",
-    "MeteoraDammV2WithdrawIneligibleReward"
+    "MeteoraDammV2WithdrawIneligibleReward",
+    "PumpRouteIntent"
   ]
 }

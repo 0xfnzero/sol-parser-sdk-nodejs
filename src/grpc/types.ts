@@ -1,3 +1,4 @@
+import {allowsPumpRoute} from "../instr/pump_routes.js";
 import { exactU64 } from "../core/metadata.js";
 import type { SubscribeRequestFilterAccountsFilter } from "./protocol/geyser.js";
 import type { DexEvent } from "../core/dex_event.js";
@@ -289,6 +290,7 @@ export function accountFilterMemcmp(
 
 /** 事件类型过滤标签 */
 export type EventType =
+  | "PumpRouteIntent"
   | "AccountRawSnapshot"
   | "AccountLiquiditySnapshot"
   // Block
@@ -559,6 +561,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "PumpFunPostCompleteBuy",
   "PumpFunSweepBondingCurveFee",
   "PumpSwapSweepPoolFee",
+  "PumpRouteIntent",
 ];
 
 const ALL_EVENT_TYPE_SET = new Set<string>(ALL_EVENT_TYPES);
@@ -690,6 +693,7 @@ const RAYDIUM_LAUNCHLAB_FILTER_TYPES: readonly EventType[] = [
   "RaydiumLaunchlabMigrateAmm",
 ];
 const INSTRUCTION_EVENT_TYPES: readonly EventType[] = [
+  "PumpRouteIntent",
   ...PUMPFUN_FILTER_TYPES,
   ...PUMP_FEES_EVENT_TYPES,
   ...PUMPSWAP_FILTER_TYPES,
@@ -740,6 +744,7 @@ export function eventTypeFilterShouldIncludeDexEvent(
   filter: EventTypeFilter,
   event: DexEvent
 ): boolean {
+  if ("PumpRouteIntent" in event) return allowsPumpRoute(filter, event.PumpRouteIntent.program);
   const eventType = eventTypeFromDexEvent(event);
   return eventType === null || filter.shouldInclude(eventType);
 }

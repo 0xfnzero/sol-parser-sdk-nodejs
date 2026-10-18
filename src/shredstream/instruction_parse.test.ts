@@ -3,7 +3,7 @@ import { defaultPubkey } from "../core/dex_event.js";
 import { eventTypeFilterIncludeOnly } from "../grpc/types.js";
 import { PUMPFUN_PROGRAM_ID, RAYDIUM_CLMM_PROGRAM_ID } from "../instr/program_ids.js";
 import { PUMPFUN_SOL_QUOTE_MINT } from "../instr/pumpfun_ix.js";
-import { dexEventsFromShredWasmTx, type ShredWasmTx } from "./instruction_parse.js";
+import { dexEventsFromShredWasmTxBestEffort, dexEventsFromShredWasmTx, type ShredWasmTx } from "./instruction_parse.js";
 
 const BUY_V2_DISC = [184, 23, 238, 97, 103, 197, 211, 61];
 const CREATE_DISC = [24, 30, 200, 40, 5, 28, 7, 119];
@@ -73,7 +73,8 @@ describe("ShredStream instruction parser", () => {
       ],
     };
 
-    const events = dexEventsFromShredWasmTx(tx, 1, 0, 10);
+    expect(dexEventsFromShredWasmTx(tx, 1, 0, 10)).toHaveLength(0);
+    const events = dexEventsFromShredWasmTxBestEffort(tx, 1, 0, 10);
     expect(events).toHaveLength(1);
     expect("PumpFunBuy" in events[0]!).toBe(true);
     const trade = "PumpFunBuy" in events[0]! ? events[0]!.PumpFunBuy : null;
@@ -115,7 +116,8 @@ describe("ShredStream instruction parser", () => {
       ],
     };
 
-    const events = dexEventsFromShredWasmTx(tx, 1, 0, 10);
+    expect(dexEventsFromShredWasmTx(tx, 1, 0, 10)).toHaveLength(0);
+    const events = dexEventsFromShredWasmTxBestEffort(tx, 1, 0, 10);
     expect(events).toHaveLength(1);
     expect("RaydiumClmmSwap" in events[0]!).toBe(true);
     const swap = "RaydiumClmmSwap" in events[0]! ? events[0]!.RaydiumClmmSwap : null;
@@ -136,7 +138,8 @@ describe("ShredStream instruction parser", () => {
       ],
     };
 
-    const events = dexEventsFromShredWasmTx(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunBuy"]));
+    expect(dexEventsFromShredWasmTx(tx, 1, 0, 10)).toHaveLength(0);
+    const events = dexEventsFromShredWasmTxBestEffort(tx, 1, 0, 10, eventTypeFilterIncludeOnly(["PumpFunBuy"]));
     expect(events).toHaveLength(1);
     expect("PumpFunBuy" in events[0]!).toBe(true);
     const trade = "PumpFunBuy" in events[0]! ? events[0]!.PumpFunBuy : null;

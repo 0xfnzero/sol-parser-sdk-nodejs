@@ -63,6 +63,8 @@ describe("official Pump upgrade layouts", () => {
     b.writeBigUInt64LE(7n, 8);
     b.writeBigUInt64LE(9n, 16);
     const a = Array(26).fill("11111111111111111111111111111111");
+    a[7] = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'; a[8] = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+    a[11] = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'; a[12] = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
     expect(
       decodePumpMultiHopIntent(
         "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",

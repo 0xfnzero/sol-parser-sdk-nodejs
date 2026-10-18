@@ -1,3 +1,4 @@
+import {pumpMultiHopArgs} from "../instr/pump_routes.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { EventMetadata } from "../core/metadata.js";
 import { readPubkey, readU64LE, readI64LE } from "../util/binary.js";
@@ -181,17 +182,9 @@ export function decodePumpMultiHopIntent(
   data: Uint8Array,
   accounts: readonly string[],
 ): PumpMultiHopIntent | null {
-  if (
-    program !== "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA" ||
-    data.length !== 24 ||
-    readU64LE(data, 0) !== 10696039120939607083n ||
-    accounts.length < 21 ||
-    (accounts.length - 16) % 5 !== 0
-  )
-    return null;
-  const amountIn = readU64LE(data, 8)!,
-    minAmountOut = readU64LE(data, 16)!;
-  if (!amountIn || !minAmountOut) return null;
+  const args = pumpMultiHopArgs(program, data, accounts);
+  if (!args) return null;
+  const [amountIn, minAmountOut] = args;
   const hops: PumpMultiHopIntent["hops"] = [];
   for (let i = 16; i < accounts.length; i += 5)
     hops.push({
