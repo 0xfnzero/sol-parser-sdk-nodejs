@@ -1,3 +1,4 @@
+import {RawInstructionDexType} from "../src/core/raw_instruction.js";
 /** Native signed-wire replay: npx tsx examples/pump_shred_routes.ts. No network. */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -34,7 +35,9 @@ export function runReplay():number {
      assert.deepEqual(e.instruction_data,Array.from(ix.data));
      assert(!('is_buy' in e)); assert(!('ix_name' in e));
     }
-    assert.equal(parse(eventTypeFilterIncludeOnly(['PumpFunTrade'])).length,0);
+    const selected = parse(eventTypeFilterIncludeOnly(['PumpFunTrade']));
+    assert(selected.length > 0);
+    assert(selected.every(e => 'RawInstruction' in e && e.RawInstruction.dexes.some(d => d.dex_type === RawInstructionDexType.PumpFun)));
     assert.equal(parse(eventTypeFilterExclude(['RawInstruction'])).length,0);
     trace.push(events); continue;
    }

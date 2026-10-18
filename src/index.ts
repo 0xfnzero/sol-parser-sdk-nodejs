@@ -367,4 +367,5 @@ export type {
 export * from "./logs/pump_upgrade.js";
 
 export * from "./instr/pump_routes.js";
-export type {RawInstructionEvent} from "./core/raw_instruction.js";
+export {RawInstructionDexType} from "./core/raw_instruction.js";
+export type {RawInstructionEvent, RawInstructionDex} from "./core/raw_instruction.js";

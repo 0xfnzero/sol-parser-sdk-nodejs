@@ -1,3 +1,4 @@
+import {rawInstructionMatchesFilter} from "../core/raw_instruction.js";
 import {allowsPumpRoute} from "../instr/pump_routes.js";
 import { exactU64 } from "../core/metadata.js";
 import type { SubscribeRequestFilterAccountsFilter } from "./protocol/geyser.js";
@@ -747,6 +748,7 @@ export function eventTypeFilterShouldIncludeDexEvent(
   filter: EventTypeFilter,
   event: DexEvent
 ): boolean {
+  if ("RawInstruction" in event) return rawInstructionMatchesFilter(event.RawInstruction.dexes, filter);
   if ("PumpRouteIntent" in event) return allowsPumpRoute(filter, event.PumpRouteIntent.program);
   const eventType = eventTypeFromDexEvent(event);
   return eventType === null || filter.shouldInclude(eventType);

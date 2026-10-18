@@ -1,4 +1,4 @@
-import {expect,it} from "vitest";
+import {expect,it,expectTypeOf} from "vitest";
 import {readFileSync} from "node:fs";
 import {wireBytesToShredWasmTx} from "./wire_to_shred_tx.js";
 import {dexEventsFromShredWasmTx,dexEventsFromShredWasmTxWithLoadedAddresses} from "./instruction_parse.js";
@@ -41,4 +41,42 @@ it("does not infer semantics when arbitrary programs reorder accounts or change 
  if(!("RawInstruction" in events[0]))throw Error("raw");
  expect(events[0].RawInstruction.accounts).toEqual([tx.accounts[ix.accounts[2]],tx.accounts[ix.accounts[1]],tx.accounts[ix.accounts[2]],null]);
  expect(events[0].RawInstruction.instruction_data).toEqual([255,0,1]);
+});
+
+it("filters each wrapper instruction by its own DEX references, including multi-DEX and missing ALT", () => {
+ const pump = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+ const ray = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
+ const tx=wireBytesToShredWasmTx(Buffer.from(fixtures[0].wire,"base64"))!;
+ tx.accounts=[tx.accounts[0],pump,ray];
+ tx.instructions=[
+  {programIdIndex:0,accounts:Uint8Array.from([1,1]),data:Uint8Array.from([255])},
+  {programIdIndex:0,accounts:Uint8Array.from([2]),data:Uint8Array.from([254])},
+  {programIdIndex:0,accounts:Uint8Array.from([]),data:Uint8Array.from([253])},
+  {programIdIndex:0,accounts:Uint8Array.from([1,2,250]),data:Uint8Array.from([252])},
+  {programIdIndex:0,accounts:Uint8Array.from([250]),data:Uint8Array.from([251])},
+ ];
+ for (const [type,indices] of [["PumpFunTrade",[0,3]],["RaydiumCpmmSwap",[1,3]],["PumpFunBuy",[]],["RawInstruction",[0,1,2,3,4]]] as const) {
+  const events=dexEventsFromShredWasmTx(tx,0,0,0,eventTypeFilterIncludeOnly([type]));
+  expect(events.map(e=>"RawInstruction" in e ? e.RawInstruction.instruction_index : -1)).toEqual(indices);
+ }
+ const all=dexEventsFromShredWasmTx(tx,0,0,0);
+ const multi=all[3];
+ if (!("RawInstruction" in multi)) throw Error("expected raw");
+ expect(multi.RawInstruction.dexes).toEqual([
+  {dex_type:"pumpfun",program_id:pump,pool:null},
+  {dex_type:"raydium_cpmm",program_id:ray,pool:null}
+ ]);
+ expect(multi.RawInstruction.accounts[2]).toBeNull();
+ const excluded=eventTypeFilterIncludeOnly(["PumpFunTrade"]);
+ excluded.exclude_types=["RawInstruction"];
+ expect(dexEventsFromShredWasmTx(tx,0,0,0,excluded)).toEqual([]);
+});
+
+import {RawInstructionDexType, type RawInstructionDex} from "../index.js";
+
+it("exports a typed DEX enum with stable JSON strings", () => {
+ expectTypeOf<RawInstructionDex["dex_type"]>().toEqualTypeOf<RawInstructionDexType>();
+ expect(Object.values(RawInstructionDexType)).toEqual(["pumpfun","pumpswap","raydium_launchlab","raydium_cpmm","raydium_clmm","raydium_amm_v4","orca_whirlpool","meteora_pools","meteora_damm_v2","meteora_dlmm","meteora_dbc"]);
+ for (const kind of Object.values(RawInstructionDexType)) expect(JSON.parse(JSON.stringify(kind))).toBe(kind);
+ expect(RawInstructionDexType.PumpFun).toBe("pumpfun");
 });
