@@ -291,6 +291,7 @@ export function accountFilterMemcmp(
 /** 事件类型过滤标签 */
 export type EventType =
   | "PumpRouteIntent"
+  | "RawInstruction"
   | "AccountRawSnapshot"
   | "AccountLiquiditySnapshot"
   // Block
@@ -562,6 +563,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "PumpFunSweepBondingCurveFee",
   "PumpSwapSweepPoolFee",
   "PumpRouteIntent",
+  "RawInstruction",
 ];
 
 const ALL_EVENT_TYPE_SET = new Set<string>(ALL_EVENT_TYPES);
@@ -694,6 +696,7 @@ const RAYDIUM_LAUNCHLAB_FILTER_TYPES: readonly EventType[] = [
 ];
 const INSTRUCTION_EVENT_TYPES: readonly EventType[] = [
   "PumpRouteIntent",
+  "RawInstruction",
   ...PUMPFUN_FILTER_TYPES,
   ...PUMP_FEES_EVENT_TYPES,
   ...PUMPSWAP_FILTER_TYPES,

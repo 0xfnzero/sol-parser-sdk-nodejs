@@ -51,7 +51,7 @@ describe("binary hotpath decoder retains canonical signed-wire semantics", () =>
           f.slot,
           888,
           999,
-          eventTypeFilterIncludeOnly(["PumpFunTrade", "PumpFunCreate"]),
+          undefined,
         );
       const events = parse();
       expect(events).toHaveLength(f.expected.length);
@@ -93,7 +93,7 @@ describe("binary hotpath decoder retains canonical signed-wire semantics", () =>
         f.slot,
         888,
         999,
-        eventTypeFilterIncludeOnly(["PumpFunTrade"]),
+        undefined,
       );
       expect(events).toHaveLength(f.expected.length);
       expect(

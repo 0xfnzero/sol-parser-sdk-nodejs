@@ -441,11 +441,11 @@ export function parseInnerInstructionUnified(
 
   if (programId === PUMPFUN_PROGRAM_ID) {
     if (filter && !eventTypeFilterIncludesPumpfun(filter)) return null;
-    if (discEq(disc, LOG.PUMPFUN_TRADE) && discTailEq(disc, EVENT_CPI_SUFFIX)) {
+    if ((discEq(disc, LOG.PUMPFUN_TRADE) && discTailEq(disc, EVENT_CPI_SUFFIX)) || (discEq(disc, EVENT_CPI_PREFIX) && discTailEq(disc, LOG.PUMPFUN_TRADE))) {
       ev = parseTradeFromData(data, metadata, isCreatedBuy);
-    } else if (discEq(disc, LOG.PUMPFUN_CREATE) && discTailEq(disc, EVENT_CPI_SUFFIX)) {
+    } else if ((discEq(disc, LOG.PUMPFUN_CREATE) && discTailEq(disc, EVENT_CPI_SUFFIX)) || (discEq(disc, EVENT_CPI_PREFIX) && discTailEq(disc, LOG.PUMPFUN_CREATE))) {
       ev = parseCreateFromData(data, metadata);
-    } else if (discEq(disc, LOG.PUMPFUN_MIGRATE) && discTailEq(disc, EVENT_CPI_SUFFIX)) {
+    } else if ((discEq(disc, LOG.PUMPFUN_MIGRATE) && discTailEq(disc, EVENT_CPI_SUFFIX)) || (discEq(disc, EVENT_CPI_PREFIX) && discTailEq(disc, LOG.PUMPFUN_MIGRATE))) {
       ev = parseMigrateFromData(data, metadata);
     }
   } else if (programId === PUMPSWAP_PROGRAM_ID) {

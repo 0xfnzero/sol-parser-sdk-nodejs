@@ -1,6 +1,7 @@
 {
   "description": "DexEvent \u5916\u90e8\u6807\u7b7e\u952e\u540d\u6743\u5a01\u6e05\u5355\uff08\u4e0e Rust sol-parser-sdk::DexEvent \u5bf9\u9f50\uff1b\u4fee\u6539 src/core/dex_event.ts \u540e\u987b\u540c\u6b65\u6b64\u6570\u7ec4\u5e76\u8fd0\u884c npm run check:dex-events\uff09",
   "variants": [
+    "RawInstruction",
     "PumpFunCreate",
     "PumpFunCreateV2",
     "PumpFunTrade",

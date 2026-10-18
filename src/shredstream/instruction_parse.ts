@@ -1,4 +1,5 @@
 import bs58 from "bs58";
+import {INFRASTRUCTURE_PROGRAMS} from "../core/raw_instruction.js";
 import {makeMetadata} from "../core/metadata.js";
 import {allowsPumpRoute, mayParsePumpRoute, parsePumpRoute} from "../instr/pump_routes.js";
 /**
@@ -109,8 +110,19 @@ function parseShredKeys(
     const accBytes = asU8(rawIx.accounts);
     const data = asU8(rawIx.data);
     const resolved = pidIdx < fullAccountKeys.length && accBytes.every(i => i < fullAccountKeys.length);
-    if (!resolved && !bestEffort) continue;
     const pid = fullAccountKeys[pidIdx];
+    const unknown = pid && !UNKNOWN_PROGRAM_CANDIDATES.some(p => p === pid) && !INFRASTRUCTURE_PROGRAMS.has(pid);
+    const explicitRaw = eventTypeFilter?.include_only?.includes("RawInstruction");
+    if (pid && (unknown || explicitRaw) && (!eventTypeFilter || eventTypeFilter.shouldInclude("RawInstruction"))) {
+      out.push({RawInstruction: {
+        metadata: makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs),
+        program_id: pid, instruction_index: instructionIndex,
+        accounts: Array.from(accBytes, i => fullAccountKeys[i] ?? null),
+        account_indices: Array.from(accBytes), instruction_data: Array.from(data),
+      }});
+    }
+    if (unknown) continue;
+    if (!resolved && !bestEffort) continue;
     if (pid && mayParsePumpRoute(pid, data)) {
       if (resolved && allowsPumpRoute(eventTypeFilter, pid)) {
         const metadata = makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs);

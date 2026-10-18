@@ -23,6 +23,21 @@ export function runReplay():number {
    const signed=decoded.version===1?raw.subarray(0,raw.length-64*decoded.signatures.length):raw.subarray(1+64*decoded.signatures.length);
    decoded.signatures.forEach((sig,i)=>assert(verify(null,signed,createPublicKey({key:Buffer.concat([Buffer.from('302a300506032b6570032100','hex'),bs58.decode(decoded.message.accountKeys[i]!)]),format:'der',type:'spki'}),bs58.decode(sig))));
    const parse=(filter?:Parameters<typeof dexEventsFromShredWasmTx>[4])=>dexEventsFromShredWasmTxWithLoadedAddresses(tx,f.loaded_writable,f.loaded_readonly,f.slot,888,999,filter);
+   if (['RapidBuy','BuyPumpDelta'].includes(f.expected[0].kind)) {
+    const events=parse(), keys=[...tx.accounts,...f.loaded_writable,...f.loaded_readonly];
+    assert.equal(events.length,f.expected.length);
+    for (const event of events) {
+     assert('RawInstruction' in event); const e=event.RawInstruction, ix=tx.instructions![e.instruction_index]!;
+     assert.equal(e.program_id,keys[ix.programIdIndex]);
+     assert.deepEqual(e.accounts,Array.from(ix.accounts,i=>keys[i]));
+     assert.deepEqual(e.account_indices,Array.from(ix.accounts));
+     assert.deepEqual(e.instruction_data,Array.from(ix.data));
+     assert(!('is_buy' in e)); assert(!('ix_name' in e));
+    }
+    assert.equal(parse(eventTypeFilterIncludeOnly(['PumpFunTrade'])).length,0);
+    assert.equal(parse(eventTypeFilterExclude(['RawInstruction'])).length,0);
+    trace.push(events); continue;
+   }
    const events=parse(eventTypeFilterIncludeOnly(['PumpFunTrade','PumpFunCreate']));
    assert.equal(events.length,f.expected.length);
    assert.equal(dexEventsFromShredWasmTx(tx,0,0,0).length,f.loaded_writable.length+f.loaded_readonly.length?0:events.length);

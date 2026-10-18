@@ -58,6 +58,17 @@ const PUMPFUN_TRADE_EVENT_NAMES = new Set([
   "PumpFunSell",
   "PumpFunBuyExactSolIn",
 ]);
+// Compiled arguments are limits, not observed execution amounts (RPC/gRPC only).
+function clearPumpInstructionExecutionAmounts(event: DexEvent | null): DexEvent | null {
+  const kind = event && Object.keys(event)[0];
+  if (event && kind && PUMPFUN_TRADE_EVENT_NAMES.has(kind)) {
+    const trade = (event as unknown as Record<string, { sol_amount: bigint; token_amount: bigint; quote_amount: bigint }>)[kind];
+    trade.sol_amount = 0n;
+    trade.token_amount = 0n;
+    trade.quote_amount = 0n;
+  }
+  return event;
+}
 type IndexedInstructionEvent = {
   outerIdx: number;
   innerIdx: number | null;
@@ -508,7 +519,7 @@ function parseOuterAndInnerInstructions(
     if (!SUPPORTED_INSTRUCTION_PROGRAM_IDS.has(programId)) continue;
     const data = decodeIxData(ix.data);
     const accounts = resolveAccounts(resolver, ix.accountKeyIndexes);
-    const ev = parseInstructionUnified(
+    const ev = clearPumpInstructionExecutionAmounts(parseInstructionUnified(
       data,
       accounts,
       signature,
@@ -518,7 +529,7 @@ function parseOuterAndInnerInstructions(
       grpcRecvUs,
       filter,
       programId
-    );
+    ));
     if (ev) indexedEvents.push({
       outerIdx,
       innerIdx: null,
@@ -539,7 +550,7 @@ function parseOuterAndInnerInstructions(
       const data = decodeIxData(ix.data);
       const accounts = resolveAccounts(resolver, ix.accounts);
       const ev =
-        parseInnerCompiledInstructionIfSupported(
+        clearPumpInstructionExecutionAmounts(parseInnerCompiledInstructionIfSupported(
           data,
           accounts,
           signature,
@@ -549,7 +560,7 @@ function parseOuterAndInnerInstructions(
           grpcRecvUs,
           filter,
           programId
-        ) ??
+        )) ??
         parseInnerInstructionUnified(
           data,
           accounts,
