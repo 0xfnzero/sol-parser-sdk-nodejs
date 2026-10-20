@@ -3,6 +3,7 @@ import { VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import fixture from '../fixtures/pump_holder_20261009.json';
 import { parseRpcTransaction } from '../rpc_transaction';
+import {expectedPumpMethod} from '../../tests/pump_method';
 const kinds=['PumpFunBuy','PumpFunSell','PumpSwapBuy','PumpSwapSell'];
 for(const c of fixture.cases)it(`Pump holder reward bank ${c.name}`,()=>{
  const raw:any=c.raw,m=raw.transaction.message;
@@ -12,5 +13,5 @@ for(const c of fixture.cases)it(`Pump holder reward bank ${c.name}`,()=>{
  if(raw.meta.err!==null){expect(parsed.events).toEqual([]);return;}
  const lp=parsed.events.flatMap(e=>{const v=e as any;const kind=kinds.find(k=>v[k]);return kind?[{type:kind,...v[kind]}]:[];});
  expect(lp).toHaveLength(c.expected.length);
- c.expected.forEach((want,i)=>{for(const [key,value] of Object.entries(want))expect(String(lp[i][key])).toEqual(value);});
+ c.expected.forEach((want,i)=>{for(const [key,value] of Object.entries(want))expect(String(lp[i][key])).toEqual(key==="ix_name"?expectedPumpMethod(raw,value):value);});
 });

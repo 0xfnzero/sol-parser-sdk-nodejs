@@ -3,12 +3,13 @@ import {PublicKey, Message, MessageV0} from '@solana/web3.js';
 import bs58 from 'bs58';
 import fresh from '../../tests/fixtures/pump_execution_20261019.json';
 import routes from '../fixtures/pump_routes_20261009.json';
+import wrapped from '../../tests/fixtures/wrapped_pumpfun_reported.json';
 import {parseRpcTransaction} from '../rpc_transaction';
 import {convertRpcToGrpc} from '../grpc/rpc_to_grpc';
 import {parseDexEventsFromGrpcTransactionInfo} from '../grpc/yellowstone_parse';
-const fields=['mint','user','pool','is_buy','token_amount','quote_amount','sol_amount','base_amount_in','base_amount_out','quote_amount_in','quote_amount_out'];
+const fields=['mint','user','pool','is_buy','is_created_buy','ix_name','token_amount','quote_amount','sol_amount','base_amount_in','base_amount_out','quote_amount_in','quote_amount_out'];
 const kinds=['PumpFunTrade','PumpFunBuy','PumpFunSell','PumpFunBuyExactSolIn','PumpSwapBuy','PumpSwapSell'];
-for(const c of [...fresh.cases,...routes.cases]) it(`execution replay ${c.name}`,()=>{
+for(const c of [...fresh.cases,...routes.cases,...wrapped.cases]) it(`execution replay ${c.name}`,()=>{
  const raw=structuredClone(c.raw) as any;
  const msg=raw.transaction.message;
  const message=msg.addressTableLookups ? new MessageV0({header:msg.header,staticAccountKeys:msg.accountKeys.map((k:string)=>new PublicKey(k)),recentBlockhash:msg.recentBlockhash,compiledInstructions:msg.instructions.map((i:any)=>({programIdIndex:i.programIdIndex,accountKeyIndexes:i.accounts,data:bs58.decode(i.data)})),addressTableLookups:msg.addressTableLookups.map((a:any)=>({...a,accountKey:new PublicKey(a.accountKey)}))}) : new Message(msg);

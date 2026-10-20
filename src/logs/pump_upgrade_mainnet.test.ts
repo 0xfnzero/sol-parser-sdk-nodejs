@@ -4,6 +4,7 @@ import bs58 from "bs58";
 import fixture from "../../tests/fixtures/pump_upgrade/mainnet.json";
 import simulated from "../../tests/fixtures/pump_upgrade/simulation_events.json";
 import { parseRpcTransaction } from "../rpc_transaction.js";
+import {expectedPumpMethod} from "../../tests/pump_method";
 
 describe("captured mainnet Pump upgrade regression", () => {
   for (const c of [...fixture.cases, ...simulated.cases])
@@ -75,7 +76,7 @@ describe("captured mainnet Pump upgrade regression", () => {
               "So11111111111111111111111111111111111111111",
               "So11111111111111111111111111111111111111112",
             ]).toContain(actual[k]);
-          else expect(String(actual[k]), k).toBe(String(v));
+          else expect(String(actual[k]), k).toBe(k==="ix_name"?expectedPumpMethod(raw,String(v)):String(v));
         }
       }
     });

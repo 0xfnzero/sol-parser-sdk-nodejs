@@ -1,4 +1,4 @@
-import {RawInstructionDexType} from "../src/core/raw_instruction.js";
+
 /** Native signed-wire replay: npx tsx examples/pump_shred_routes.ts. No network. */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -28,7 +28,9 @@ export function runReplay():number {
     const events=parse(), keys=[...tx.accounts,...f.loaded_writable,...f.loaded_readonly];
     assert.equal(events.length,f.expected.length);
     for (const event of events) {
-     assert('RawInstruction' in event); const e=event.RawInstruction, ix=tx.instructions![e.instruction_index]!;
+     assert('PumpFunTrade' in event); assert.equal(event.PumpFunTrade.parse_status,'Unresolved');
+     assert.equal(event.PumpFunTrade.sol_amount,0n);
+     const e=event.PumpFunTrade.third_program!; assert(e); const ix=tx.instructions![e.instruction_index]!;
      assert.equal(e.program_id,keys[ix.programIdIndex]);
      assert.deepEqual(e.accounts,Array.from(ix.accounts,i=>keys[i]));
      assert.deepEqual(e.account_indices,Array.from(ix.accounts));
@@ -37,8 +39,8 @@ export function runReplay():number {
     }
     const selected = parse(eventTypeFilterIncludeOnly(['PumpFunTrade']));
     assert(selected.length > 0);
-    assert(selected.every(e => 'RawInstruction' in e && e.RawInstruction.dexes.some(d => d.dex_type === RawInstructionDexType.PumpFun)));
-    assert.equal(parse(eventTypeFilterExclude(['RawInstruction'])).length,0);
+    assert(selected.every(e => 'PumpFunTrade' in e && e.PumpFunTrade.third_program));
+    assert.equal(parse(eventTypeFilterExclude(['RawInstruction'])).length,events.length);
     trace.push(events); continue;
    }
    const events=parse(eventTypeFilterIncludeOnly(['PumpFunTrade','PumpFunCreate']));

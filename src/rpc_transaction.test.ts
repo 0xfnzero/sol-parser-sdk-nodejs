@@ -164,7 +164,7 @@ describe("parseRpcTransaction parity", () => {
     expect(trade.metadata.recent_blockhash).toBe("11111111111111111111111111111111");
   });
 
-  it("uses whole-transaction PumpFun create detection for log trades", () => {
+  it("does not infer same-mint creation from create logs without a create instruction", () => {
     const tx = rpcTx(
       [],
       [
@@ -180,7 +180,7 @@ describe("parseRpcTransaction parity", () => {
     const events = parsed.ok ? parsed.events : [];
     expect(events).toHaveLength(1);
     expect("PumpFunBuy" in events[0]!).toBe(true);
-    expect((events[0] as any).PumpFunBuy.is_created_buy).toBe(true);
+    expect((events[0] as any).PumpFunBuy.is_created_buy).toBe(false);
   });
 
   it("merges each aggregator DLMM swap with its direct event CPI", () => {
@@ -322,13 +322,13 @@ describe("Pump create detection uses decoded runtime-scoped logs", () => {
     ["quoted invocation cannot establish scope", [`Program log: Program ${PUMPFUN_PROGRAM_ID} invoke [1]`, create], false],
     ...[0, 1, 2, 3].map(length => [`valid create name length ${length}`, scope(PUMPFUN_PROGRAM_ID, pumpfunCreateLogForDetection("x".repeat(length))), true] as [string, string[], boolean]),
   ];
-  it.each(cases)("%s preserves trade-only output filters", (_name, prefix, expected) => {
+  it.each(cases)("%s preserves trade-only output filters without inferring creation", (_name, prefix) => {
     const tx = rpcTx([], [...prefix, ...scope(PUMPFUN_PROGRAM_ID, pumpfunTradeLog("buy"))]);
     const parsed = parseRpcTransaction(tx, "sig", eventTypeFilterIncludeOnly(["PumpFunBuy"]));
     expect(parsed.ok).toBe(true);
     const events = parsed.ok ? parsed.events : [];
     expect(events).toHaveLength(1);
     const buy = "PumpFunBuy" in events[0]! ? events[0]!.PumpFunBuy : null;
-    expect(buy?.is_created_buy).toBe(expected);
+    expect(buy?.is_created_buy).toBe(false);
   });
 });

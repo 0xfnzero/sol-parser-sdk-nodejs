@@ -215,7 +215,7 @@ it('retains repeated PumpSwap occurrences and supplements each log in order',()=
  }
 });
 
-for (const name of ['PumpFunTrade', 'PumpSwapBuy', 'PumpSwapSell']) {
+for (const name of ['PumpFunTrade', 'PumpSwapBuy', 'PumpSwapSell', 'RaydiumClmmSwap', 'RaydiumCpmmSwap', 'OrcaWhirlpoolSwap', 'MeteoraDlmmSwap', 'RaydiumLaunchlabTrade']) {
   for (const [logCount, ixCount] of [[1, 2], [2, 1]]) {
     it(`preserves ambiguous ${name} sources with ${logCount} logs and ${ixCount} instructions`, () => {
       const field = name === 'PumpFunTrade' ? 'bonding_curve' : 'user_base_token_account';

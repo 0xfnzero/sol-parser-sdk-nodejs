@@ -1,5 +1,5 @@
 import type {PumpRouteIntentEvent} from "../instr/pump_routes.js";
-import type {RawInstructionEvent} from "./raw_instruction.js";
+import type {RawInstructionPayload, TradeParseStatus, RawInstructionEvent} from "./raw_instruction.js";
 import type {PumpFunPostCompleteBuyEvent,PumpFunSweepBondingCurveFeeEvent,PumpFunCompleteEvent,PumpSwapSweepPoolFeeEvent} from "../logs/pump_upgrade.js";
 import type {RawAccountSnapshotEvent,LiquidityAccountSnapshotEvent} from '../liquidity_snapshot.js';
 import type { EventMetadata } from "./metadata.js";
@@ -174,6 +174,9 @@ export interface PumpFunCreateV2TokenEvent extends PumpFunCreateTokenEvent {
 }
 
 export interface PumpFunTradeEvent {
+  parse_status?: TradeParseStatus;
+  /** Set only by an explicitly enabled Shred wrapper rule. */
+  third_program?: RawInstructionPayload | null;
   creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   mint: string;
@@ -376,6 +379,8 @@ export interface PumpFunMigrateBondingCurveCreatorEvent {
 
 /** 与 `PumpSwapTradeEvent`（IDL TradeEvent）对齐 */
 export interface PumpSwapTradeEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   mint: string;
   sol_amount: bigint;
@@ -402,6 +407,8 @@ export interface PumpSwapTradeEvent {
 }
 
 export interface PumpSwapBuyEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   timestamp: bigint;
@@ -461,6 +468,8 @@ export interface PumpSwapBuyEvent {
 }
 
 export interface PumpSwapSellEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   creator_fee_unclaimed?: bigint;
   metadata: EventMetadata;
   timestamp: bigint;
@@ -584,6 +593,10 @@ export interface PumpSwapLiquidityRemoved {
  * TS 为 `bigint`；Go/Python 落 JSON 时为十进制字符串；占位 `liquidity` 为 `0n` / `"0"`。
  */
 export interface RaydiumClmmSwapEvent {
+  input_mint?: string;
+  output_mint?: string;
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   pool_state: string;
   token_account_0: string;
@@ -790,6 +803,8 @@ export interface RaydiumClmmUpdateRewardInfosEvent {
 }
 
 export interface RaydiumCpmmSwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   pool_id: string;
   input_vault_before: bigint;
@@ -833,6 +848,8 @@ export interface RaydiumCpmmInitializeEvent {
 }
 
 export interface RaydiumAmmV4SwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   amount_in: bigint;
   minimum_amount_out: bigint;
@@ -960,6 +977,10 @@ export interface RaydiumAmmV4Initialize2Event {
 
 /** Orca Whirlpool：u128 语义字段在 TS 为 `bigint`；Go/Python 为十进制字符串。 */
 export interface OrcaWhirlpoolSwapEvent {
+  token_mint_a?: string;
+  token_mint_b?: string;
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   whirlpool: string;
   a_to_b: boolean;
@@ -1017,6 +1038,8 @@ export interface OrcaWhirlpoolPoolInitializedEvent {
 }
 
 export interface MeteoraPoolsSwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   /** Instruction intent; executed amounts remain in in_amount/out_amount. */
   amount_in?: bigint;
@@ -1064,6 +1087,8 @@ export interface MeteoraPoolsPoolCreatedEvent {
  * Go `DexEvent` / Python 解析结果中 `next_sqrt_price` 等为**十进制字符串**（与 `bigint` 十进制一致）。
  */
 export interface MeteoraDammV2SwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   pool: string;
   amount_in: bigint;
@@ -1281,6 +1306,8 @@ export interface MeteoraDammV2CreateDynamicConfigEvent {
 }
 
 export interface MeteoraDbcSwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   event_version?: number;
   swap_mode?: number;
   amount_0?: bigint;
@@ -1329,6 +1356,8 @@ export interface MeteoraDbcCurveCompleteEvent {
 
 /** Meteora DLMM Swap：`fee_bps` 在 Go/Python 为十进制字符串。 */
 export interface MeteoraDlmmSwapEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   /** Account-fill / instruction context; empty string default when absent. */
   token_x_mint?: string;
@@ -1426,6 +1455,8 @@ export interface MeteoraDlmmClaimFeeEvent {
 export type TradeDirection = "Buy" | "Sell";
 
 export interface RaydiumLaunchlabTradeEvent {
+  parse_status?: TradeParseStatus;
+  third_program?: RawInstructionPayload | null;
   metadata: EventMetadata;
   pool_state: string;
   user: string;

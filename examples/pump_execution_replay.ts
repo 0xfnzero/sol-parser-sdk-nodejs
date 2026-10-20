@@ -12,7 +12,7 @@ async function main() {
   const body:any=await response.json();
   if(body.error||!body.result)throw Error(JSON.stringify(body.error??'Transaction not found; use a recent signature or archive RPC'));
   cases=[{raw:body.result}];
- } else cases=JSON.parse(readFileSync(resolve(__dirname,'../tests/fixtures/pump_execution_20261019.json'),'utf8')).cases;
+ } else cases=['pump_execution_20261019.json','wrapped_pumpfun_reported.json'].flatMap(name=>JSON.parse(readFileSync(resolve(__dirname,'../tests/fixtures',name),'utf8')).cases);
  for(const {raw} of cases) {
   // Use decoded instruction fields; web3.js VersionedTransaction does not support v1 wire.
   const msg=raw.transaction.message;

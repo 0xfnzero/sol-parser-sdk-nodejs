@@ -8,6 +8,6 @@ for (const c of cases) {
  const tx = wireBytesToShredWasmTx(Buffer.from(c.wire, "base64"))!;
  for (const type of ["PumpFunTrade", "RaydiumCpmmSwap", "RawInstruction"] as const) {
   const events = dexEventsFromShredWasmTxWithLoadedAddresses(tx, c.loaded_writable, c.loaded_readonly, c.slot, 0, 0, eventTypeFilterIncludeOnly([type]));
-  console.log(JSON.stringify({signature:c.signature,filter:type,raw_instructions:events.filter(e=>"RawInstruction" in e)}, (_,v)=>typeof v==="bigint"?v.toString():v));
+  console.log(JSON.stringify({signature:c.signature,filter:type,events}, (_,v)=>typeof v==="bigint"?v.toString():v));
  }
 }

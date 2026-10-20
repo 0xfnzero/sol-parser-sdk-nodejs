@@ -106,8 +106,10 @@ function dedupeKey(
       return `PumpFunCreate|${data.mint}`;
     case "PumpFunMigrate":
       return `PumpFunMigrate|${data.mint}|${data.pool}|${data.user}`;
-    case "RaydiumLaunchlabTrade":
-      return `RaydiumLaunchlabTrade|${data.pool_state}|${data.user}|${Boolean(data.is_buy)}`;
+    case "RaydiumLaunchlabTrade": {
+      const base = `RaydiumLaunchlabTrade|${data.pool_state}|${data.user}|${Boolean(data.is_buy)}`;
+      return `${base}|${nextOccurrence(base, occurrenceCounts)}`;
+    }
     case "MeteoraPoolsPoolCreated":
       return isDefaultPubkey(data.pool) ? null : `MeteoraPoolsPoolCreated|${data.pool}`;
     case "RaydiumLaunchlabPoolCreate":
@@ -216,7 +218,8 @@ function mergePumpfunTrade(log: EventPayload, ix: EventPayload): void {
   ]) {
     fillNonZero(log, key, ix);
   }
-  fillIxName(log, ix);
+  if (/_v[23]$/.test(ix.ix_name ?? "")) log.ix_name = ix.ix_name;
+  else fillIxName(log, ix);
   log.is_created_buy = Boolean(log.is_created_buy) || Boolean(ix.is_created_buy);
 }
 
@@ -466,8 +469,9 @@ export function dedupeLogInstructionEvents(
   // Ordinal pairing is ambiguous when one source has lost an invocation.
   const instructionKeys = instructionEvents.map(ev => dedupeKey(ev, ixOccurrenceCounts));
   for (const [base, count] of logOccurrenceCounts) {
-    if (!/^(PumpFun|PumpSwapBuy|PumpSwapSell|OrcaWhirlpoolLiquidityIncreased|OrcaWhirlpoolLiquidityDecreased|RaydiumClmmIncreaseLiquidity|RaydiumClmmDecreaseLiquidity)\|/.test(base) || count === ixOccurrenceCounts.get(base)) continue;
-    const prefix = `${base.replace(/^PumpFun\|/, 'PumpFunTrade|')}|`;
+    if (count === ixOccurrenceCounts.get(base)) continue;
+    const aliases: Record<string, string> = {PumpFun: 'PumpFunTrade', RaydiumClmm: 'RaydiumClmmSwap', RaydiumCpmm: 'RaydiumCpmmSwap', RaydiumAmmV4: 'RaydiumAmmV4Swap', OrcaWhirlpool: 'OrcaWhirlpoolSwap', MeteoraDlmm: 'MeteoraDlmmSwap'};
+    const prefix = `${base.replace(/^[^|]+/, name => aliases[name] ?? name)}|`;
     for (let occurrence = 0; occurrence < count; occurrence++) indexByKey.delete(`${prefix}${occurrence}`);
   }
 

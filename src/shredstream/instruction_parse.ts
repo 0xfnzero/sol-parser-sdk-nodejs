@@ -1,4 +1,6 @@
 import bs58 from "bs58";
+import {unresolvedPumpfunTrade, TRADE_PROGRAMS} from "../core/trade_source.js";
+import {rawInstructionPayload, TradeParseStatus} from "../core/raw_instruction.js";
 import {INFRASTRUCTURE_PROGRAMS, rawInstructionDexes, rawInstructionMatchesFilter} from "../core/raw_instruction.js";
 import {makeMetadata} from "../core/metadata.js";
 import {allowsPumpRoute, mayParsePumpRoute, parsePumpRoute} from "../instr/pump_routes.js";
@@ -114,14 +116,20 @@ function parseShredKeys(
     const unknown = pid && !UNKNOWN_PROGRAM_CANDIDATES.some(p => p === pid) && !INFRASTRUCTURE_PROGRAMS.has(pid);
     const explicitRaw = eventTypeFilter?.include_only?.includes("RawInstruction");
     const dexes = unknown || explicitRaw ? rawInstructionDexes(pid, Array.from(accBytes, i => fullAccountKeys[i] ?? null)) : [];
-    if (pid && (unknown || explicitRaw) && rawInstructionMatchesFilter(dexes, eventTypeFilter)) {
-      out.push({RawInstruction: {
+    if (pid && (unknown || explicitRaw)) {
+      const raw = {
         dexes,
         metadata: makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs),
         program_id: pid, instruction_index: instructionIndex,
         accounts: Array.from(accBytes, i => fullAccountKeys[i] ?? null),
         account_indices: Array.from(accBytes), instruction_data: Array.from(data),
-      }});
+      };
+      if (explicitRaw && rawInstructionMatchesFilter(dexes, eventTypeFilter)) out.push({RawInstruction: raw});
+      if (unknown && dexes.some(d => d.program_id === PUMPFUN_PROGRAM_ID)
+          && (!eventTypeFilter?.include_only || eventTypeFilter.include_only.includes("PumpFunTrade"))
+          && (!eventTypeFilter || eventTypeFilter.shouldInclude("PumpFunTrade"))) {
+        out.push(unresolvedPumpfunTrade(raw.metadata, rawInstructionPayload(raw)));
+      }
     }
     if (unknown) continue;
     if (!resolved && !bestEffort) continue;
@@ -179,6 +187,10 @@ function parseShredKeys(
     }
   }
   enrichPumpfunSameTxPostMerge(out);
+  for (const event of out) {
+    const [name, data] = Object.entries(event)[0]!;
+    if (TRADE_PROGRAMS[name] && data.parse_status == null) data.parse_status = TradeParseStatus.InstructionDecoded;
+  }
   return out;
 }
 

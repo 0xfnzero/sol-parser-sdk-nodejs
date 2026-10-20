@@ -1,11 +1,14 @@
 {
   "name": "sol-parser-sdk",
-  "version": "0.5.24",
+  "version": "0.6.0",
   "description": "High-performance Solana DEX event parser for Node.js/TypeScript (Yellowstone gRPC, log parsing)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "RELEASE_NOTES.md",
+    "docs/cross-language-sync.md",
+    "docs/wrapped-pumpfun.md",
     "README.md",
     "README_CN.md",
     "LICENSE",
@@ -61,7 +64,7 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "@grpc/grpc-js": "^1.12.4",
+    "@grpc/grpc-js": "^1.14.5",
     "@grpc/proto-loader": "^0.7.13",
     "@solana/web3.js": "^1.95.4",
     "bs58": "^6.0.0"

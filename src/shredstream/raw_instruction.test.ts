@@ -22,15 +22,13 @@ it("preserves all signed outer instructions without CPI metadata",()=>{
    expect(r.instruction_data).toEqual(Array.from(ix.data));
    expect(r).not.toHaveProperty("is_buy"); expect(r).not.toHaveProperty("ix_name");
   });
-  if(f.raw_instruction_count !== undefined) {
-   const events=dexEventsFromShredWasmTxWithLoadedAddresses(tx,f.loaded_writable,f.loaded_readonly,f.slot,0,0);
-   expect(events.filter(e=>"RawInstruction" in e)).toHaveLength(f.raw_instruction_count);
-   expect(events.some(e=>["PumpFunTrade","PumpFunBuy","PumpFunSell","PumpFunBuyExactSolIn"].some(k=>k in e))).toBe(false);
-  }
-  if(f.signature.startsWith("3nMX")||f.signature.startsWith("2r4u")){
-   const raw=dexEventsFromShredWasmTx(tx,0,0,0);
-   expect(raw).toHaveLength(f.signature.startsWith("3nMX")?2:3);
-   expect(raw.every(e=>"RawInstruction" in e)).toBe(true);
+  const defaults=dexEventsFromShredWasmTxWithLoadedAddresses(tx,f.loaded_writable,f.loaded_readonly,f.slot,0,0);
+  expect(defaults.some(e=>"RawInstruction" in e)).toBe(false);
+  for(const e of defaults) if("PumpFunTrade" in e && e.PumpFunTrade.third_program) {
+   expect(e.PumpFunTrade.parse_status).toBe("Unresolved");
+   expect(e.PumpFunTrade.sol_amount).toBe(0n);
+   const raw=e.PumpFunTrade.third_program;
+   expect(raw.instruction_data).toEqual(Array.from(tx.instructions![raw.instruction_index].data));
   }
  }
 });
@@ -38,7 +36,7 @@ it("does not infer semantics when arbitrary programs reorder accounts or change 
  const tx=wireBytesToShredWasmTx(Buffer.from(fixtures[0].wire,"base64"))!;
  const ix=tx.instructions![1];
  tx.instructions=[{programIdIndex:0,accounts:Uint8Array.from([ix.accounts[2],ix.accounts[1],ix.accounts[2],250]),data:Uint8Array.from([255,0,1])}];
- const events=dexEventsFromShredWasmTx(tx,0,0,0);
+ const events=dexEventsFromShredWasmTx(tx,0,0,0,eventTypeFilterIncludeOnly(['RawInstruction']));
  expect(events).toHaveLength(1);
  if(!("RawInstruction" in events[0]))throw Error("raw");
  expect(events[0].RawInstruction.accounts).toEqual([tx.accounts[ix.accounts[2]],tx.accounts[ix.accounts[1]],tx.accounts[ix.accounts[2]],null]);
@@ -57,21 +55,18 @@ it("filters each wrapper instruction by its own DEX references, including multi-
   {programIdIndex:0,accounts:Uint8Array.from([1,2,250]),data:Uint8Array.from([252])},
   {programIdIndex:0,accounts:Uint8Array.from([250]),data:Uint8Array.from([251])},
  ];
- for (const [type,indices] of [["PumpFunTrade",[0,3]],["RaydiumCpmmSwap",[1,3]],["PumpFunBuy",[]],["RawInstruction",[0,1,2,3,4]]] as const) {
+ for (const [type,indices] of [["PumpFunTrade",[0,3]],["RaydiumCpmmSwap",[]],["PumpFunBuy",[]],["RawInstruction",[0,1,2,3,4]]] as const) {
   const events=dexEventsFromShredWasmTx(tx,0,0,0,eventTypeFilterIncludeOnly([type]));
-  expect(events.map(e=>"RawInstruction" in e ? e.RawInstruction.instruction_index : -1)).toEqual(indices);
+  expect(events.map(e=>"RawInstruction" in e ? e.RawInstruction.instruction_index : "PumpFunTrade" in e ? e.PumpFunTrade.third_program!.instruction_index : -1)).toEqual(indices);
  }
  const all=dexEventsFromShredWasmTx(tx,0,0,0);
- const multi=all[3];
- if (!("RawInstruction" in multi)) throw Error("expected raw");
- expect(multi.RawInstruction.dexes).toEqual([
-  {dex_type:"pumpfun",program_id:pump,pool:null},
-  {dex_type:"raydium_cpmm",program_id:ray,pool:null}
- ]);
- expect(multi.RawInstruction.accounts[2]).toBeNull();
+ expect(all).toHaveLength(2);
+ const multi=all[1];
+ if (!("PumpFunTrade" in multi)) throw Error("expected unresolved trade");
+ expect(multi.PumpFunTrade.third_program!.accounts[2]).toBeNull();
  const excluded=eventTypeFilterIncludeOnly(["PumpFunTrade"]);
  excluded.exclude_types=["RawInstruction"];
- expect(dexEventsFromShredWasmTx(tx,0,0,0,excluded)).toEqual([]);
+ expect(dexEventsFromShredWasmTx(tx,0,0,0,excluded)).toHaveLength(2);
 });
 
 import {RawInstructionDexType, type RawInstructionDex} from "../index.js";

@@ -26,6 +26,7 @@ import {
   isCompiledVersionedMessage,
 } from "./core/rpc_invoke_map.js";
 import { dedupeLogInstructionEvents } from "./grpc/log_instr_dedup.js";
+import {markTradeExecutionSource, logOuterIndices} from "./core/trade_source.js";
 import {
   parseInnerCompiledInstructionIfSupported,
   parseInnerInstructionUnified,
@@ -173,7 +174,7 @@ function mergePumpfunTradeInstruction(base: Record<string, any>, inner: Record<s
     if ((base.shareholders?.length ?? 0) === 0 && (inner.shareholders?.length ?? 0) !== 0) {
       base.shareholders = inner.shareholders;
     }
-    if ((inner.ix_name ?? "") !== "") base.ix_name = inner.ix_name;
+    if (inner.ix_name && (!/_v[23]$/.test(base.ix_name ?? "") || /_v[23]$/.test(inner.ix_name))) base.ix_name = inner.ix_name;
     base.is_cashback_coin = Boolean(base.is_cashback_coin) || Boolean(inner.is_cashback_coin);
   } else {
     for (const key of [
@@ -199,7 +200,7 @@ function mergePumpfunTradeInstruction(base: Record<string, any>, inner: Record<s
     if ((base.shareholders?.length ?? 0) === 0 && (inner.shareholders?.length ?? 0) !== 0) {
       base.shareholders = inner.shareholders;
     }
-    if ((inner.ix_name ?? "") !== "") base.ix_name = inner.ix_name;
+    if (inner.ix_name && (!/_v[23]$/.test(base.ix_name ?? "") || /_v[23]$/.test(inner.ix_name))) base.ix_name = inner.ix_name;
   }
 
   for (const key of [
@@ -540,7 +541,10 @@ function parseOuterAndInnerInstructions(
   }
 
   const innerGroups = meta?.innerInstructions;
-  if (!innerGroups) return mergeInstructionEvents(indexedEvents);
+  if (!innerGroups) {
+    for (const item of indexedEvents) markTradeExecutionSource(item.event, item.outerIdx, message, meta);
+    return mergeInstructionEvents(indexedEvents);
+  }
 
   for (const group of innerGroups) {
     for (const [innerIdx, ix] of (group.instructions as CompiledInstruction[]).entries()) {
@@ -583,6 +587,7 @@ function parseOuterAndInnerInstructions(
     }
   }
 
+  for (const item of indexedEvents) markTradeExecutionSource(item.event, item.outerIdx, message, meta);
   return mergeInstructionEvents(indexedEvents);
 }
 
@@ -723,7 +728,9 @@ export function parseRpcTransaction(
 
   const logEvents: DexEvent[] = [];
   const activeProgramStack: string[] = [];
-  for (const log of meta?.logMessages ?? []) {
+  const sourceKeys = getAccountKeyResolver(msg, meta);
+  const sourceIndices = logOuterIndices(meta?.logMessages ?? [], msg.compiledInstructions.map(ix => accountKeyToBase58(sourceKeys.get(ix.programIdIndex))));
+  for (const [logIndex, log] of (meta?.logMessages ?? []).entries()) {
     const invoke = parseInvokeInfo(log);
     if (invoke) {
       activeProgramStack.length = Math.max(0, invoke.depth - 1);
@@ -743,6 +750,7 @@ export function parseRpcTransaction(
       activeProgramStack[activeProgramStack.length - 1]
     );
     if (e) {
+      markTradeExecutionSource(e, sourceIndices[logIndex]!, msg, meta);
       logEvents.push(e);
     }
 
@@ -755,6 +763,28 @@ export function parseRpcTransaction(
 
   applyRpcFills([...instructionEvents, ...logEvents], msg, meta);
   const events = dedupeLogInstructionEvents(logEvents, instructionEvents);
+  // Use actual outer/CPI create instructions, not transaction-wide log hints.
+  // This also survives log truncation and create-event subscription filters.
+  const resolver = getAccountKeyResolver(msg, meta);
+  const created = new Set<string>();
+  const inspectCreate = (program: number, indexes: number[] | Uint8Array, data: Uint8Array) => {
+    if (accountKeyToBase58(resolver.get(program)) !== PUMPFUN_PROGRAM_ID || data.length < 8) return;
+    const disc = Array.from(data.subarray(0, 8)).join(",");
+    if (disc !== "24,30,200,40,5,28,7,119" && disc !== "214,144,76,236,95,139,49,180") return;
+    const mint = indexes.length ? accountKeyToBase58(resolver.get(indexes[0]!)) : undefined;
+    if (mint) created.add(mint);
+  };
+  for (const ix of msg.compiledInstructions) inspectCreate(ix.programIdIndex, ix.accountKeyIndexes, decodeIxData(ix.data));
+  for (const group of meta?.innerInstructions ?? []) for (const ix of group.instructions as CompiledInstruction[]) {
+    inspectCreate(ix.programIdIndex, ix.accounts, decodeIxData(ix.data));
+  }
+  for (const event of events) {
+    const name = Object.keys(event)[0]!;
+    if (PUMPFUN_TRADE_EVENT_NAMES.has(name)) {
+      const trade = eventPayload(event)!;
+      trade.is_created_buy = Boolean(trade.is_buy) && created.has(trade.mint);
+    }
+  }
   enrichPumpfunSameTxPostMerge(events);
 
   return {

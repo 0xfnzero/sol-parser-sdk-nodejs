@@ -2,6 +2,25 @@ import type {EventType, EventTypeFilter} from "../grpc/types.js";
 import * as programs from "../grpc/program_ids.js";
 import type {EventMetadata} from "./metadata.js";
 
+export enum TradeParseStatus {
+  Unresolved = "Unresolved",
+  InstructionDecoded = "InstructionDecoded",
+  ExecutionConfirmed = "ExecutionConfirmed",
+}
+export interface RawInstructionPayload {
+  program_id: string;
+  instruction_index: number;
+  accounts: (string | null)[];
+  account_indices: number[];
+  instruction_data: number[];
+  /** Compatibility only: populated by explicitly applied offline rules. */
+  rule_id?: string;
+}
+export function rawInstructionPayload(raw: RawInstructionEvent): RawInstructionPayload {
+  return {program_id: raw.program_id, instruction_index: raw.instruction_index,
+    accounts: [...raw.accounts], account_indices: [...raw.account_indices], instruction_data: [...raw.instruction_data]};
+}
+
 /** Outer instruction only; contains no inferred CPI, trade direction or amounts. */
 export interface RawInstructionEvent {
   metadata: EventMetadata;
