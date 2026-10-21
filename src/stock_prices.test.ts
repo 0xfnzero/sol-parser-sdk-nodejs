@@ -21,11 +21,11 @@ for (const [index, c] of cases.entries())
       const p = tracker.process(e, 1_000_000n);
       return p ? [p] : [];
     });
-    expect(prices).toHaveLength(1);
-    expect(prices[0].price_usdc).toBeCloseTo(
-      [343.6402644024645, 175.28120314435913, 904.3107197730765][index],
-      8,
-    );
+    // The captured ABNB pool is excluded after a large historical withdrawal.
+    const expected = [343.6402644024645, null, 904.3107197730765][index];
+    expect(prices).toHaveLength(expected === null ? 0 : 1);
+    if (expected === null) return;
+    expect(prices[0].price_usdc).toBeCloseTo(expected, 8);
     expect(prices[0].liquidity).toBeNull();
     tracker.reset();
     expect(events.every((e) => tracker.process(e, 100_000_000n) === null)).toBe(
