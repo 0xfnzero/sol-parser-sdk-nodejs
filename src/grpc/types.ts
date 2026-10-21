@@ -1,5 +1,3 @@
-import {rawInstructionMatchesFilter} from "../core/raw_instruction.js";
-import {allowsPumpRoute} from "../instr/pump_routes.js";
 import { exactU64 } from "../core/metadata.js";
 import type { SubscribeRequestFilterAccountsFilter } from "./protocol/geyser.js";
 import type { DexEvent } from "../core/dex_event.js";
@@ -291,8 +289,6 @@ export function accountFilterMemcmp(
 
 /** 事件类型过滤标签 */
 export type EventType =
-  | "PumpRouteIntent"
-  | "RawInstruction"
   | "AccountRawSnapshot"
   | "AccountLiquiditySnapshot"
   // Block
@@ -563,8 +559,6 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "PumpFunPostCompleteBuy",
   "PumpFunSweepBondingCurveFee",
   "PumpSwapSweepPoolFee",
-  "PumpRouteIntent",
-  "RawInstruction",
 ];
 
 const ALL_EVENT_TYPE_SET = new Set<string>(ALL_EVENT_TYPES);
@@ -696,8 +690,6 @@ const RAYDIUM_LAUNCHLAB_FILTER_TYPES: readonly EventType[] = [
   "RaydiumLaunchlabMigrateAmm",
 ];
 const INSTRUCTION_EVENT_TYPES: readonly EventType[] = [
-  "PumpRouteIntent",
-  "RawInstruction",
   ...PUMPFUN_FILTER_TYPES,
   ...PUMP_FEES_EVENT_TYPES,
   ...PUMPSWAP_FILTER_TYPES,
@@ -748,8 +740,6 @@ export function eventTypeFilterShouldIncludeDexEvent(
   filter: EventTypeFilter,
   event: DexEvent
 ): boolean {
-  if ("RawInstruction" in event) return rawInstructionMatchesFilter(event.RawInstruction.dexes, filter);
-  if ("PumpRouteIntent" in event) return allowsPumpRoute(filter, event.PumpRouteIntent.program);
   const eventType = eventTypeFromDexEvent(event);
   return eventType === null || filter.shouldInclude(eventType);
 }

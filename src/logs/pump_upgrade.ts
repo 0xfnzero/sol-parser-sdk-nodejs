@@ -1,4 +1,3 @@
-import {pumpMultiHopArgs} from "../instr/pump_routes.js";
 import type { DexEvent } from "../core/dex_event.js";
 import type { EventMetadata } from "../core/metadata.js";
 import { readPubkey, readU64LE, readI64LE } from "../util/binary.js";
@@ -160,46 +159,4 @@ export function parsePumpUpgradeEvent(
     };
   }
   return null;
-}
-
-export interface PumpMultiHopIntent {
-  user: string;
-  inputAccount: string;
-  outputAccount: string;
-  amountIn: bigint;
-  minAmountOut: bigint;
-  hops: {
-    baseMint: string;
-    quoteMint: string;
-    venue: string;
-    baseVault: string;
-    quoteVault: string;
-  }[];
-}
-/** Intent amounts are limits, not execution. Each hop emits its own actual trade. */
-export function decodePumpMultiHopIntent(
-  program: string,
-  data: Uint8Array,
-  accounts: readonly string[],
-): PumpMultiHopIntent | null {
-  const args = pumpMultiHopArgs(program, data, accounts);
-  if (!args) return null;
-  const [amountIn, minAmountOut] = args;
-  const hops: PumpMultiHopIntent["hops"] = [];
-  for (let i = 16; i < accounts.length; i += 5)
-    hops.push({
-      baseMint: accounts[i]!,
-      quoteMint: accounts[i + 1]!,
-      venue: accounts[i + 2]!,
-      baseVault: accounts[i + 3]!,
-      quoteVault: accounts[i + 4]!,
-    });
-  return {
-    user: accounts[0]!,
-    inputAccount: accounts[1]!,
-    outputAccount: accounts[2]!,
-    amountIn,
-    minAmountOut,
-    hops,
-  };
 }

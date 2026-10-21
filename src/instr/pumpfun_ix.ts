@@ -319,7 +319,7 @@ export function parsePumpfunInstruction(
   const meta = ixMeta(signature, slot, txIndex, blockTimeUs, grpcRecvUs);
 
   if (discEq(outer, Uint8Array.from([7, 5, 29, 196, 245, 23, 101, 80]))) {
-    if(accounts.length!==17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
+    if(accounts.length<17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
     const mapped=Array<string>(27).fill(Z);
     mapped[0]=accounts[0]!;
     mapped[1]=accounts[1]!;
@@ -343,7 +343,7 @@ export function parsePumpfunInstruction(
     return ev;
   }
   if (discEq(outer, Uint8Array.from([225, 247, 80, 30, 213, 179, 132, 136]))) {
-    if(accounts.length!==17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
+    if(accounts.length<17 || data.length<16 || data.length>17 || (data.length===17 && data[16]!>1)) return null;
     const mapped=Array<string>(27).fill(Z);
     mapped[0]=accounts[0]!;
     mapped[1]=accounts[1]!;
@@ -367,7 +367,7 @@ export function parsePumpfunInstruction(
     return ev;
   }
   if (discEq(outer, Uint8Array.from([28, 146, 222, 119, 38, 196, 105, 213]))) {
-    if(accounts.length!==17 || data.length<16 || data.length>17 || data.length!==16) return null;
+    if(accounts.length<17 || data.length!==16) return null;
     const mapped=Array<string>(27).fill(Z);
     mapped[0]=accounts[0]!;
     mapped[1]=accounts[1]!;

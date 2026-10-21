@@ -490,6 +490,18 @@ export function dedupeLogInstructionEvents(
     mergeGrpcInstructionIntoLog(out[existing], ev);
   }
 
+  // Instruction-only creates must precede their mint's first trade, while
+  // retaining the relative order of every trade in a multi-hop transaction.
+  for (let i = 1; i < out.length; i++) {
+    const event = out[i];
+    const create = "PumpFunCreate" in event ? event.PumpFunCreate
+      : "PumpFunCreateV2" in event ? event.PumpFunCreateV2 : undefined;
+    if (!create || create.mint === defaultPubkey()) continue;
+    const first = out.findIndex((candidate, index) => index < i
+      && PUMPFUN_TRADE_NAMES.has(eventName(candidate))
+      && payload(candidate)?.mint === create.mint);
+    if (first >= 0) out.splice(first, 0, out.splice(i, 1)[0]);
+  }
   return preferCurrentDbcEvents(out);
 }
 

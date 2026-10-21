@@ -1,9 +1,7 @@
 import bs58 from "bs58";
 import {unresolvedPumpfunTrade, TRADE_PROGRAMS} from "../core/trade_source.js";
-import {rawInstructionPayload, TradeParseStatus} from "../core/raw_instruction.js";
-import {INFRASTRUCTURE_PROGRAMS, rawInstructionDexes, rawInstructionMatchesFilter} from "../core/raw_instruction.js";
+import {TradeParseStatus, INFRASTRUCTURE_PROGRAMS} from "../core/raw_instruction.js";
 import {makeMetadata} from "../core/metadata.js";
-import {allowsPumpRoute, mayParsePumpRoute, parsePumpRoute} from "../instr/pump_routes.js";
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
  * `ShredWasmTx` 来自线格式交易经 `@solana/web3.js` 反序列化（见 `wire_to_shred_tx.ts`），非 WASM。
@@ -114,33 +112,18 @@ function parseShredKeys(
     const resolved = pidIdx < fullAccountKeys.length && accBytes.every(i => i < fullAccountKeys.length);
     const pid = fullAccountKeys[pidIdx];
     const unknown = pid && !UNKNOWN_PROGRAM_CANDIDATES.some(p => p === pid) && !INFRASTRUCTURE_PROGRAMS.has(pid);
-    const explicitRaw = eventTypeFilter?.include_only?.includes("RawInstruction");
-    const dexes = unknown || explicitRaw ? rawInstructionDexes(pid, Array.from(accBytes, i => fullAccountKeys[i] ?? null)) : [];
-    if (pid && (unknown || explicitRaw)) {
-      const raw = {
-        dexes,
-        metadata: makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs),
-        program_id: pid, instruction_index: instructionIndex,
-        accounts: Array.from(accBytes, i => fullAccountKeys[i] ?? null),
-        account_indices: Array.from(accBytes), instruction_data: Array.from(data),
-      };
-      if (explicitRaw && rawInstructionMatchesFilter(dexes, eventTypeFilter)) out.push({RawInstruction: raw});
-      if (unknown && dexes.some(d => d.program_id === PUMPFUN_PROGRAM_ID)
-          && (!eventTypeFilter?.include_only || eventTypeFilter.include_only.includes("PumpFunTrade"))
-          && (!eventTypeFilter || eventTypeFilter.shouldInclude("PumpFunTrade"))) {
-        out.push(unresolvedPumpfunTrade(raw.metadata, rawInstructionPayload(raw)));
-      }
+    if (unknown && !eventTypeFilter?.exclude_types?.includes("PumpFunTrade")
+        && (!eventTypeFilter || eventTypeFilter.shouldInclude("PumpFunTrade"))
+        && accBytes.some(i => fullAccountKeys[i] === PUMPFUN_PROGRAM_ID)) {
+      out.push(unresolvedPumpfunTrade(
+        makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs), {
+          program_id: pid, instruction_index: instructionIndex,
+          accounts: Array.from(accBytes, i => fullAccountKeys[i] ?? null),
+          account_indices: Array.from(accBytes), instruction_data: Array.from(data),
+        }));
     }
     if (unknown) continue;
     if (!resolved && !bestEffort) continue;
-    if (pid && mayParsePumpRoute(pid, data)) {
-      if (resolved && allowsPumpRoute(eventTypeFilter, pid)) {
-        const metadata = makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs);
-        const intent = parsePumpRoute(pid, data, Array.from(accBytes, i => fullAccountKeys[i]!), metadata, instructionIndex, eventTypeFilter);
-        if (intent) out.push({PumpRouteIntent: intent});
-      }
-      continue;
-    }
     const accountStrs = ixAccountStrings(fullAccountKeys, accBytes);
 
     if (pidIdx >= fullAccountKeys.length) {

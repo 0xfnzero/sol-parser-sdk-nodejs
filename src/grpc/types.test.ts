@@ -139,8 +139,6 @@ describe("event type filters", () => {
       "PumpFunPostCompleteBuy",
       "PumpFunSweepBondingCurveFee",
       "PumpSwapSweepPoolFee",
-      "PumpRouteIntent",
-      "RawInstruction",
     ];
     expect(ALL_EVENT_TYPES).toEqual(rustEventTypes);
   });

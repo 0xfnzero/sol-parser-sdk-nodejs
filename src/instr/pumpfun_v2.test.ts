@@ -13,6 +13,20 @@ const BUY_V2_DISC = [184, 23, 238, 97, 103, 197, 211, 61];
 const BUY_EXACT_QUOTE_IN_V2_DISC = [194, 171, 28, 70, 104, 77, 91, 47];
 const SELL_V2_DISC = [93, 246, 130, 60, 231, 233, 64, 178];
 
+it('V3 accepts remaining accounts without changing fixed roles or metadata',()=>{
+ for(const disc of [[7,5,29,196,245,23,101,80],[225,247,80,30,213,179,132,136],[28,146,222,119,38,196,105,213]]){
+  const data=u64Instruction(disc,100n,7n), keys=Array.from({length:19},(_,i)=>pubkey(i+1));
+  const parse=(a:string[])=>parsePumpfunInstruction(data,a,'sig',123,71,undefined,999);
+  expect(parse(keys)).toEqual(parse(keys.slice(0,17)));
+  expect(parse(keys.slice(0,16))).toBeNull();
+  const event=parse(keys)!;
+  expect(event).not.toBeNull();
+  const trade=Object.values(event)[0] as any;
+  expect(trade.metadata.tx_index).toBe(71n);
+  expect(trade.metadata.grpc_recv_us).toBe(999n);
+ }
+});
+
 function accounts(n: number): string[] {
   return Array.from({ length: n }, (_, i) => `account_${i}`);
 }

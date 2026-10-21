@@ -1,4 +1,7 @@
-/** npx tsx examples/pump_execution_replay.ts [SIGNATURE]; offline by default. */
+/** npx tsx examples/pump_execution_replay.ts [SIGNATURE]; offline by default.
+ * Inspect third_program and parse_status in each event. Supplied execution metadata
+ * is not available to Shred parsing; one outer wrapper may produce several fills.
+ */
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {Message, MessageV0, PublicKey} from '@solana/web3.js';
@@ -20,7 +23,7 @@ async function main() {
   for(const [mode,logs] of [['full',raw.meta.logMessages],['no_logs',[]],['truncated_logs',raw.meta.logMessages.slice(0,raw.meta.logMessages.length/2)]]) {
    const result=parseRpcTransaction({...raw,transaction:{...raw.transaction,message},meta:{...raw.meta,logMessages:logs,loadedAddresses:{writable:raw.meta.loadedAddresses.writable.map((k:string)=>new PublicKey(k)),readonly:raw.meta.loadedAddresses.readonly.map((k:string)=>new PublicKey(k))}}},raw.transaction.signatures[0]);
    if(!result.ok)throw Error(JSON.stringify(result));
-   console.log(JSON.stringify({mode,slot:raw.slot,signature:raw.transaction.signatures[0],events:result.events},(_,v)=>typeof v==='bigint'?v.toString():v));
+   console.log(JSON.stringify({source:'execution_replay',mode,event_count:result.events.length,slot:raw.slot,signature:raw.transaction.signatures[0],events:result.events},(_,v)=>typeof v==='bigint'?v.toString():v));
   }
  }
 }

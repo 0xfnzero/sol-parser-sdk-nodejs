@@ -31,9 +31,9 @@ const DISC_MIGRATE_BONDING_CURVE_CREATOR = disc([155, 167, 104, 220, 213, 108, 2
 const PUMPFUN_SOL_QUOTE_MINT = "So11111111111111111111111111111111111111111";
 
 function normalizePumpfunIxName(ixName: string): string {
-  if (ixName === "buy_v2") return "buy";
-  if (ixName === "sell_v2") return "sell";
-  if (ixName === "buy_exact_quote_in_v2") return "buy_exact_quote_in";
+  if (ixName === "buy_v2" || ixName === "buy_v3") return "buy";
+  if (ixName === "sell_v2" || ixName === "sell_v3") return "sell";
+  if (ixName === "buy_exact_quote_in_v2" || ixName === "buy_exact_quote_in_v3") return "buy_exact_quote_in";
   return ixName;
 }
 

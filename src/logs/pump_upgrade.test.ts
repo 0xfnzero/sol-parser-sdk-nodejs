@@ -48,7 +48,7 @@ describe("official Pump upgrade layouts", () => {
       ).not.toBeNull();
     }
   });
-  it("accepts historical SOL completion and rejects invalid multi-hop intent", () => {
+  it("accepts historical SOL completion", () => {
     const ds = 619296439455019615n;
     const e: any = parsePumpUpgradeEvent(
       ds,
@@ -58,20 +58,5 @@ describe("official Pump upgrade layouts", () => {
     expect(e.PumpFunComplete.quote_mint).toBe(
       "So11111111111111111111111111111111111111112",
     );
-    const b = Buffer.alloc(24);
-    Buffer.from([43, 100, 73, 19, 233, 246, 111, 148]).copy(b);
-    b.writeBigUInt64LE(7n, 8);
-    b.writeBigUInt64LE(9n, 16);
-    const a = Array(26).fill("11111111111111111111111111111111");
-    a[7] = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'; a[8] = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-    a[11] = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'; a[12] = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
-    expect(
-      decodePumpMultiHopIntent(
-        "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
-        b,
-        a,
-      )?.hops.length,
-    ).toBe(2);
-    expect(decodePumpMultiHopIntent("bad", b, a)).toBeNull();
   });
 });

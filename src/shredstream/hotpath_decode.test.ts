@@ -54,7 +54,13 @@ describe("binary hotpath decoder retains canonical signed-wire semantics", () =>
           undefined,
         );
       const events = parse();
-      expect(events).toHaveLength(f.expected.length);
+      // Route-intent callbacks were removed. Check the wire decoder's owned
+      // representation against independently decoded string instructions.
+      const canonical = {...tx, instructions: decoded.transaction.message.instructions.map(ix => ({
+        programIdIndex: ix.programIdIndex, accounts: Uint8Array.from(ix.accounts), data: bs58.decode(ix.data),
+      }))};
+      expect(events).toEqual(dexEventsFromShredWasmTxWithLoadedAddresses(
+        canonical, f.loaded_writable, f.loaded_readonly, f.slot, 888, 999));
       wire.fill(0);
       expect(parse()).toEqual(events);
       expect(() =>

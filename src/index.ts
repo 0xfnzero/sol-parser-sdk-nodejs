@@ -9,8 +9,6 @@ export {
 } from "./common/constants.js";
 
 export type { DexEvent } from "./core/dex_event.js";
-export {parseWrappedPumpfunInstruction} from "./wrapped_pumpfun_parser.js";
-export type {WrappedPumpfunRule} from "./wrapped_pumpfun_parser.js";
 export { metadataForDexEvent, defaultPubkey } from "./core/dex_event.js";
 export { bigintToJsonReplacer, dexEventToJsonString } from "./core/json_utils.js";
 export { exactInteger, exactU64, exactI64 } from "./core/metadata.js";
@@ -368,10 +366,8 @@ export type {
 
 export * from "./logs/pump_upgrade.js";
 
-export * from "./instr/pump_routes.js";
 export {RawInstructionDexType} from "./core/raw_instruction.js";
-export type {RawInstructionEvent, RawInstructionDex} from "./core/raw_instruction.js";
-export {TradeParseStatus, rawInstructionPayload} from "./core/raw_instruction.js";
+export {TradeParseStatus} from "./core/raw_instruction.js";
 export type {RawInstructionPayload} from "./core/raw_instruction.js";
 export * from "./stock_catalog.js";
 export * from "./stock_prices.js";
