@@ -1,19 +1,30 @@
 <div align="center">
-    <h1>Sol Parser SDK — Node.js</h1>
-    <p>面向 Solana DEX 的 Node.js 事件解析 SDK</p>
-    <a href="https://www.npmjs.com/package/sol-parser-sdk"><img src="https://img.shields.io/npm/v/sol-parser-sdk.svg" alt="sol-parser-sdk"></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+    <h1>⚡ Sol Parser SDK - Node.js</h1>
+    <h3><em>高性能 Solana DEX 事件解析（Node.js / TypeScript）</em></h3>
 </div>
 
 <p align="center">
-    <a href="README.md">English</a> · <a href="README_CN.md">中文</a> ·
-    <a href="#示例列表">示例</a> ·
-    <a href="docs/USAGE.md">文档</a> ·
-    <a href="RELEASE_NOTES.md">发布与迁移</a> ·
-    <a href="#sdk-版本与相关项目">相关 SDK</a>
+    <strong>从 gRPC、ShredStream、RPC 交易及协议账户解析类型化事件，用于索引、监控和交易系统。</strong>
 </p>
 
-从 gRPC、ShredStream、RPC 交易及协议账户解析类型化事件，用于索引、监控和交易系统。
+<p align="center">
+    <a href="https://www.npmjs.com/package/sol-parser-sdk"><img src="https://img.shields.io/npm/v/sol-parser-sdk.svg" alt="sol-parser-sdk"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
+<p align="center">
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&amp;logo=typescript&amp;logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&amp;logo=solana&amp;logoColor=white" alt="Solana">
+    <img src="https://img.shields.io/badge/gRPC-4285F4?style=for-the-badge&amp;logo=grpc&amp;logoColor=white" alt="gRPC">
+</p>
+
+<p align="center">
+    <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/README_CN.md">中文</a> |
+    <a href="https://github.com/0xfnzero/sol-parser-sdk-nodejs/blob/main/README.md">English</a> |
+    <a href="https://fnzero.dev/">Website</a> |
+    <a href="https://t.me/fnzero_group">Telegram</a> |
+    <a href="https://discord.gg/vuazbGkqQE">Discord</a>
+</p>
 
 当前版本：**0.9.1**。升级前请阅读 [迁移说明](RELEASE_NOTES.md)；历史变更见 [版本记录](CHANGELOG_CN.md)。
 
