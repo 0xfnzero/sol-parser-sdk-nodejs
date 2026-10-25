@@ -184,7 +184,7 @@ describe("PumpFun v2 parity", () => {
     expect(ev).toBeTruthy();
     expect("PumpFunBuy" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("buy");
+    expect(t.ix_name).toBe("buy_v2");
     expect(t.mint).toBe("account_1");
     expect(t.fee_recipient).toBe("account_6");
     expect(t.bonding_curve).toBe("account_10");
@@ -210,7 +210,7 @@ describe("PumpFun v2 parity", () => {
     expect(ev).toBeTruthy();
     expect("PumpFunBuy" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("buy_exact_quote_in");
+    expect(t.ix_name).toBe("buy_exact_quote_in_v2");
     expect(t.amount).toBe(888n);
     expect(t.max_sol_cost).toBe(0n);
     expect(t.quote_amount).toBe(777n);
@@ -233,7 +233,7 @@ describe("PumpFun v2 parity", () => {
     expect(ev).toBeTruthy();
     expect("PumpFunSell" in ev!).toBe(true);
     const t = trade(ev!);
-    expect(t.ix_name).toBe("sell");
+    expect(t.ix_name).toBe("sell_v2");
     expect(t.amount).toBe(333n);
     expect(t.min_sol_output).toBe(444n);
     expect(t.max_sol_cost).toBe(0n);

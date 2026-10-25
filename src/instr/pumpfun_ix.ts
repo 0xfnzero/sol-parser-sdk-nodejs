@@ -97,7 +97,7 @@ function parsePumpfunTradeV2Instruction(
     total_claimed_tokens: 0n,
     current_sol_volume: 0n,
     last_update_timestamp: 0n,
-    ix_name: normalizedIxName,
+    ix_name: ixName,
     mayhem_mode: false,
     cashback_fee_basis_points: 0n,
     cashback: 0n,

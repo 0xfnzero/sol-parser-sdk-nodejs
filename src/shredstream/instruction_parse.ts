@@ -1,16 +1,17 @@
+import {MULTI_HOP_SWAP, hasDiscriminator, parsePumpCurveHops, pumpCreationContext, preservePumpInputs, validUnresolvedPumpLayout} from "./pumpfun.js";
 import bs58 from "bs58";
 import {unresolvedPumpfunTrade, TRADE_PROGRAMS} from "../core/trade_source.js";
 import {TradeParseStatus, INFRASTRUCTURE_PROGRAMS} from "../core/raw_instruction.js";
 import {makeMetadata} from "../core/metadata.js";
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
- * `ShredWasmTx` 来自线格式交易经 `@solana/web3.js` 反序列化（见 `wire_to_shred_tx.ts`），非 WASM。
+ * `ShredWasmTx` 来自 Legacy/V0/V1 线格式交易原生解码（见 `wire_to_shred_tx.ts`），非 WASM。
  * 客户端通过预热 ALT 缓存展开 V0 账户；connection 只供独立刷新使用。
  */
 import type { MessageHeader } from "@solana/web3.js";
 import { defaultPubkey, metadataForDexEvent, type DexEvent } from "../core/dex_event.js";
 import { enrichPumpfunSameTxPostMerge } from "../core/pumpfun_fee_enrich.js";
-import { eventTypeFilterAllowsInstructionParsing, type EventTypeFilter } from "../grpc/types.js";
+import { eventTypeFilterAllowsInstructionParsing, eventTypeFilterIncludesPumpfun, type EventTypeFilter } from "../grpc/types.js";
 import { parseInstructionUnified } from "../instr/mod.js";
 import {
   METEORA_DBC_PROGRAM_ID,
@@ -103,6 +104,9 @@ function parseShredKeys(
   if (!shouldParseShredInstructions(eventTypeFilter)) return [];
 
   const out: DexEvent[] = [];
+  const context = pumpCreationContext(!eventTypeFilter || eventTypeFilterIncludesPumpfun(eventTypeFilter) ? ixs : [], fullAccountKeys);
+  const declaredKeys = tx.accounts.length + (tx.addressTableLookups ?? []).reduce(
+    (n,l) => n+l.writableIndexes.length+l.readonlyIndexes.length,0);
 
   for (const [instructionIndex, rawIx] of ixs.entries()) {
     const pidIdx = rawIx.programIdIndex;
@@ -111,9 +115,22 @@ function parseShredKeys(
     const data = asU8(rawIx.data);
     const resolved = pidIdx < fullAccountKeys.length && accBytes.every(i => i < fullAccountKeys.length);
     const pid = fullAccountKeys[pidIdx];
+    if (!bestEffort && (pidIdx >= declaredKeys || accBytes.some(i => i >= declaredKeys))) continue;
+    if (pid === PUMPSWAP_PROGRAM_ID && hasDiscriminator(data, MULTI_HOP_SWAP)) {
+      if (!eventTypeFilter?.exclude_types?.includes("PumpFunTrade")
+          && (!eventTypeFilter?.include_only || eventTypeFilter.include_only.includes("PumpFunTrade"))) {
+        const hops = parsePumpCurveHops(rawIx, fullAccountKeys, instructionIndex,
+          makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs));
+        for (const hop of hops) {
+          if ('PumpFunTrade' in hop) hop.PumpFunTrade.is_created_buy = hop.PumpFunTrade.is_buy && context.created.has(hop.PumpFunTrade.mint);
+          out.push(hop);
+        }
+      }
+      continue;
+    }
     const unknown = pid && !UNKNOWN_PROGRAM_CANDIDATES.some(p => p === pid) && !INFRASTRUCTURE_PROGRAMS.has(pid);
     if (unknown && !eventTypeFilter?.exclude_types?.includes("PumpFunTrade")
-        && (!eventTypeFilter || eventTypeFilter.shouldInclude("PumpFunTrade"))
+        && (!eventTypeFilter?.include_only || eventTypeFilter.include_only.includes("PumpFunTrade"))
         && accBytes.some(i => fullAccountKeys[i] === PUMPFUN_PROGRAM_ID)) {
       out.push(unresolvedPumpfunTrade(
         makeMetadata(tx.signature, slot, txIndex, undefined, grpcRecvUs), {
@@ -123,7 +140,7 @@ function parseShredKeys(
         }));
     }
     if (unknown) continue;
-    if (!resolved && !bestEffort) continue;
+    if (!resolved && !bestEffort && (pid !== PUMPFUN_PROGRAM_ID || !validUnresolvedPumpLayout(rawIx))) continue;
     const accountStrs = ixAccountStrings(fullAccountKeys, accBytes);
 
     if (pidIdx >= fullAccountKeys.length) {
@@ -159,7 +176,10 @@ function parseShredKeys(
       eventTypeFilter,
       programId
     );
-    if (ev) out.push(ev);
+    if (ev) {
+      if (programId === PUMPFUN_PROGRAM_ID) preservePumpInputs(ev, accBytes, fullAccountKeys, context);
+      out.push(ev);
+    }
   }
 
   if (tx.recentBlockhash && out.length) {
@@ -177,7 +197,7 @@ function parseShredKeys(
   return out;
 }
 
-/** 仅静态账户表（无 RPC；跳过未解析账户的指令） */
+/** 仅静态账户表（无 RPC；已知 Pump.fun 指令保留回调，未展开 ALT 地址保持默认值） */
 export function dexEventsFromShredWasmTx(
   tx: ShredWasmTx,
   slot: number | bigint | string,
