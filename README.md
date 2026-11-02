@@ -315,6 +315,12 @@ PumpFun, PumpSwap, Raydium AMM V4 / CLMM / CPMM, Orca Whirlpool, Meteora DAMM V2
 - `parseRpcTransaction` / `parseTransactionFromRpc` — HTTP RPC path.
 - `dexEventToJsonString` — BigInt-safe JSON.
 
+`parseTransactionFromRpc` supports legacy, V0 and V1 transactions. It requests
+`maxSupportedTransactionVersion: 1` and requires `@solana/web3.js >= 1.99.0`.
+If your application creates the `Connection`, upgrade its web3.js dependency too;
+a `Connection` from 1.98.x cannot decode V1 responses. See
+[`parse_tx_by_signature.ts`](examples/parse_tx_by_signature.ts).
+
 <a id="development"></a>
 
 ## Development

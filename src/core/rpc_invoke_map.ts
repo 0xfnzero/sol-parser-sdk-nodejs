@@ -4,9 +4,8 @@
  */
 import bs58 from "bs58";
 import {
-  Message,
-  MessageV0,
   PublicKey,
+  type VersionedMessage,
   type CompiledInstruction,
   type ConfirmedTransactionMeta,
   type MessageCompiledInstruction,
@@ -49,20 +48,20 @@ export function accountKeyToBase58(account: unknown): string | undefined {
   }
 }
 
-export function isCompiledVersionedMessage(msg: unknown): msg is Message | MessageV0 {
+export function isCompiledVersionedMessage(msg: unknown): msg is VersionedMessage {
   if (msg === null || typeof msg !== "object") return false;
   return (
     "compiledInstructions" in msg &&
-    Array.isArray((msg as Message).compiledInstructions) &&
-    typeof (msg as Message).getAccountKeys === "function"
+    Array.isArray((msg as VersionedMessage).compiledInstructions) &&
+    typeof (msg as VersionedMessage).getAccountKeys === "function"
   );
 }
 
 export function getAccountKeyResolver(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): { get(i: number): PublicKey | undefined; length: number } {
-  if (message.version === "legacy") {
+  if (message.version !== 0) {
     const keys = message.getAccountKeys();
     return { get: (i) => keys.get(i), length: keys.length };
   }
@@ -80,7 +79,7 @@ export function decodeIxData(data: Uint8Array | string): Uint8Array {
 }
 
 export function buildProgramInvokesMap(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   resolver: { get(i: number): PublicKey | undefined }
 ): Map<string, InvokePair[]> {
@@ -111,7 +110,7 @@ export function buildProgramInvokesMap(
 }
 
 export function instructionAccountIndices(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   invoke: InvokePair
 ): number[] | null {
@@ -126,7 +125,7 @@ export function instructionAccountIndices(
 }
 
 export function countInstructionAccounts(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   invoke: InvokePair
 ): number {
@@ -136,7 +135,7 @@ export function countInstructionAccounts(
 export function findMaxAccountsInvoke(
   programId: string,
   invokes: Map<string, InvokePair[]>,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): InvokePair | null {
   const list = invokes.get(programId);
@@ -159,7 +158,7 @@ const DEFAULT_PK = PublicKey.default.toBase58();
 export function makeInvokeAccountGetter(
   resolver: { get(i: number): PublicKey | undefined },
   invoke: InvokePair,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): ((i: number) => string) | null {
   const indices = instructionAccountIndices(message, meta, invoke);
@@ -172,7 +171,7 @@ export function makeInvokeAccountGetter(
 }
 
 export function getInstructionDataBytes(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   invoke: InvokePair
 ): Uint8Array | null {

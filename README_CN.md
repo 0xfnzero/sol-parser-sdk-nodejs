@@ -307,6 +307,12 @@ PumpFun、PumpSwap、Raydium AMM V4 / CLMM / CPMM、Orca Whirlpool、Meteora DAM
 - `parseRpcTransaction` / `parseTransactionFromRpc` — HTTP RPC 全量解析。
 - `dexEventToJsonString` — 含 BigInt 的安全 JSON 输出。
 
+`parseTransactionFromRpc` 支持 legacy、V0、V1 交易，请求使用
+`maxSupportedTransactionVersion: 1`，要求 `@solana/web3.js >= 1.99.0`。
+如果应用自行创建 `Connection`，也需升级应用的 web3.js 依赖；1.98.x 的
+`Connection` 无法解码 V1 响应。用法见
+[`parse_tx_by_signature.ts`](examples/parse_tx_by_signature.ts)。
+
 <a id="开发"></a>
 
 ## 开发

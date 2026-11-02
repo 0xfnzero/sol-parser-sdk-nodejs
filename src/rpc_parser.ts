@@ -20,7 +20,7 @@ export {
 
 /**
  * 通过 RPC 拉取交易并解析：
- * 外层 + 内层编译指令 + 日志；不含账户字段填充（需另行调用 RPC 填充 API）。
+ * 支持 legacy、V0、V1；外层 + 内层编译指令 + 日志，并用交易 metadata 填充账户字段。
  */
 export async function parseTransactionFromRpc(
   connection: Connection,
@@ -29,7 +29,7 @@ export async function parseTransactionFromRpc(
 ): Promise<{ ok: true; events: DexEvent[] } | { ok: false; error: ParseError }> {
   try {
     const tx = await connection.getTransaction(signature, {
-      maxSupportedTransactionVersion: 0,
+      maxSupportedTransactionVersion: 1,
     });
     if (!tx) {
       return {

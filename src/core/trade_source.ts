@@ -1,8 +1,7 @@
 /** Exact outer-instruction provenance shared by RPC and in-memory gRPC parsing. */
 import type { DexEvent } from "./dex_event.js";
 import type {
-  Message,
-  MessageV0,
+  VersionedMessage,
   ConfirmedTransactionMeta,
 } from "@solana/web3.js";
 import { TradeParseStatus } from "./raw_instruction.js";
@@ -112,7 +111,7 @@ export function logOuterIndices(
 export function markTradeExecutionSource(
   event: DexEvent,
   index: number,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
 ): void {
   const [name, data] = Object.entries(event)[0]!;
