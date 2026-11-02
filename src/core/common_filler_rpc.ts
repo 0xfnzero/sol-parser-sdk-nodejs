@@ -3,7 +3,7 @@ import type { DexEvent, PumpFunTradeEvent } from "./dex_event.js";
 import { defaultPubkey } from "./dex_event.js";
 import { PUMPSWAP_FEES_PROGRAM_ID } from "../instr/program_ids.js";
 import { getAccountKeyResolver, getInstructionDataBytes, type InvokePair } from "./rpc_invoke_map.js";
-import type { Message, MessageV0 } from "@solana/web3.js";
+import type { VersionedMessage } from "@solana/web3.js";
 import type { ConfirmedTransactionMeta } from "@solana/web3.js";
 
 function findAccountIndex(
@@ -29,7 +29,7 @@ function tokenBalanceRawAmount(amount: string | undefined): bigint | null {
 
 function fillPumpfunTradeBalances(
   trade: PumpFunTradeEvent,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): void {
   if (!meta) return;
@@ -75,7 +75,7 @@ function pumpfunTradeFromEvent(ev: DexEvent): PumpFunTradeEvent | null {
 
 export function fillDataRpc(
   ev: DexEvent,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   programInvokes: Map<string, InvokePair[]>
 ): void {

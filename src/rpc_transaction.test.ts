@@ -1,9 +1,80 @@
-import { PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { describe, expect, it } from "vitest";
+import { Connection, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { describe, expect, it, vi } from "vitest";
 import { PUMPFUN_PROGRAM_ID } from "./grpc/program_ids.js";
 import { METEORA_DLMM_PROGRAM_ID } from "./instr/program_ids.js";
 import { eventTypeFilterIncludeOnly } from "./grpc/types.js";
 import { parseRpcTransaction } from "./rpc_transaction.js";
+import { parseTransactionFromRpc } from "./rpc_parser.js";
+import rpcCaptures from "../tests/fixtures/pump_execution_20261019.json";
+
+describe("parseTransactionFromRpc HTTP decoding", () => {
+  // Replay saved mainnet JSON through the real web3.js response validator and
+  // Message/MessageV0/MessageV1 constructors, rather than mocking getTransaction.
+  function connectionFor(result: unknown, version: string | number = "legacy") {
+    const fetchRpc = vi.fn<typeof fetch>(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      expect(request.method).toBe("getTransaction");
+      const maxVersion = request.params[1]?.maxSupportedTransactionVersion ?? -1;
+      const response = typeof version === "number" && version > maxVersion
+        ? { error: { code: -32015, message: `Transaction version (${version}) is not supported by the requesting client` } }
+        : { result };
+      return Response.json({ jsonrpc: "2.0", id: request.id, ...response });
+    });
+    const connection = new Connection("https://rpc.invalid", { commitment: "confirmed", fetch: fetchRpc });
+    return { connection, fetchRpc };
+  }
+
+  const expected: Record<string, unknown[]> = {
+    rapid_create_buy: [
+      { PumpFunCreate: { mint: "5FzK3auCZ88ggHidFRjMt77L7gt9Ccq9cqMtw7YDpump", ix_name: "create_v2" } },
+      { PumpFunBuy: { ix_name: "buy_exact_quote_in_v2", token_amount: 103814811957650n } },
+    ],
+    delta_sell: [
+      { PumpFunSell: { ix_name: "sell_v2", token_amount: 89075783230089n } },
+      { RaydiumClmmSwap: {} },
+      { MeteoraDlmmSwap: {} },
+    ],
+    buy_v3: [{ PumpFunBuy: { ix_name: "buy_v3", sol_amount: 1500000000n, token_amount: 42411067193675n } }],
+    swap_buy: [{ PumpSwapBuy: { ix_name: "buy", quote_amount_in: 8033214n, base_amount_out: 536407125n } }],
+  };
+
+  it.each(rpcCaptures.cases)("parses captured $name (transaction version $raw.version)", async (capture) => {
+    const { connection, fetchRpc } = connectionFor(capture.raw, capture.raw.version);
+    const getTransaction = vi.spyOn(connection, "getTransaction");
+    const result = await parseTransactionFromRpc(connection, capture.signature);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.events).toMatchObject(expected[capture.name]!);
+    for (const event of result.events) {
+      expect(Object.values(event)[0].metadata).toMatchObject({ signature: capture.signature, slot: BigInt(capture.raw.slot) });
+    }
+    const response = await getTransaction.mock.results[0]!.value;
+    expect(response.transaction.message.version).toBe(capture.raw.version);
+    expect(fetchRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the event filter for a V1 create-and-buy transaction", async () => {
+    const capture = rpcCaptures.cases[0]!;
+    const { connection } = connectionFor(capture.raw, capture.raw.version);
+    const result = await parseTransactionFromRpc(connection, capture.signature, eventTypeFilterIncludeOnly(["PumpFunCreate"]));
+    expect(result.ok && result.events.map(event => Object.keys(event)[0])).toEqual(["PumpFunCreate"]);
+  });
+
+  it("returns RpcError for a missing transaction", async () => {
+    const { connection } = connectionFor(null);
+    expect(await parseTransactionFromRpc(connection, rpcCaptures.cases[0]!.signature)).toMatchObject({
+      ok: false, error: { kind: "RpcError", message: expect.stringContaining("Transaction not found") },
+    });
+  });
+
+  it("preserves RPC errors for unsupported future transaction versions", async () => {
+    const capture = rpcCaptures.cases[0]!;
+    const { connection } = connectionFor({ ...capture.raw, version: 2 }, 2);
+    expect(await parseTransactionFromRpc(connection, capture.signature)).toMatchObject({
+      ok: false, error: { kind: "RpcError", message: expect.stringContaining("Transaction version (2)") },
+    });
+  });
+});
 
 const PUMPFUN_BUY = [102, 6, 61, 18, 1, 218, 235, 234] as const;
 const PUMPFUN_TRADE = [189, 219, 127, 211, 78, 230, 97, 238] as const;

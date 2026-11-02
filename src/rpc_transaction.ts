@@ -9,7 +9,7 @@ import {
   type MessageCompiledInstruction,
   type VersionedTransactionResponse,
 } from "@solana/web3.js";
-import type { Message, MessageV0 } from "@solana/web3.js";
+import type { VersionedMessage } from "@solana/web3.js";
 import type { ConfirmedTransactionMeta } from "@solana/web3.js";
 import type { DexEvent } from "./core/dex_event.js";
 import type { ParseError } from "./core/error.js";
@@ -501,7 +501,7 @@ function resolveAccounts(
 }
 
 function parseOuterAndInnerInstructions(
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   signature: string,
   slot: number | bigint | string,
@@ -641,7 +641,7 @@ function detectPumpfunCreateInLogs(
 }
 function applyRpcFills(
   events: DexEvent[],
-  msg: Message | MessageV0,
+  msg: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): void {
   const resolver = getAccountKeyResolver(msg, meta);
@@ -666,7 +666,7 @@ function setRecentBlockhash(events: DexEvent[], recentBlockhash: string | undefi
  */
 export function applyAccountFillsToLogEvents(
   events: DexEvent[],
-  msg: Message | MessageV0,
+  msg: VersionedMessage,
   meta: ConfirmedTransactionMeta | null
 ): void {
   applyRpcFills(events, msg, meta);

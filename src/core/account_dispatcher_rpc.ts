@@ -18,8 +18,7 @@ import {
 } from "../instr/program_ids.js";
 import type {
   ConfirmedTransactionMeta,
-  Message,
-  MessageV0,
+  VersionedMessage,
 } from "@solana/web3.js";
 import {
   findMaxAccountsInvoke,
@@ -86,7 +85,7 @@ import {
 function tryFill(
   programId: string,
   programInvokes: Map<string, InvokePair[]>,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   resolver: { get(i: number): PublicKey | undefined },
   fn: (get: (i: number) => string) => void,
@@ -139,7 +138,7 @@ function tryFill(
 /** 就地修改事件体内字段 */
 export function fillAccountsFromTransactionDataRpc(
   ev: DexEvent,
-  message: Message | MessageV0,
+  message: VersionedMessage,
   meta: ConfirmedTransactionMeta | null,
   programInvokes: Map<string, InvokePair[]>,
   resolver: { get(i: number): PublicKey | undefined },

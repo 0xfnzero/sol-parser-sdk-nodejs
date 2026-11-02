@@ -3,6 +3,7 @@
  *
  * 使用 `parseTransactionFromRpc`：拉取完整 RPC 交易并走 `parseRpcTransaction`
  *（指令 + 日志 + 账户填充），与仅 `parseLogsOnly` 的轻量路径不同。
+ * 支持 legacy / V0 / V1；应用创建 Connection 时同样需要 web3.js >= 1.99.0。
  *
  * Usage（在包根目录）: npx tsx examples/parse_tx_by_signature.ts
  *

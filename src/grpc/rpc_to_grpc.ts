@@ -7,6 +7,7 @@ import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
 import {
   type Message,
   type MessageV0,
+  type MessageV1,
   type VersionedTransactionResponse,
   type ConfirmedTransactionMeta,
   type CompiledInstruction,
@@ -57,7 +58,7 @@ function legacyMessageToYellowstone(msg: Message): YMessage {
   };
 }
 
-function v0MessageToYellowstone(msg: MessageV0): YMessage {
+function versionedMessageToYellowstone(msg: MessageV0 | MessageV1): YMessage {
   const lookups: YMessageAddressTableLookup[] = msg.addressTableLookups.map((l) => ({
     accountKey: new Uint8Array(l.accountKey.toBytes()),
     writableIndexes: l.writableIndexes instanceof Uint8Array ? l.writableIndexes : Uint8Array.from(l.writableIndexes),
@@ -144,7 +145,7 @@ export function convertRpcToGrpc(tx: VersionedTransactionResponse): ConvertRpcTo
   }
 
   const yMsg: YMessage =
-    msg.version === "legacy" ? legacyMessageToYellowstone(msg as Message) : v0MessageToYellowstone(msg as MessageV0);
+    msg.version === "legacy" ? legacyMessageToYellowstone(msg) : versionedMessageToYellowstone(msg);
 
   const transaction: YTransaction = {
     signatures: tx.transaction.signatures.map((s) => new Uint8Array(bs58.decode(s))),
