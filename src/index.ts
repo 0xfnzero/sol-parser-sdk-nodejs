@@ -367,7 +367,8 @@ export type {
 export * from "./logs/pump_upgrade.js";
 
 export {RawInstructionDexType} from "./core/raw_instruction.js";
-export {TradeParseStatus} from "./core/raw_instruction.js";
 export type {RawInstructionPayload} from "./core/raw_instruction.js";
 export * from "./stock_catalog.js";
 export * from "./stock_prices.js";
+
+export type { AddressLookupResolver } from "./shredstream/client.js";

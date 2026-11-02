@@ -11,6 +11,8 @@ import type { AddressLookupTableAccount, Connection } from "@solana/web3.js";
  * **TS 扩展**：ALT 使用预热快照和独立刷新任务；解析热路径不发送 RPC。
  */
 export interface ShredStreamConfig {
+  /** Optional SubscribeEntries x-token; blank values are omitted. */
+  auth_token?: string;
   /** 连接超时（毫秒）→ tonic `Endpoint::connect_timeout` / gRPC `waitForReady` */
   connection_timeout_ms: number;
   /** 与 Rust 字段一致；长流 `SubscribeEntries` 不设单 RPC deadline（避免断流） */

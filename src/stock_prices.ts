@@ -1,7 +1,6 @@
 /** Opt-in reported execution prices. No RPC, discovery or quote calculation. */
 import type { DexEvent } from "./core/dex_event.js";
 import type { EventMetadata } from "./core/metadata.js";
-import { TradeParseStatus } from "./core/raw_instruction.js";
 import {
   STOCK_DEX_PROGRAMS,
   type StockTokenCatalog,
@@ -70,7 +69,6 @@ type Swap = {
 };
 function executedSwap(event: DexEvent): Swap | null {
   const [name, d] = Object.entries(event)[0]!;
-  if (d.parse_status !== TradeParseStatus.ExecutionConfirmed) return null;
   switch (name) {
     case "RaydiumCpmmSwap":
       return d.input_vault_before > 0n && d.output_vault_before > 0n

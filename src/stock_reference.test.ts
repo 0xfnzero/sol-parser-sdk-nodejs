@@ -6,7 +6,7 @@ import type {DexEvent} from "./core/dex_event";
 const key=(n:number)=>new PublicKey(new Uint8Array(32).fill(n)).toBase58(),mint=key(21),pool=key(22);
 const tracker=()=>new StockPriceTracker({catalog:{tokens:[{mint,symbol:"TEST",decimals:6,catalog_source:"test"}],pools:[{pool,mint,quote_mint:STOCK_USDC,dex_type:"raydium_cpmm"}]},sol_usdc_dex:"raydium_cpmm"});
 function swap(reference:boolean,index:number):DexEvent{return {RaydiumCpmmSwap:{
- metadata:makeMetadata("test",100,index,undefined,1000),parse_status:"ExecutionConfirmed",pool_id:reference?DEFAULT_STOCK_SOL_USDC_POOL:pool,
+ metadata:makeMetadata("test",100,index,undefined,1000),pool_id:reference?DEFAULT_STOCK_SOL_USDC_POOL:pool,
  input_mint:reference?STOCK_WSOL:mint,output_mint:STOCK_USDC,input_amount:reference?1_000_000_000n:1_000_000n,output_amount:reference?100_000_000n:10_000_000n,input_vault_before:1n,output_vault_before:1n
  }} as unknown as DexEvent;}
 it("requires an earlier reference and invalidates reference/liquidity after gaps",()=>{

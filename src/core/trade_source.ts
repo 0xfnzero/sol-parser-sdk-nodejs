@@ -4,7 +4,6 @@ import type {
   VersionedMessage,
   ConfirmedTransactionMeta,
 } from "@solana/web3.js";
-import { TradeParseStatus } from "./raw_instruction.js";
 import type { RawInstructionPayload } from "./raw_instruction.js";
 import type { EventMetadata } from "./metadata.js";
 
@@ -17,7 +16,6 @@ export function unresolvedPumpfunTrade(
     PumpFunTrade: {
       metadata,
       third_program,
-      parse_status: TradeParseStatus.Unresolved,
       mint: "11111111111111111111111111111111",
       sol_amount: 0n,
       token_amount: 0n,
@@ -117,7 +115,6 @@ export function markTradeExecutionSource(
   const [name, data] = Object.entries(event)[0]!;
   const native = TRADE_PROGRAMS[name];
   if (!native || !meta || meta.err != null) return;
-  data.parse_status = TradeParseStatus.ExecutionConfirmed;
   const ix = message.compiledInstructions[index];
   if (!ix) return;
   const keys = getAccountKeyResolver(message, meta);

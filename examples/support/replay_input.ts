@@ -1,6 +1,6 @@
 /** Native offline inputs shared by stock and wrapper replays. No fallback RPC. */
 import { readFileSync } from "node:fs";
-import { Message, MessageV0, PublicKey } from "@solana/web3.js";
+import { Message, MessageV0, MessageV1, PublicKey } from "@solana/web3.js";
 import bs58 from "bs58";
 import { decodeWireTransaction } from "../../src/wire_transaction.js";
 import { parseRpcTransaction } from "../../src/rpc_transaction.js";
@@ -22,23 +22,7 @@ export function replayEvents(raw: any, recvUs = 1_000_000n) {
     ? decodeWireTransaction(Buffer.from(raw.transaction[0], "base64"))
         .transaction
     : raw.transaction;
-  const msg = body.message;
-  const message = msg.addressTableLookups
-    ? new MessageV0({
-        header: msg.header,
-        staticAccountKeys: msg.accountKeys.map((k: string) => new PublicKey(k)),
-        recentBlockhash: msg.recentBlockhash,
-        compiledInstructions: msg.instructions.map((ix: any) => ({
-          programIdIndex: ix.programIdIndex,
-          accountKeyIndexes: ix.accounts,
-          data: bs58.decode(ix.data),
-        })),
-        addressTableLookups: msg.addressTableLookups.map((a: any) => ({
-          ...a,
-          accountKey: new PublicKey(a.accountKey),
-        })),
-      })
-    : new Message(msg);
+  const message = replayMessage(body.message, raw.version);
   const loaded = raw.meta?.loadedAddresses ?? { writable: [], readonly: [] };
   const result = parseRpcTransaction(
     {
@@ -63,4 +47,26 @@ export function printJson(value: unknown): void {
   console.log(
     JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v)),
   );
+}
+
+/** Captured RPC JSON is untyped here; the SDK validates compiled instructions. */
+export function replayMessage(msg: any, version: unknown) {
+  if (version !== 1 && version !== 0 && !msg.addressTableLookups) return new Message(msg);
+  const common = {
+    header: msg.header,
+    staticAccountKeys: msg.accountKeys.map((key: string) => new PublicKey(key)),
+    recentBlockhash: msg.recentBlockhash,
+    compiledInstructions: msg.instructions.map((ix: any) => ({
+      programIdIndex: ix.programIdIndex,
+      accountKeyIndexes: ix.accounts,
+      data: bs58.decode(ix.data),
+    })),
+  };
+  if (version === 1) return new MessageV1({ ...common, transactionConfig: msg.transactionConfig });
+  return new MessageV0({
+    ...common,
+    addressTableLookups: (msg.addressTableLookups ?? []).map((lookup: any) => ({
+      ...lookup, accountKey: new PublicKey(lookup.accountKey),
+    })),
+  });
 }

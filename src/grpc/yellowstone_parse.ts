@@ -58,5 +58,11 @@ export function parseDexEventsFromGrpcTransactionInfo(
       txIndex,
     }
   );
-  return parsed.ok ? parsed.events : [];
+  if (!parsed.ok) return [];
+  // PublicKey accepts short byte arrays by padding; do not expose padded ALT keys.
+  for (const event of parsed.events) {
+    const create = "PumpFunCreate" in event ? event.PumpFunCreate : "PumpFunCreateV2" in event ? event.PumpFunCreateV2 : undefined;
+    if (create && y.transaction?.message?.addressTableLookups.some(l => l.accountKey.length !== 32)) create.alt_addresses = undefined;
+  }
+  return parsed.events;
 }

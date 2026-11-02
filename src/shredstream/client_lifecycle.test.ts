@@ -78,3 +78,21 @@ describe("ShredStream lifecycle ownership", () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 });
+
+it.each([undefined, "  ", "  test-token  "])("sends optional x-token on each subscription: %s", async token => {
+  const client = Reflect.construct(ShredStreamClient, ["http://localhost:1", {...defaultShredStreamConfig(), auth_token:token}]) as ShredStreamClient;
+  const sent: unknown[] = [];
+  (client as unknown as TransportProbe).ServiceClient = class {
+    subscribeEntries(_request: unknown, metadata: {get(key:string):unknown}) {
+      sent.push(metadata.get("x-token"));
+      return Object.assign(new EventEmitter(), {cancel() {}});
+    }
+    close() {}
+  };
+  await client.subscribe(); await client.subscribe(); await client.stop();
+  expect(sent).toEqual([token?.trim() ? ["test-token"] : [], token?.trim() ? ["test-token"] : []]);
+});
+it("rejects invalid x-token without exposing it", async () => {
+  await expect(ShredStreamClient.connectWithConfig("http://localhost:1", {...defaultShredStreamConfig(), auth_token:"secret\nbad"}))
+    .rejects.toThrow("Invalid x-token metadata");
+});

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { StockPriceTracker } from "./stock_prices";
 import { screenedStockCatalog } from "./stock_catalog";
 import { replayEvents } from "../examples/support/replay_input";
-import { TradeParseStatus } from "./core/raw_instruction";
 const cases = JSON.parse(
   readFileSync(
     new URL(
@@ -31,8 +30,13 @@ for (const [index, c] of cases.entries())
     expect(events.every((e) => tracker.process(e, 100_000_000n) === null)).toBe(
       true,
     );
-    for (const e of events)
-      Object.values(e)[0].parse_status = TradeParseStatus.Unresolved;
+    for (const e of events) {
+      const data = Object.values(e)[0];
+      // Instruction-only payloads lack execution reserves/prices.
+      for (const key of ["input_vault_before", "output_vault_before", "sqrt_price_x64", "post_sqrt_price", "pool_base_token_reserves", "pool_quote_token_reserves"])
+        if (key in data) data[key] = 0n;
+    }
+    for (const e of events) if ("event_version" in Object.values(e)[0]) Object.values(e)[0].event_version = 0;
     expect(events.every((e) => tracker.process(e, 1_000_000n) === null)).toBe(
       true,
     );

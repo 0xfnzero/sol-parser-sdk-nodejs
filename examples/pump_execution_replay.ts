@@ -1,11 +1,11 @@
 /** npx tsx examples/pump_execution_replay.ts [SIGNATURE]; offline by default.
- * Inspect third_program and parse_status in each event. Supplied execution metadata
+ * Inspect third_program and instruction inputs in each event. Supplied execution metadata
  * is not available to Shred parsing; one outer wrapper may produce several fills.
  */
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {Message, MessageV0, PublicKey} from '@solana/web3.js';
-import bs58 from 'bs58';
+import {PublicKey} from '@solana/web3.js';
+import {replayMessage} from "./support/replay_input.js";
 import {dexEventsFromShredWasmTx,dexEventsFromShredWasmTxWithLoadedAddresses} from '../src/shredstream/instruction_parse.js';
 import {wireBytesToShredWasmTx} from '../src/shredstream/wire_to_shred_tx.js';
 import {eventTypeFilterIncludeOnly} from '../src/grpc/types.js';
@@ -32,9 +32,9 @@ async function main() {
     ['resolved_alt',dexEventsFromShredWasmTxWithLoadedAddresses(tx,loaded.writable,loaded.readonly,raw.slot,888,123456,filter)]
    ])console.log(JSON.stringify({source:'shred',mode,signature:tx.signature,events},(_,v)=>typeof v==='bigint'?v.toString():v));
   }
-  // Use decoded instruction fields; web3.js VersionedTransaction does not support v1 wire.
+  // Preserve the original legacy / V0 / V1 message version.
   const msg=raw.transaction.message;
-  const message=msg.addressTableLookups?new MessageV0({header:msg.header,staticAccountKeys:msg.accountKeys.map((k:string)=>new PublicKey(k)),recentBlockhash:msg.recentBlockhash,compiledInstructions:msg.instructions.map((i:any)=>({programIdIndex:i.programIdIndex,accountKeyIndexes:i.accounts,data:bs58.decode(i.data)})),addressTableLookups:msg.addressTableLookups.map((a:any)=>({...a,accountKey:new PublicKey(a.accountKey)}))}):new Message(msg);
+  const message=replayMessage(msg,raw.version);
   for(const [mode,logs] of [['full',raw.meta.logMessages],['no_logs',[]],['truncated_logs',raw.meta.logMessages.slice(0,raw.meta.logMessages.length/2)]]) {
    const result=parseRpcTransaction({...raw,transaction:{...raw.transaction,message},meta:{...raw.meta,logMessages:logs,loadedAddresses:{writable:raw.meta.loadedAddresses.writable.map((k:string)=>new PublicKey(k)),readonly:raw.meta.loadedAddresses.readonly.map((k:string)=>new PublicKey(k))}}},raw.transaction.signatures[0]);
    if(!result.ok)throw Error(JSON.stringify(result));
