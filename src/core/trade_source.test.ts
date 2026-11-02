@@ -51,7 +51,7 @@ it("preserves exact outer bytes, duplicates and unresolved indices", () => {
   });
   markTradeExecutionSource(event, 0, message, { err: null } as any);
   const e = (event as any).PumpFunTrade;
-  expect(e.parse_status).toBe("ExecutionConfirmed");
+  expect(e).not.toHaveProperty("parse_status");
   expect(e.third_program).toMatchObject({
     instruction_index: 0,
     account_indices: [0, 0, 250],

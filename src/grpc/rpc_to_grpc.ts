@@ -75,6 +75,12 @@ function versionedMessageToYellowstone(msg: MessageV0 | MessageV1): YMessage {
     instructions: msg.compiledInstructions.map(toYCompiled),
     versioned: true,
     addressTableLookups: lookups,
+    config: msg.version === 1 ? {
+      priorityFee: msg.transactionConfig.priorityFee?.toString(),
+      computeUnitLimit: msg.transactionConfig.computeUnitLimit ?? undefined,
+      loadedAccountsDataSizeLimit: msg.transactionConfig.loadedAccountsDataSizeLimit ?? undefined,
+      heapSize: msg.transactionConfig.heapSize ?? undefined,
+    } : undefined,
   };
 }
 

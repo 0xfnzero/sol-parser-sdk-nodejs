@@ -1,5 +1,6 @@
 import {it, expect} from 'vitest';
-import {PublicKey, Message, MessageV0} from '@solana/web3.js';
+import {PublicKey} from '@solana/web3.js';
+import {replayMessage} from "../../examples/support/replay_input.js";
 import bs58 from 'bs58';
 import fresh from '../../tests/fixtures/pump_execution_20261019.json';
 import routes from '../fixtures/pump_routes_20261009.json';
@@ -14,7 +15,7 @@ const kinds=['PumpFunTrade','PumpFunBuy','PumpFunSell','PumpFunBuyExactSolIn','P
 for(const c of [...fresh.cases,...routes.cases,...wrapped.cases,...alt.cases,...multi.cases]) it(`execution replay ${c.name}`,()=>{
  const raw=structuredClone(c.raw) as any;
  const msg=raw.transaction.message;
- const message=msg.addressTableLookups ? new MessageV0({header:msg.header,staticAccountKeys:msg.accountKeys.map((k:string)=>new PublicKey(k)),recentBlockhash:msg.recentBlockhash,compiledInstructions:msg.instructions.map((i:any)=>({programIdIndex:i.programIdIndex,accountKeyIndexes:i.accounts,data:bs58.decode(i.data)})),addressTableLookups:msg.addressTableLookups.map((a:any)=>({...a,accountKey:new PublicKey(a.accountKey)}))}) : new Message(msg);
+ const message=replayMessage(msg,raw.version);
  const parse=()=>{
   const response={...raw,transaction:{...raw.transaction,message},meta:{...raw.meta,loadedAddresses:{writable:raw.meta.loadedAddresses.writable.map((k:string)=>new PublicKey(k)),readonly:raw.meta.loadedAddresses.readonly.map((k:string)=>new PublicKey(k))}}};
   const result=parseRpcTransaction(response,'replay');
@@ -23,6 +24,13 @@ for(const c of [...fresh.cases,...routes.cases,...wrapped.cases,...alt.cases,...
   if(converted.ok && result.ok) {
    const grpc=parseDexEventsFromGrpcTransactionInfo({signature:bs58.decode(raw.transaction.signatures[0]),isVote:false,index:0,transactionRaw:converted.transaction,metaRaw:converted.meta} as any, String(raw.slot));
    expect(trades(grpc)).toEqual(trades(result.events));
+   for (const event of [...result.events, ...grpc]) {
+    const create = "PumpFunCreate" in event ? event.PumpFunCreate : "PumpFunCreateV2" in event ? event.PumpFunCreateV2 : undefined;
+    if (create) {
+      expect(create.transaction_version).toBe(raw.version === "legacy" ? "legacy" : `v${raw.version}`);
+      expect(create.alt_addresses).toEqual(msg.addressTableLookups?.length ? msg.addressTableLookups.map((l:any)=>l.accountKey) : undefined);
+    }
+   }
   }
   expect(result.ok).toBe(true); return result.ok?result.events:[];
  };
@@ -43,7 +51,6 @@ for(const c of [...fresh.cases,...routes.cases,...wrapped.cases,...alt.cases,...
 import {dexEventsFromShredWasmTx, dexEventsFromShredWasmTxWithLoadedAddresses} from '../shredstream/instruction_parse';
 import {wireBytesToShredWasmTx} from '../shredstream/wire_to_shred_tx';
 import {eventTypeFilterIncludeOnly} from '../grpc/types';
-import {TradeParseStatus} from '../core/raw_instruction';
 const pumpFilter=eventTypeFilterIncludeOnly(['PumpFunCreate','PumpFunTrade']);
 for(const [i,c] of alt.cases.entries()) it(`signed ALT create and buy ${c.signature}`,()=>{
  const tx=wireBytesToShredWasmTx(Buffer.from(c.wire_rpc.transaction[0],'base64'))!;
@@ -55,6 +62,8 @@ for(const [i,c] of alt.cases.entries()) it(`signed ALT create and buy ${c.signat
  expect(full.map(e=>Object.keys(e)[0])).toEqual(['PumpFunCreateV2','PumpFunTrade']);
  const create=(events[0] as any).PumpFunCreateV2, trade=(events[1] as any).PumpFunTrade;
  expect(create.ix_name).toBe('create_v2');
+ expect(create.transaction_version).toBe(tx.messageVersion);
+ expect(create.alt_addresses).toEqual(tx.addressTableLookups?.map(l=>l.accountKey));
  expect(trade.ix_name).toBe(['buy_exact_sol_in','buy_v2','buy_v3'][i]);
  expect(trade.is_created_buy).toBe(true);
  expect(trade.mint).toBe(create.mint);
@@ -71,11 +80,22 @@ it('official multi_hop_swap exposes curve provenance and keeps route limits out 
  const events=dexEventsFromShredWasmTx(tx,c.wire_rpc.slot,888,123456,pumpFilter);
  const trade=events.flatMap(e=>'PumpFunTrade' in e?[e.PumpFunTrade]:[]);
  expect(trade).toHaveLength(1);
- expect(trade[0]).toMatchObject({ix_name:'multi_hop_swap',mint:'Aijxkeq5L9iaDYZxfaXUhnHQj4cYeo8um6a3t5vzpump',quote_mint:'6Vk3fAQWYEot6JbQb8Nx8j5wZeDnMhzk8FajjHhZpump',is_buy:true,is_created_buy:true,sol_amount:0n,token_amount:0n,parse_status:TradeParseStatus.InstructionDecoded});
+ expect(trade[0]).toMatchObject({ix_name:'multi_hop_swap',mint:'Aijxkeq5L9iaDYZxfaXUhnHQj4cYeo8um6a3t5vzpump',quote_mint:'6Vk3fAQWYEot6JbQb8Nx8j5wZeDnMhzk8FajjHhZpump',is_buy:true,is_created_buy:true,sol_amount:0n,token_amount:0n});
  const source=trade[0]!.third_program!;expect(source.program_id).toBe('pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA');
  expect(source.instruction_data).toEqual(Array.from(tx.instructions![source.instruction_index]!.data));
  expect(dexEventsFromShredWasmTx(tx,1,0,1,eventTypeFilterIncludeOnly(['PumpFunBuy']))).toEqual([]);
  const bad=structuredClone(tx),ix=bad.instructions![source.instruction_index]!;
  ix.accounts[23]=ix.accounts[0]!;
  expect(dexEventsFromShredWasmTx(bad,1,0,1,pumpFilter).some(e=>'PumpFunTrade' in e)).toBe(false);
+});
+
+for (const c of wrapped.cases.filter(c => 'resolved_pump_trade_count' in c)) it(`reported ALT-only Pump program ${c.signature}`, () => {
+ const tx=wireBytesToShredWasmTx(Buffer.from(c.wire_rpc.transaction[0],'base64'))!;
+ const loaded=c.wire_rpc.meta.loadedAddresses;
+ const staticEvents=dexEventsFromShredWasmTx(tx,c.wire_rpc.slot,888,123456,pumpFilter);
+ const full=dexEventsFromShredWasmTxWithLoadedAddresses(tx,loaded.writable,loaded.readonly,c.wire_rpc.slot,888,123456,pumpFilter);
+ expect(staticEvents.filter(e=>'PumpFunTrade' in e)).toHaveLength(0);
+ const candidates=full.flatMap(e=>'PumpFunTrade' in e?[e.PumpFunTrade]:[]);
+ expect(candidates).toHaveLength(3);
+ expect(candidates.every(t=>t.third_program != null && t.ix_name === '' && t.token_amount === 0n)).toBe(true);
 });

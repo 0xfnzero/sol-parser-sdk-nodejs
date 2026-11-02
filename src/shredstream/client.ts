@@ -20,6 +20,20 @@ import {
 } from "./config.js";
 import { decodeShredstreamEntriesBincode } from "./entries_decode.js";
 
+/** Cache-only callback. Throw or return null to hand off/skip a cache miss. */
+export type AddressLookupResolver = (transaction: ShredWasmTx, slot: number | bigint | string,
+  recvUs: number, txIndex: number, eventTypeFilter?: EventTypeFilter) => string[] | null;
+
+function subscribeMetadata(config: ShredStreamConfig): grpc.Metadata {
+  const metadata = new grpc.Metadata();
+  const token = config.auth_token?.trim();
+  if (token) {
+    if (!/^[\x20-\x7e]+$/.test(token)) throw new Error("Invalid x-token metadata");
+    metadata.set("x-token", token);
+  }
+  return metadata;
+}
+
 const PROTO_PATH = join(__dirname, "shredstream.proto");
 
 function loadProtoDefinition(): grpc.GrpcObject {
@@ -197,6 +211,7 @@ export class ShredStreamClient {
    * `connection_timeout_ms` / `request_timeout_ms` / `max_decoding_message_size` 见 `shredstream/proto/mod.rs`。
    */
   private pingConnection(): Promise<void> {
+    subscribeMetadata(this.config);
     const target = grpcTarget(this.endpoint);
     const creds = grpcCredentialsForEndpoint(this.endpoint);
     const channelOpts: grpc.ChannelOptions = {
@@ -219,6 +234,7 @@ export class ShredStreamClient {
    * 重连循环使用订阅时刻的配置快照（与 Rust 在 `tokio::spawn` 前 `config.clone()` 一致）。
    */
   async subscribe(eventTypeFilter?: EventTypeFilter): Promise<ShredEventQueue> {
+    subscribeMetadata(this.config);
     return this.serializeLifecycle(async () => {
       await this.stopUnlocked();
       this.receiveStats = {
@@ -239,6 +255,13 @@ export class ShredStreamClient {
         });
       return queue;
     });
+  }
+
+  private addressLookupResolver?: AddressLookupResolver;
+
+  withAddressLookupResolver(resolver: AddressLookupResolver): this {
+    this.addressLookupResolver = resolver;
+    return this;
   }
 
   /** 与 Rust `subscribe_with_filter` 对齐：在解析热路径按事件类型预过滤。 */
@@ -310,6 +333,7 @@ export class ShredStreamClient {
   ): Promise<void> {
     if (signal.aborted) return Promise.resolve();
 
+    const metadata = subscribeMetadata(config);
     const target = grpcTarget(this.endpoint);
     const creds = grpcCredentialsForEndpoint(this.endpoint);
     const channelOpts: grpc.ChannelOptions = {
@@ -333,7 +357,7 @@ export class ShredStreamClient {
         finish(resolve);
       };
 
-      const call = client.subscribeEntries({}, new grpc.Metadata()) as grpc.ClientReadableStream<{
+      const call = client.subscribeEntries({}, metadata) as grpc.ClientReadableStream<{
         slot: string | number | bigint;
         entries: Buffer | Uint8Array;
       }>;
@@ -410,14 +434,30 @@ export class ShredStreamClient {
         const txIndex = globalTxIndex++;
         if (!tx?.signature) continue;
         const useCache = this.config.connection || this.config.address_lookup_tables;
-        const fullKeys = useCache ? this.altCache.resolve(tx) : tx.accounts;
+        let fullKeys: string[] | null;
+        const resolver = this.addressLookupResolver;
+        const useResolver = resolver && (tx.addressTableLookups?.length ?? 0) > 0;
+        try {
+          fullKeys = useResolver ? resolver(tx, slotNum, recvUs, txIndex, eventTypeFilter)
+            : useCache ? this.altCache.resolve(tx) : tx.accounts;
+        } catch {
+          this.receiveStats.altCacheMissTransactions++;
+          continue;
+        }
         if (!fullKeys) {
           this.receiveStats.altCacheMissTransactions++;
           continue;
         }
-        const events = useCache
-          ? dexEventsFromShredWasmTxWithFullKeys(tx, fullKeys, slotNum, txIndex, recvUs, eventTypeFilter)
-          : dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, eventTypeFilter);
+        let events: DexEvent[];
+        try {
+          events = useCache || useResolver
+            ? dexEventsFromShredWasmTxWithFullKeys(tx, fullKeys, slotNum, txIndex, recvUs, eventTypeFilter)
+            : dexEventsFromShredWasmTx(tx, slotNum, txIndex, recvUs, eventTypeFilter);
+        } catch (error) {
+          if (!useResolver) throw error;
+          this.receiveStats.altCacheMissTransactions++;
+          continue;
+        }
         evTotal += events.length;
         for (const ev of events) {
           setGrpcRecvUsMut(ev, recvUs);

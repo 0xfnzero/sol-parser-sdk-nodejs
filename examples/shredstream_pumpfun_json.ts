@@ -19,6 +19,7 @@
  *   SHREDSTREAM_STATS_SEC=N — 每 N 秒打印一次入队/过滤统计（区分「没数据」与「有数据但非 PumpFun」）
  */
 import "dotenv/config";
+import { readFileSync } from "node:fs";
 import { Connection } from "@solana/web3.js";
 import {
   ShredStreamClient,
@@ -87,6 +88,7 @@ async function main(): Promise<void> {
   }
 
   const client = await ShredStreamClient.newWithConfig(url, {
+    auth_token: process.env.SHREDSTREAM_X_TOKEN,
     connection_timeout_ms: 5000,
     request_timeout_ms: 30_000,
     max_decoding_message_size: 1024 * 1024 * 1024,
@@ -95,6 +97,27 @@ async function main(): Promise<void> {
     connection,
   });
 
+  if (process.env.SHRED_ALT_CACHE_FILE) {
+    // Snapshot format: { "ALT public key": ["address", ...] }. No RPC in this callback.
+    const tables: Record<string, string[]> = JSON.parse(readFileSync(process.env.SHRED_ALT_CACHE_FILE, "utf8"));
+    client.withAddressLookupResolver((transaction, slot, recvUs, txIndex, _eventTypeFilter) => {
+      const writable: string[] = [], readonly: string[] = [];
+      for (const lookup of transaction.addressTableLookups ?? []) {
+        const table = tables[lookup.accountKey];
+        if (!table) {
+          console.error(`ALT miss slot=${slot} tx_index=${txIndex} recv_us=${recvUs} key=${lookup.accountKey}`);
+          return null;
+        }
+        for (const [indices, target] of [[lookup.writableIndexes, writable], [lookup.readonlyIndexes, readonly]] as const) {
+          for (const index of indices) {
+            if (!table[index]) return null;
+            target.push(table[index]);
+          }
+        }
+      }
+      return [...transaction.accounts, ...writable, ...readonly];
+    });
+  }
   const queue = await client.subscribe();
   let printed = 0;
   /** 从队列弹出的 DexEvent 总数（含被过滤的） */

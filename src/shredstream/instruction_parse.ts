@@ -1,7 +1,7 @@
 import {MULTI_HOP_SWAP, hasDiscriminator, parsePumpCurveHops, pumpCreationContext, preservePumpInputs, validUnresolvedPumpLayout} from "./pumpfun.js";
 import bs58 from "bs58";
-import {unresolvedPumpfunTrade, TRADE_PROGRAMS} from "../core/trade_source.js";
-import {TradeParseStatus, INFRASTRUCTURE_PROGRAMS} from "../core/raw_instruction.js";
+import {unresolvedPumpfunTrade} from "../core/trade_source.js";
+import {INFRASTRUCTURE_PROGRAMS} from "../core/raw_instruction.js";
 import {makeMetadata} from "../core/metadata.js";
 /**
  * ShredStream：外层编译指令 → `parseInstructionUnified`（与 gRPC 指令解析同源）。
@@ -189,11 +189,14 @@ function parseShredKeys(
       if (metadata) metadata.recent_blockhash = recentBlockhash;
     }
   }
-  enrichPumpfunSameTxPostMerge(out);
   for (const event of out) {
-    const [name, data] = Object.entries(event)[0]!;
-    if (TRADE_PROGRAMS[name] && data.parse_status == null) data.parse_status = TradeParseStatus.InstructionDecoded;
+    const create = "PumpFunCreate" in event ? event.PumpFunCreate : "PumpFunCreateV2" in event ? event.PumpFunCreateV2 : undefined;
+    if (create) {
+      create.transaction_version = tx.messageVersion;
+      create.alt_addresses = tx.addressTableLookups?.length ? tx.addressTableLookups.map(l => l.accountKey) : undefined;
+    }
   }
+  enrichPumpfunSameTxPostMerge(out);
   return out;
 }
 

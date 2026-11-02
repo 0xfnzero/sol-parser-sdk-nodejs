@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AddressLookupTableAccount, type Connection, PublicKey } from "@solana/web3.js";
 import { defaultShredStreamConfig } from "./config.js";
-import { ShredEventQueue, ShredStreamClient } from "./client.js";
+import { ShredEventQueue, ShredStreamClient, type AddressLookupResolver } from "./client.js";
 import { decodeShredstreamEntriesBincode } from "./entries_decode.js";
 import type { ShredWasmTx } from "./instruction_parse.js";
 import { PUMPFUN_PROGRAM_ID } from "../instr/program_ids.js";
@@ -62,3 +62,23 @@ describe("ShredStream ALT cache parsing", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 });
+
+ it("forwards resolver context and continues after a cache miss", () => {
+  const {client, process, rpc} = createClient(false);
+  const queue = new ShredEventQueue();
+  const first = transaction("missing"), second = transaction("resolved");
+  const resolver = vi.fn<AddressLookupResolver>((tx) => {
+    if (tx === first) throw new Error("cache miss");
+    return [...tx.accounts, PublicKey.default.toBase58()];
+  });
+  client.withAddressLookupResolver(resolver);
+  vi.mocked(decodeShredstreamEntriesBincode).mockReturnValue([[first, second]]);
+  process({slot:42, entries:new Uint8Array()}, queue);
+  expect(resolver.mock.calls.map(c => c.slice(0, 2))).toEqual([[first,42n],[second,42n]]);
+  expect(resolver.mock.calls[0][2]).toBeGreaterThan(0);
+  expect(resolver.mock.calls[0].slice(3)).toEqual([0,undefined]);
+  expect(resolver.mock.calls[1].slice(3)).toEqual([1,undefined]);
+  expect(queue.len()).toBe(1);
+  expect(client.getReceiveStats().altCacheMissTransactions).toBe(1);
+  expect(rpc).not.toHaveBeenCalled();
+ });

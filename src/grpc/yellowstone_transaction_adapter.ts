@@ -2,6 +2,7 @@ import bs58 from "bs58";
 import {
   Message,
   MessageV0,
+  MessageV1,
   PublicKey,
   type CompiledInstruction,
   type ConfirmedTransactionMeta,
@@ -42,7 +43,7 @@ function legacyMessage(message: YellowstoneMessage): Message {
   });
 }
 
-function versionedMessage(message: YellowstoneMessage): MessageV0 {
+function versionedMessage(message: YellowstoneMessage): MessageV0 | MessageV1 {
   const compiledInstructions: MessageCompiledInstruction[] = message.instructions.map(
     (instruction) => ({
       programIdIndex: instruction.programIdIndex,
@@ -50,6 +51,21 @@ function versionedMessage(message: YellowstoneMessage): MessageV0 {
       data: instruction.data,
     })
   );
+  if (message.config != null) {
+    const config = message.config;
+    return new MessageV1({
+      header: messageHeader(message),
+      staticAccountKeys: message.accountKeys.map(publicKey),
+      recentBlockhash: bs58.encode(message.recentBlockhash),
+      compiledInstructions,
+      transactionConfig: {
+        priorityFee: config.priorityFee == null ? null : Number(config.priorityFee),
+        computeUnitLimit: config.computeUnitLimit ?? null,
+        loadedAccountsDataSizeLimit: config.loadedAccountsDataSizeLimit ?? null,
+        heapSize: config.heapSize ?? null,
+      },
+    });
+  }
   return new MessageV0({
     header: messageHeader(message),
     staticAccountKeys: message.accountKeys.map(publicKey),
@@ -112,9 +128,9 @@ export function yellowstoneTransactionToWeb3(
     blockTime,
     meta: transactionMeta(meta),
     transaction: {
-      message: message.versioned ? versionedMessage(message) : legacyMessage(message),
+      message: message.config != null || message.versioned ? versionedMessage(message) : legacyMessage(message),
       signatures: transaction.signatures.map((signature) => bs58.encode(signature)),
     },
-    version: message.versioned ? 0 : "legacy",
+    version: message.config != null ? 1 : message.versioned ? 0 : "legacy",
   };
 }

@@ -1,8 +1,3 @@
-export enum TradeParseStatus {
-  Unresolved = "Unresolved",
-  InstructionDecoded = "InstructionDecoded",
-  ExecutionConfirmed = "ExecutionConfirmed",
-}
 export interface RawInstructionPayload {
   program_id: string;
   instruction_index: number;

@@ -3,7 +3,6 @@ import {PublicKey} from "@solana/web3.js";
 import {defaultPubkey, type DexEvent} from "../core/dex_event.js";
 import type {EventMetadata} from "../core/metadata.js";
 import {unresolvedPumpfunTrade} from "../core/trade_source.js";
-import {TradeParseStatus} from "../core/raw_instruction.js";
 import {PUMPFUN_PROGRAM_ID, PUMPSWAP_PROGRAM_ID} from "../instr/program_ids.js";
 import type {ShredWasmCompiledIx} from "./instruction_parse.js";
 
@@ -85,7 +84,7 @@ export function parsePumpCurveHops(ix: ShredWasmCompiledIx, keys: string[], inde
     Object.assign(event.PumpFunTrade,{ix_name:'multi_hop_swap',mint,quote_mint:quote,user:get(0),bonding_curve:curve,
       associated_bonding_curve:get(start+3)??Z,associated_quote_bonding_curve:get(start+4)??Z,
       global:get(13)??Z,fee_config:get(14)??Z,event_authority:get(15)??Z,program:PUMPFUN_PROGRAM_ID,
-      system_program:get(9)??Z,is_buy:known&&buy,parse_status:known?TradeParseStatus.InstructionDecoded:TradeParseStatus.Unresolved});
+      system_program:get(9)??Z,is_buy:known&&buy});
     out.push(event);
   }
   return out;

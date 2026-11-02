@@ -780,6 +780,11 @@ export function parseRpcTransaction(
   }
   for (const event of events) {
     const name = Object.keys(event)[0]!;
+    if (name === "PumpFunCreate" || name === "PumpFunCreateV2") {
+      const create = eventPayload(event)!;
+      create.transaction_version = msg.version === "legacy" ? "legacy" : `v${msg.version}`;
+      create.alt_addresses = msg.addressTableLookups.length ? msg.addressTableLookups.map(l => l.accountKey.toBase58()) : undefined;
+    }
     if (PUMPFUN_TRADE_EVENT_NAMES.has(name)) {
       const trade = eventPayload(event)!;
       trade.is_created_buy = Boolean(trade.is_buy) && created.has(trade.mint);

@@ -38,6 +38,7 @@ async function main(): Promise<void> {
   const url = parseShredstreamEndpoint(argv);
 
   const config: ShredStreamConfig = {
+    auth_token: process.env.SHREDSTREAM_X_TOKEN,
     connection_timeout_ms: 5000,
     request_timeout_ms: 30_000,
     max_decoding_message_size: 1024 * 1024 * 1024,
