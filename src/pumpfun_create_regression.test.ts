@@ -75,6 +75,11 @@ it('preserves Yellowstone failure status and suppresses rolled-back events', asy
   expect(baseline.ok && baseline.events.length).toBeGreaterThan(0);
   const converted = convertRpcToGrpc(rpc);
   if (!converted.ok) throw Error(converted.error.message);
+  const adaptedBalances = yellowstoneTransactionToWeb3(converted.transaction, converted.meta, raw.slot, raw.blockTime).meta;
+  expect(raw.meta.preTokenBalances.length + raw.meta.postTokenBalances.length).toBeGreaterThan(0);
+  for (const field of ['preTokenBalances', 'postTokenBalances'] as const) {
+    expect(adaptedBalances?.[field]).toEqual(raw.meta[field]);
+  }
   const failed = convertRpcToGrpc({...rpc,meta:{...rpc.meta,err:{InstructionError:[0,{Custom:1}]}}});
   if (!failed.ok) throw Error(failed.error.message);
   expect(failed.meta.err).toBeDefined();
