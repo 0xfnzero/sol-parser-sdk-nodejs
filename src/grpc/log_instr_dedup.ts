@@ -334,6 +334,9 @@ function mergePumpSwapLiquidity(log: EventPayload, ix: EventPayload): void {
 }
 
 function mergeRaydiumClmmSwap(log: EventPayload, ix: EventPayload): void {
+  if (ix.ix_name === "swap" || ix.ix_name === "swap_v2") {
+    for (const key of ["ix_name", "amount", "other_amount_threshold", "sqrt_price_limit_x64", "is_base_input"]) log[key] = ix[key];
+  }
   for (const key of ["token_account_0", "token_account_1", "sender"]) {
     fillString(log, key, ix);
   }

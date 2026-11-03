@@ -590,6 +590,12 @@ export interface PumpSwapLiquidityRemoved {
  * TS 为 `bigint`；Go/Python 落 JSON 时为十进制字符串；占位 `liquidity` 为 `0n` / `"0"`。
  */
 export interface RaydiumClmmSwapEvent {
+  /** Original swap inputs, distinct from executed amounts and ending price. */
+  ix_name?: string;
+  amount?: bigint;
+  other_amount_threshold?: bigint;
+  sqrt_price_limit_x64?: bigint;
+  is_base_input?: boolean;
   input_mint?: string;
   output_mint?: string;
   third_program?: RawInstructionPayload | null;

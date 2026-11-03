@@ -1,6 +1,6 @@
 /**
  * 将 `@solana/web3.js` 的 `VersionedTransactionResponse` 转为 Yellowstone `Transaction` + `TransactionStatusMeta`，
- * 与 Rust `rpc_parser::convert_rpc_to_grpc` 字段取舍一致（token balances / rewards 置空；保留失败状态）。
+ * 保留交易版本、CPI 层级、代币余额和失败状态；与 Rust 的公开转换入口对齐。
  */
 import bs58 from "bs58";
 import type { SubscribeUpdateTransactionInfo } from "./protocol/geyser.js";
@@ -112,8 +112,8 @@ function metaToYellowstone(meta: ConfirmedTransactionMeta): TransactionStatusMet
     innerInstructionsNone: innerGroups == null,
     logMessages: [...logs],
     logMessagesNone: logs.length === 0,
-    preTokenBalances: [],
-    postTokenBalances: [],
+    preTokenBalances: tokenBalancesToYellowstone(meta.preTokenBalances),
+    postTokenBalances: tokenBalancesToYellowstone(meta.postTokenBalances),
     rewards: [],
     loadedWritableAddresses: loadedWritable,
     loadedReadonlyAddresses: loadedReadonly,
@@ -122,6 +122,21 @@ function metaToYellowstone(meta: ConfirmedTransactionMeta): TransactionStatusMet
     computeUnitsConsumed:
       meta.computeUnitsConsumed !== undefined ? String(meta.computeUnitsConsumed) : undefined,
   };
+}
+
+function tokenBalancesToYellowstone(balances: ConfirmedTransactionMeta["preTokenBalances"]): TransactionStatusMeta["preTokenBalances"] {
+  return (balances ?? []).map((balance) => ({
+    accountIndex: balance.accountIndex,
+    mint: balance.mint,
+    owner: balance.owner ?? "",
+    programId: balance.programId ?? "",
+    uiTokenAmount: {
+      amount: balance.uiTokenAmount.amount,
+      decimals: balance.uiTokenAmount.decimals,
+      uiAmount: balance.uiTokenAmount.uiAmount ?? 0,
+      uiAmountString: balance.uiTokenAmount.uiAmountString ?? "",
+    },
+  }));
 }
 
 export type ConvertRpcToGrpcOk = { ok: true; meta: TransactionStatusMeta; transaction: YTransaction };

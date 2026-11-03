@@ -1,3 +1,4 @@
+import { dedupeLogInstructionEvents } from "../grpc/log_instr_dedup.js";
 import { describe, expect, it } from "vitest";
 import { eventTypeFilterIncludesRaydiumClmm } from "../grpc/types.js";
 import { parseRaydiumCpmmInstruction } from "./raydium_cpmm_ix.js";
@@ -235,4 +236,23 @@ it("rejects invalid customizable pool IDL boundaries", () => {
   for (const data of [valid.slice(0, 24), valid.slice(0, 25), new Uint8Array([...valid, 0]), enumBad, boolBad]) expect(parse(data)).toBeNull();
   expect(parse(valid, 12)).toBeNull();
   expect(parse(valid)).not.toBeNull();
+});
+
+it("keeps CLMM swap limits and exact-input mode separate from execution after dedup", () => {
+  for (const [name, disc] of [["swap", [248,198,158,145,225,117,135,200]], ["swap_v2", [43,4,237,11,26,201,30,98]]] as const) {
+    for (const mode of [false, true]) {
+      const wire = Buffer.alloc(41);
+      wire.set(disc); wire.writeBigUInt64LE(123n, 8); wire.writeBigUInt64LE(45n, 16);
+      wire.writeBigUInt64LE(99n, 24); wire.writeBigUInt64LE(1n << 16n, 32); wire[40] = Number(mode);
+      const ix = parseRaydiumClmmInstruction(wire, accounts(14), "sig", 1, 0, undefined, 10)!;
+      if (!("RaydiumClmmSwap" in ix)) throw Error("swap missing");
+      const input = ix.RaydiumClmmSwap;
+      expect([input.amount_0, input.amount_1, input.sqrt_price_x64, input.zero_for_one]).toEqual([0n,0n,0n,false]);
+      expect([input.ix_name,input.amount,input.other_amount_threshold,input.sqrt_price_limit_x64,input.is_base_input]).toEqual([name,123n,45n,(1n<<80n)+99n,mode]);
+      const log = { RaydiumClmmSwap: { ...input, ix_name: undefined, amount: undefined, sqrt_price_limit_x64: undefined, is_base_input: undefined, amount_0: 120n, amount_1: 50n, sqrt_price_x64: 777n, zero_for_one: !mode } };
+      const merged = dedupeLogInstructionEvents([log], [ix]);
+      expect(merged).toHaveLength(1);
+      expect(log.RaydiumClmmSwap).toMatchObject({ix_name:name,amount:123n,sqrt_price_limit_x64:(1n<<80n)+99n,is_base_input:mode,amount_0:120n,amount_1:50n,sqrt_price_x64:777n,zero_for_one:!mode});
+    }
+  }
 });

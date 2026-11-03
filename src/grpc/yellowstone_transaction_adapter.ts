@@ -101,8 +101,8 @@ function transactionMeta(meta: YellowstoneMeta): ConfirmedTransactionMeta {
           })),
         })),
     logMessages: meta.logMessagesNone ? null : meta.logMessages,
-    preTokenBalances: [],
-    postTokenBalances: [],
+    preTokenBalances: tokenBalancesToWeb3(meta.preTokenBalances),
+    postTokenBalances: tokenBalancesToWeb3(meta.postTokenBalances),
     loadedAddresses: {
       writable: meta.loadedWritableAddresses.map(publicKey),
       readonly: meta.loadedReadonlyAddresses.map(publicKey),
@@ -111,6 +111,21 @@ function transactionMeta(meta: YellowstoneMeta): ConfirmedTransactionMeta {
       ? { computeUnitsConsumed: Number(meta.computeUnitsConsumed) }
       : {}),
   };
+}
+
+function tokenBalancesToWeb3(balances: YellowstoneMeta["preTokenBalances"]): NonNullable<ConfirmedTransactionMeta["preTokenBalances"]> {
+  return balances.map((balance) => ({
+    accountIndex: balance.accountIndex,
+    mint: balance.mint,
+    owner: balance.owner,
+    programId: balance.programId,
+    uiTokenAmount: {
+      amount: balance.uiTokenAmount?.amount ?? "0",
+      decimals: balance.uiTokenAmount?.decimals ?? 0,
+      uiAmount: balance.uiTokenAmount?.uiAmount ?? null,
+      uiAmountString: balance.uiTokenAmount?.uiAmountString ?? "",
+    },
+  }));
 }
 
 /** Convert Yellowstone protobuf objects directly, without a WASM/Base58 serialization round trip. */
